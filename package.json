@@ -1,0 +1,31 @@
+{
+  "name": "pingi-ai",
+  "version": "0.1.0",
+  "description": "🔔 Your AI engagement agent — never miss a reply across Gmail, X, and LinkedIn",
+  "private": true,
+  "scripts": {
+    "digest": "tsx src/index.ts",
+    "digest:no-drafts": "tsx src/index.ts --no-drafts",
+    "digest:save": "tsx src/index.ts --save",
+    "auth:gmail": "tsx src/auth-gmail.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["social-media", "engagement", "ai", "gmail", "twitter", "linkedin"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "dotenv": "^16.4.7",
+    "googleapis": "^148.0.0",
+    "twitter-api-v2": "^1.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
