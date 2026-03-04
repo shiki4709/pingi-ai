@@ -125,23 +125,21 @@ export async function fetchGmailForUser(
   if (messageIds.length === 0) return result;
 
   // Check which gmail message IDs we already have as reply_items
-  const existingIds = new Set<string>();
+  const externalKeys = messageIds.map((id) => `gmail-${id}`);
+  const existingExternalIds = new Set<string>();
   const { data: existing } = await supabase
     .from("reply_items")
-    .select("id")
+    .select("external_id")
     .eq("user_id", account.user_id)
     .eq("platform", "gmail")
-    .in(
-      "id",
-      messageIds.map((id) => `gmail-${id}`)
-    );
+    .in("external_id", externalKeys);
   if (existing) {
-    for (const row of existing) existingIds.add(row.id);
+    for (const row of existing) existingExternalIds.add(row.external_id);
   }
 
   // Fetch metadata for new messages (cap at 20 per run)
   const newIds = messageIds
-    .filter((id) => !existingIds.has(`gmail-${id}`))
+    .filter((id) => !existingExternalIds.has(`gmail-${id}`))
     .slice(0, 20);
 
   // Headers we need for filtering
@@ -196,29 +194,33 @@ export async function fetchGmailForUser(
 
       const priorityScore = urgency === "red" ? 8 : urgency === "amber" ? 5 : 3;
 
-      const itemId = `gmail-${msgId}`;
-      const { error } = await supabase.from("reply_items").insert({
-        id: itemId,
-        user_id: account.user_id,
-        platform: "gmail",
-        urgency,
-        context,
-        priority_score: priorityScore,
-        status: "pending",
-        author_name: name,
-        author_handle: handle,
-        original_text: snippet,
-        context_text: subject,
-        draft_text: draftText || null,
-        detected_at: date.toISOString(),
-        account_label: account.platform_username,
-      });
+      const externalId = `gmail-${msgId}`;
+      const { data: inserted, error } = await supabase
+        .from("reply_items")
+        .insert({
+          external_id: externalId,
+          user_id: account.user_id,
+          platform: "gmail",
+          urgency,
+          context,
+          priority_score: priorityScore,
+          status: "pending",
+          author_name: name,
+          author_handle: handle,
+          original_text: snippet,
+          context_text: subject,
+          draft_text: draftText || null,
+          detected_at: date.toISOString(),
+          account_label: account.platform_username,
+        })
+        .select("id")
+        .single();
 
       if (error) {
-        result.errors.push(`Insert ${itemId}: ${error.message}`);
+        result.errors.push(`Insert ${externalId}: ${error.message}`);
       } else {
         result.inserted++;
-        result.insertedIds.push(itemId);
+        result.insertedIds.push(inserted!.id);
       }
     } catch (e: any) {
       result.errors.push(`Gmail message ${msgId}: ${e.message}`);
