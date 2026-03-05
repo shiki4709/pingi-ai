@@ -18,6 +18,14 @@ export interface FilterResult {
   reason: string;
 }
 
+/** Extra context passed from the connector for smarter filtering. */
+export interface FilterContext {
+  /** True if the email is in a multi-message thread or subject has Re:/Fwd: */
+  isReplyThread?: boolean;
+  /** True if the email snippet contains the user's name */
+  mentionsUserName?: boolean;
+}
+
 // ─── 1. Automated sender addresses ───
 
 const AUTOMATED_SENDERS = [
@@ -253,7 +261,8 @@ function isLongSnippet(snippet: string): boolean {
 export function shouldReply(
   headers: EmailHeaders,
   snippet: string,
-  whitelistedDomains?: Set<string>
+  whitelistedDomains?: Set<string>,
+  filterContext?: FilterContext
 ): FilterResult {
   // Check in order of specificity (cheapest checks first)
 
@@ -323,6 +332,15 @@ export function shouldReply(
     return { needsReply: true, reason: "" };
   }
 
-  // Tier 3: Unknown domain — not personal, not whitelisted — filter it
+  // Tier 3: Unknown domain — not personal, not whitelisted
+  // But let through if it looks like a reply to something the user initiated,
+  // or if it mentions the user by name (likely addressed to them personally).
+  if (filterContext?.isReplyThread) {
+    return { needsReply: true, reason: "" };
+  }
+  if (filterContext?.mentionsUserName) {
+    return { needsReply: true, reason: "" };
+  }
+
   return { needsReply: false, reason: `domain "${domain ?? "unknown"}" not in sent-to whitelist` };
 }

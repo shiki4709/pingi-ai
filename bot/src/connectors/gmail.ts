@@ -1,6 +1,6 @@
 import { google } from "googleapis";
 import { supabase } from "../supabase.js";
-import { shouldReply, extractDomain, type EmailHeaders } from "./email-filter.js";
+import { shouldReply, extractDomain, type EmailHeaders, type FilterContext } from "./email-filter.js";
 import { classifyAndDraft } from "../services/drafter.js";
 
 // Urgency thresholds (same as src/urgency.ts)
@@ -291,11 +291,41 @@ export async function fetchGmailForUser(
         autoSubmitted: getHeader(rawHeaders, "Auto-Submitted"),
       };
 
-      const filterResult = shouldReply(emailHeaders, snippet, whitelistedDomains);
+      // Build filter context: detect reply threads and personal mentions
+      const subjectLower = subject.toLowerCase();
+      const hasReplyPrefix = subjectLower.startsWith("re:") || subjectLower.startsWith("fwd:");
+      let isReplyThread = hasReplyPrefix;
+
+      // If subject doesn't have Re:/Fwd:, check if thread has multiple messages
+      if (!isReplyThread && full.data.threadId) {
+        try {
+          const thread = await gmail.users.threads.get({
+            userId: "me",
+            id: full.data.threadId,
+            format: "minimal",
+          });
+          const threadMsgCount = thread.data.messages?.length ?? 1;
+          if (threadMsgCount > 1) isReplyThread = true;
+        } catch {
+          // If thread fetch fails, rely on subject prefix only
+        }
+      }
+
+      const mentionsUserName = account.platform_username
+        ? snippet.toLowerCase().includes(
+            account.platform_username.split("@")[0].toLowerCase()
+          )
+        : false;
+
+      const filterContext: FilterContext = { isReplyThread, mentionsUserName };
+
+      const filterResult = shouldReply(emailHeaders, snippet, whitelistedDomains, filterContext);
       if (!filterResult.needsReply) {
         result.filtered++;
         console.log(
-          `[gmail] Filtered gmail-${msgId} from "${from}": ${filterResult.reason}`
+          `[gmail] Filtered gmail-${msgId} from="${from}": ${filterResult.reason}` +
+          (isReplyThread ? " (reply thread detected but filtered by earlier rule)" : "") +
+          (mentionsUserName ? " (mentions user name but filtered by earlier rule)" : "")
         );
         continue;
       }

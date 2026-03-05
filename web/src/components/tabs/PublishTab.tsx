@@ -1,0 +1,648 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import type {
+  PublishPlatform,
+  PublishEntry,
+  PublishStatus,
+} from "@/types";
+import { DIRECT_PLATFORMS, COPY_PLATFORMS } from "@/types";
+
+// ─── Platform config ───
+
+interface PlatformConfig {
+  key: PublishPlatform;
+  label: string;
+  color: string;
+  letter: string;
+  method: "direct" | "copy";
+  honesty: string;
+  envVars?: string[];
+}
+
+const PLATFORMS: PlatformConfig[] = [
+  {
+    key: "linkedin",
+    label: "LinkedIn",
+    color: "#0A66C2",
+    letter: "in",
+    method: "direct",
+    honesty: "Direct publish",
+    envVars: ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_PERSON_URN"],
+  },
+  {
+    key: "twitter",
+    label: "X",
+    color: "#000000",
+    letter: "X",
+    method: "direct",
+    honesty: "Direct publish",
+    envVars: [
+      "TWITTER_API_KEY",
+      "TWITTER_API_SECRET",
+      "TWITTER_ACCESS_TOKEN",
+      "TWITTER_ACCESS_TOKEN_SECRET",
+    ],
+  },
+  {
+    key: "rednote",
+    label: "Rednote",
+    color: "#FF2442",
+    letter: "R",
+    method: "copy",
+    honesty: "Copy & draft",
+  },
+  {
+    key: "substack",
+    label: "Substack",
+    color: "#FF6719",
+    letter: "S",
+    method: "copy",
+    honesty: "Copy & draft",
+  },
+  {
+    key: "instagram",
+    label: "Instagram",
+    color: "#E4405F",
+    letter: "IG",
+    method: "copy",
+    honesty: "Copy & draft",
+  },
+];
+
+// ─── Status badge ───
+
+const STATUS_CONFIG: Record<
+  PublishStatus,
+  { label: string; badge: string; color: string; bg: string }
+> = {
+  published: {
+    label: "Published",
+    badge: "",
+    color: "#2a8a4a",
+    bg: "rgba(42,138,74,0.08)",
+  },
+  copied: {
+    label: "Copied",
+    badge: "",
+    color: "#3066d4",
+    bg: "rgba(48,102,212,0.08)",
+  },
+  "auto-drafted": {
+    label: "Auto-drafted",
+    badge: "",
+    color: "#7c3aed",
+    bg: "rgba(124,58,237,0.08)",
+  },
+  failed: {
+    label: "Failed",
+    badge: "",
+    color: "#e04a32",
+    bg: "rgba(224,74,50,0.08)",
+  },
+};
+
+// ─── OAuth Setup Modal ───
+
+function OAuthSetupModal({
+  platform,
+  onClose,
+}: {
+  platform: PlatformConfig;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{
+        background: "rgba(0,0,0,0.2)",
+        backdropFilter: "blur(12px)",
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl p-6"
+        style={{
+          background: "rgba(255,255,255,0.88)",
+          backdropFilter: "blur(40px) saturate(1.5)",
+          boxShadow:
+            "0 24px 64px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.5) inset",
+        }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-[#1a1a1a]">
+            Set up {platform.label} credentials
+          </h3>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
+            style={{
+              background: "rgba(0,0,0,0.05)",
+              color: "#6b6b6b",
+            }}
+          >
+            x
+          </button>
+        </div>
+
+        <p className="text-sm text-[#6b6b6b] mb-4">
+          Add these environment variables to your{" "}
+          <code className="px-1.5 py-0.5 rounded text-xs bg-black/5 font-mono">
+            .env.local
+          </code>{" "}
+          file:
+        </p>
+
+        <div className="rounded-xl p-4 mb-4 font-mono text-xs leading-relaxed"
+          style={{ background: "rgba(0,0,0,0.04)" }}
+        >
+          {platform.envVars?.map((v) => (
+            <div key={v} className="text-[#1a1a1a]">
+              <span className="text-[#9a9a9a]"># </span>
+              {v}=your_value_here
+            </div>
+          ))}
+        </div>
+
+        <p className="text-xs text-[#9a9a9a] mb-4">
+          After adding credentials, restart your dev server for changes to take
+          effect.
+        </p>
+
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm font-medium"
+            style={{
+              background: "rgba(0,0,0,0.05)",
+              color: "#6b6b6b",
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Rednote Tooltip ───
+
+function RednoteTooltip() {
+  return (
+    <div
+      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-xl text-xs whitespace-nowrap z-10 pointer-events-none"
+      style={{
+        background: "rgba(30,30,30,0.92)",
+        color: "#fff",
+        backdropFilter: "blur(12px)",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+      }}
+    >
+      Rednote has no public API — copy text and paste manually into the app
+      <div
+        className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 rotate-45"
+        style={{ background: "rgba(30,30,30,0.92)" }}
+      />
+    </div>
+  );
+}
+
+// ─── Main PublishTab ───
+
+export default function PublishTab({
+  content,
+}: {
+  content: string;
+}) {
+  const [campaign, setCampaign] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("pingi_campaign") || "";
+    }
+    return "";
+  });
+  const [selectedPlatforms, setSelectedPlatforms] = useState<
+    Set<PublishPlatform>
+  >(new Set());
+  const [log, setLog] = useState<PublishEntry[]>([]);
+  const [publishing, setPublishing] = useState(false);
+  const [oauthModal, setOauthModal] = useState<PlatformConfig | null>(null);
+  const [hoveredRednote, setHoveredRednote] = useState(false);
+  const [openclawConfigured, setOpenclawConfigured] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  // Persist campaign in session
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("pingi_campaign", campaign);
+    }
+  }, [campaign]);
+
+  // Check OpenClaw availability
+  useEffect(() => {
+    fetch("/api/publish/openclaw")
+      .then((r) => r.json())
+      .then((d) => setOpenclawConfigured(d.configured))
+      .catch(() => setOpenclawConfigured(false));
+  }, []);
+
+  const togglePlatform = (key: PublishPlatform) => {
+    setSelectedPlatforms((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const addLogEntry = (entry: PublishEntry) => {
+    setLog((prev) => [entry, ...prev]);
+  };
+
+  // Direct publish for LinkedIn/X
+  const handleDirectPublish = async (platform: PlatformConfig) => {
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, platform: platform.key, campaign }),
+      });
+      const data = await res.json();
+
+      if (res.status === 503 && data.missingVars) {
+        setOauthModal(platform);
+        return;
+      }
+
+      if (!res.ok) {
+        addLogEntry({
+          id: crypto.randomUUID(),
+          platform: platform.key,
+          status: "failed",
+          content,
+          campaign: campaign || undefined,
+          publishedAt: new Date(),
+          error: data.error,
+        });
+        return;
+      }
+
+      addLogEntry(data as PublishEntry);
+    } catch {
+      addLogEntry({
+        id: crypto.randomUUID(),
+        platform: platform.key,
+        status: "failed",
+        content,
+        campaign: campaign || undefined,
+        publishedAt: new Date(),
+        error: "Network error",
+      });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  // Copy to clipboard
+  const handleCopy = async (platform: PlatformConfig) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(platform.key);
+      setTimeout(() => setCopied(null), 2000);
+      addLogEntry({
+        id: crypto.randomUUID(),
+        platform: platform.key,
+        status: "copied",
+        content,
+        campaign: campaign || undefined,
+        publishedAt: new Date(),
+      });
+    } catch {
+      // fallback
+    }
+  };
+
+  // OpenClaw auto-draft
+  const handleOpenClaw = async (platform: PlatformConfig) => {
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/publish/openclaw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, platform: platform.key, campaign }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        addLogEntry({
+          id: crypto.randomUUID(),
+          platform: platform.key,
+          status: "failed",
+          content,
+          campaign: campaign || undefined,
+          publishedAt: new Date(),
+          error: data.error,
+        });
+        return;
+      }
+
+      addLogEntry(data as PublishEntry);
+    } catch {
+      addLogEntry({
+        id: crypto.randomUUID(),
+        platform: platform.key,
+        status: "failed",
+        content,
+        campaign: campaign || undefined,
+        publishedAt: new Date(),
+        error: "Network error",
+      });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  // Publish all selected
+  const handlePublishAll = async () => {
+    for (const key of Array.from(selectedPlatforms)) {
+      const platform = PLATFORMS.find((p) => p.key === key);
+      if (!platform) continue;
+
+      if (platform.method === "direct") {
+        await handleDirectPublish(platform);
+      } else {
+        await handleCopy(platform);
+      }
+    }
+  };
+
+  const selectedDirect = PLATFORMS.filter(
+    (p) => selectedPlatforms.has(p.key) && p.method === "direct"
+  );
+  const selectedCopy = PLATFORMS.filter(
+    (p) => selectedPlatforms.has(p.key) && p.method === "copy"
+  );
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* ─── Campaign input ─── */}
+      <div>
+        <label className="block text-xs font-medium text-[#6b6b6b] mb-1.5">
+          Campaign tag
+        </label>
+        <input
+          type="text"
+          value={campaign}
+          onChange={(e) => setCampaign(e.target.value)}
+          placeholder="e.g. product-launch-q1, newsletter-12"
+          className="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transition-colors"
+          style={{
+            background: "rgba(255,255,255,0.6)",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(0,0,0,0.08)",
+            color: "#1a1a1a",
+          }}
+        />
+      </div>
+
+      {/* ─── Connection chips ─── */}
+      <div>
+        <label className="block text-xs font-medium text-[#6b6b6b] mb-2">
+          Publish to
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {PLATFORMS.map((p) => {
+            const selected = selectedPlatforms.has(p.key);
+            const isRednote = p.key === "rednote";
+
+            return (
+              <div key={p.key} className="relative">
+                {isRednote && hoveredRednote && <RednoteTooltip />}
+                <button
+                  onClick={() => togglePlatform(p.key)}
+                  onMouseEnter={() => isRednote && setHoveredRednote(true)}
+                  onMouseLeave={() => isRednote && setHoveredRednote(false)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+                  style={{
+                    background: selected
+                      ? `${p.color}12`
+                      : "rgba(255,255,255,0.55)",
+                    backdropFilter: "blur(16px)",
+                    border: selected
+                      ? `1px solid ${p.color}35`
+                      : "1px solid rgba(255,255,255,0.45)",
+                    color: selected ? p.color : "#6b6b6b",
+                    boxShadow: selected
+                      ? `0 2px 8px ${p.color}15`
+                      : "0 1px 4px rgba(0,0,0,0.04)",
+                  }}
+                >
+                  <span
+                    className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold"
+                    style={{
+                      background: `${p.color}0a`,
+                      color: p.color,
+                    }}
+                  >
+                    {p.letter}
+                  </span>
+                  <span>{p.label}</span>
+                  {selected && (
+                    <span className="text-xs opacity-70 ml-0.5">
+                      {p.method === "direct" ? "Direct publish" : isRednote ? "Copy & draft" : "Copy & draft"}
+                    </span>
+                  )}
+                </button>
+
+                {/* Honesty label below chip */}
+                <div className="text-[10px] mt-1 text-center" style={{ color: "#9a9a9a" }}>
+                  {p.method === "direct" ? "Direct publish" : isRednote ? "Copy & draft" : "Copy & draft"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ─── Action buttons ─── */}
+      {selectedPlatforms.size > 0 && (
+        <div className="flex flex-col gap-3">
+          {/* Direct publish button for API platforms */}
+          {selectedDirect.length > 0 && (
+            <button
+              onClick={handlePublishAll}
+              disabled={publishing || !content}
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                background:
+                  publishing || !content
+                    ? "rgba(0,0,0,0.06)"
+                    : "linear-gradient(135deg, #1a1a1a, #333)",
+                color: publishing || !content ? "#9a9a9a" : "#fff",
+                boxShadow:
+                  publishing || !content
+                    ? "none"
+                    : "0 4px 16px rgba(0,0,0,0.1)",
+                cursor: publishing || !content ? "default" : "pointer",
+              }}
+            >
+              {publishing ? "Publishing..." : `Publish to ${selectedDirect.map((p) => p.label).join(" & ")}`}
+            </button>
+          )}
+
+          {/* Copy-only platform actions — both buttons always visible */}
+          {selectedCopy.map((platform) => (
+            <div
+              key={platform.key}
+              className="flex gap-2"
+            >
+              <button
+                onClick={() => handleCopy(platform)}
+                disabled={!content}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5"
+                style={{
+                  background: "rgba(255,255,255,0.6)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  color: !content ? "#9a9a9a" : "#1a1a1a",
+                  cursor: !content ? "default" : "pointer",
+                }}
+              >
+                {copied === platform.key
+                  ? "Copied!"
+                  : `\u{1F4CB} Copy & paste \u2014 ${platform.label}`}
+              </button>
+              <button
+                onClick={() => handleOpenClaw(platform)}
+                disabled={!content || !openclawConfigured || publishing}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5"
+                style={{
+                  background: openclawConfigured
+                    ? "rgba(124,58,237,0.08)"
+                    : "rgba(0,0,0,0.04)",
+                  border: openclawConfigured
+                    ? "1px solid rgba(124,58,237,0.2)"
+                    : "1px solid rgba(0,0,0,0.06)",
+                  color: openclawConfigured && content
+                    ? "#7c3aed"
+                    : "#9a9a9a",
+                  cursor: openclawConfigured && content && !publishing
+                    ? "pointer"
+                    : "default",
+                }}
+                title={
+                  openclawConfigured
+                    ? "Auto-draft with OpenClaw browser automation"
+                    : "Add OPENCLAW_API_KEY to .env.local to enable"
+                }
+              >
+                {"\u{1F916}"} Auto-draft with OpenClaw
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ─── Publora note ─── */}
+      <p className="text-xs text-center" style={{ color: "#9a9a9a" }}>
+        Want easier multi-platform publishing? Connect via Publora in Settings
+      </p>
+
+      {/* ─── Publish log ─── */}
+      {log.length > 0 && (
+        <div>
+          <h4 className="text-xs font-medium text-[#6b6b6b] mb-2">
+            Publish log
+          </h4>
+          <div className="flex flex-col gap-1.5">
+            {log.map((entry) => {
+              const status = STATUS_CONFIG[entry.status];
+              const platform = PLATFORMS.find((p) => p.key === entry.platform);
+              return (
+                <div
+                  key={entry.id}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
+                  style={{
+                    background: "rgba(255,255,255,0.45)",
+                    backdropFilter: "blur(16px)",
+                    border: "1px solid rgba(255,255,255,0.5)",
+                  }}
+                >
+                  {/* Platform letter */}
+                  <span
+                    className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold"
+                    style={{
+                      background: `${platform?.color || "#666"}0a`,
+                      color: platform?.color || "#666",
+                    }}
+                  >
+                    {platform?.letter}
+                  </span>
+
+                  {/* Status badge */}
+                  <span
+                    className={`px-2 py-0.5 rounded-md font-medium${entry.status === "auto-drafted" ? " s-auto-drafted" : ""}`}
+                    style={{
+                      background: status.bg,
+                      color: status.color,
+                    }}
+                  >
+                    {entry.status === "auto-drafted" && (
+                      <span className="mr-1" aria-label="robot">
+                        {"\u{1F916}"}
+                      </span>
+                    )}
+                    {status.label}
+                  </span>
+
+                  {/* Campaign tag */}
+                  {entry.campaign && (
+                    <span
+                      className="px-2 py-0.5 rounded-md"
+                      style={{
+                        background: "rgba(48,102,212,0.08)",
+                        color: "#3066d4",
+                      }}
+                    >
+                      {entry.campaign}
+                    </span>
+                  )}
+
+                  <span className="flex-1" />
+
+                  {/* Time */}
+                  <span className="text-[#9a9a9a]">
+                    {new Date(entry.publishedAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+
+                  {/* Error */}
+                  {entry.error && (
+                    <span className="text-[#e04a32] truncate max-w-[200px]">
+                      {entry.error}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ─── OAuth modal ─── */}
+      {oauthModal && (
+        <OAuthSetupModal
+          platform={oauthModal}
+          onClose={() => setOauthModal(null)}
+        />
+      )}
+    </div>
+  );
+}

@@ -13,6 +13,7 @@ import {
   ensureUser,
 } from "./store.js";
 import { rewriteDraft } from "./services/drafter.js";
+import { sendGmailReply } from "./connectors/gmail-send.js";
 import {
   formatItemCard,
   formatSentConfirmation,
@@ -213,15 +214,33 @@ export async function handleCallbackQuery(
 
   switch (action) {
     case "send": {
-      await markSent(itemId, item.draftText);
       endEditSession(chatId);
+      const draft = item.draftText ?? "";
+
+      // Send via Gmail if this is a Gmail item
+      if (item.platform === "gmail") {
+        await answerCallbackQuery(query.id, "Sending...");
+        const sendResult = await sendGmailReply({ itemId, draftText: draft });
+        if (!sendResult.ok) {
+          console.error(`[handlers] Gmail send failed for ${itemId}: ${sendResult.error}`);
+          await sendMessage({
+            chat_id: chatId,
+            text: `Failed to send: ${escapeExisting(sendResult.error ?? "unknown error")}`,
+            parse_mode: "MarkdownV2",
+          });
+          break;
+        }
+      } else {
+        await answerCallbackQuery(query.id, "Sent");
+      }
+
+      await markSent(itemId, draft);
       await editMessageText({
         chat_id: chatId,
         message_id: messageId,
         text: formatSentConfirmation(item),
         parse_mode: "MarkdownV2",
       });
-      await answerCallbackQuery(query.id, "Sent");
       break;
     }
 
