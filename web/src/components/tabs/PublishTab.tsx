@@ -379,11 +379,11 @@ export default function PublishTab({ content }: { content: string }) {
                 disabled={openclawDisabled}
                 className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5"
                 style={{
-                  background: hasOpenClawKey ? "rgba(124,58,237,0.08)" : "rgba(0,0,0,0.03)",
-                  border: hasOpenClawKey ? "1px solid rgba(124,58,237,0.2)" : "1px solid rgba(0,0,0,0.06)",
-                  color: hasOpenClawKey && hasContent ? "#7c3aed" : "#9a9a9a",
+                  background: hasOpenClawKey ? "rgba(124,58,237,0.08)" : "rgba(124,58,237,0.04)",
+                  border: "1px solid rgba(124,58,237,0.18)",
+                  color: hasOpenClawKey && hasContent ? "#7c3aed" : "#a78bfa",
                   cursor: openclawDisabled ? "not-allowed" : "pointer",
-                  opacity: hasOpenClawKey ? 1 : 0.4,
+                  opacity: hasOpenClawKey ? 1 : 0.5,
                 }}
                 title={hasOpenClawKey ? "Auto-draft with OpenClaw browser automation" : "Add OPENCLAW_API_KEY to .env.local to enable"}
               >
