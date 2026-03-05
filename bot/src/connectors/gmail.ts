@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import { supabase } from "../supabase.js";
 import { shouldReply, extractDomain, type EmailHeaders, type FilterContext } from "./email-filter.js";
 import { classifyAndDraft } from "../services/drafter.js";
+import { getSignOff } from "../store.js";
 
 // Urgency thresholds (same as src/urgency.ts)
 function calculateUrgency(detectedAt: Date): "red" | "amber" | "green" {
@@ -193,6 +194,9 @@ export async function fetchGmailForUser(
   // Build sent-to domain whitelist (cached, rebuilt hourly)
   const whitelistedDomains = await getSentDomainWhitelist(gmail, account.user_id);
 
+  // Fetch user's sign-off for draft generation (default: "Best,\n{first name}")
+  const signOff = await getSignOff(account.user_id);
+
   // Fetch inbox messages not from the user within the lookback window
   const afterEpoch = Math.floor(
     (Date.now() - lookbackHours * 3_600_000) / 1000
@@ -335,7 +339,7 @@ export async function fetchGmailForUser(
 
       // Classify context and generate draft via Claude API
       const { context, draftText } = await classifyAndDraft(
-        "gmail", name, subject, snippet
+        "gmail", name, subject, snippet, signOff
       );
 
       const priorityScore = urgency === "red" ? 8 : urgency === "amber" ? 5 : 3;

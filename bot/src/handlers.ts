@@ -11,6 +11,8 @@ import {
   markSkipped,
   updateDraft,
   ensureUser,
+  setSignOff,
+  getSignOffForChat,
 } from "./store.js";
 import { rewriteDraft } from "./services/drafter.js";
 import { sendGmailReply } from "./connectors/gmail-send.js";
@@ -133,6 +135,48 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
       text: `State reset\\. Pending items will re\\-arrive\\.`,
       parse_mode: "MarkdownV2",
     });
+    return;
+  }
+
+  // /signoff — set custom email sign-off
+  if (text.startsWith("/signoff")) {
+    const rawSignOff = text.replace(/^\/signoff\s*/, "").trim();
+
+    if (!rawSignOff) {
+      // Show current sign-off
+      const current = await getSignOffForChat(chatId);
+      const display = current
+        ? escapeExisting(current)
+        : "Default \\(Best, \\+ your first name\\)";
+      await sendMessage({
+        chat_id: chatId,
+        text:
+          `*Current sign\\-off:*\n${display}\n\n` +
+          `To change it, send:\n` +
+          `/signoff Cheers, Name\n` +
+          `/signoff Best regards,\\\\nName\n` +
+          `/signoff Thanks,\\\\nName`,
+        parse_mode: "MarkdownV2",
+      });
+      return;
+    }
+
+    // Support \n as literal newline in the sign-off
+    const signOff = rawSignOff.replace(/\\n/g, "\n");
+    const ok = await setSignOff(chatId, signOff);
+    if (ok) {
+      await sendMessage({
+        chat_id: chatId,
+        text: `Sign\\-off updated to:\n\n${escapeExisting(signOff)}`,
+        parse_mode: "MarkdownV2",
+      });
+    } else {
+      await sendMessage({
+        chat_id: chatId,
+        text: `Failed to update sign\\-off\\. Make sure you've sent /start first\\.`,
+        parse_mode: "MarkdownV2",
+      });
+    }
     return;
   }
 

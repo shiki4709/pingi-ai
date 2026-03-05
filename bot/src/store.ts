@@ -132,6 +132,43 @@ export async function ensureUser(
   return created!.id;
 }
 
+// ─── Sign-off ───
+
+export async function getSignOff(userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("users")
+    .select("sign_off, name")
+    .eq("id", userId)
+    .single();
+  if (data?.sign_off) return data.sign_off;
+  // Default: "Best,\n{first name}" if we know their name
+  if (data?.name) return `Best,\n${data.name.split(/\s+/)[0]}`;
+  return null;
+}
+
+export async function setSignOff(
+  chatId: number,
+  signOff: string
+): Promise<boolean> {
+  const { error } = await supabase
+    .from("users")
+    .update({ sign_off: signOff })
+    .eq("telegram_chat_id", chatId);
+  return !error;
+}
+
+export async function getSignOffForChat(chatId: number): Promise<string | null> {
+  const { data } = await supabase
+    .from("users")
+    .select("sign_off, name")
+    .eq("telegram_chat_id", chatId)
+    .single();
+  if (data?.sign_off) return data.sign_off;
+  // Default: "Best,\n{first name}" if we know their name
+  if (data?.name) return `Best,\n${data.name.split(/\s+/)[0]}`;
+  return null;
+}
+
 /**
  * Look up the Telegram chat ID for a given user UUID.
  */
