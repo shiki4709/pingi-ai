@@ -187,10 +187,10 @@ export default function PublishTab({ content }: { content: string }) {
   const [publishing, setPublishing] = useState(false);
   const [oauthModal, setOauthModal] = useState<PlatformConfig | null>(null);
   const [hoveredRednote, setHoveredRednote] = useState(false);
-  const [openclawConfigured, setOpenclawConfigured] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   const hasContent = content.trim().length > 0;
+  const hasOpenClawKey = process.env.NEXT_PUBLIC_OPENCLAW_CONFIGURED === "true";
 
   // Persist campaign in session
   useEffect(() => {
@@ -198,14 +198,6 @@ export default function PublishTab({ content }: { content: string }) {
       sessionStorage.setItem("pingi_campaign", campaign);
     }
   }, [campaign]);
-
-  // Check OpenClaw availability
-  useEffect(() => {
-    fetch("/api/publish/openclaw")
-      .then((r) => r.json())
-      .then((d) => setOpenclawConfigured(d.configured))
-      .catch(() => setOpenclawConfigured(false));
-  }, []);
 
   const addLogEntry = (entry: PublishEntry) => {
     setLog((prev) => [entry, ...prev]);
@@ -346,7 +338,7 @@ export default function PublishTab({ content }: { content: string }) {
       {/* ─── Copy-only platforms (Rednote, Substack, Instagram) ─── */}
       {COPY_PLATFORMS.map((p) => {
         const isRednote = p.key === "rednote";
-        const openclawDisabled = !openclawConfigured || !hasContent || publishing;
+        const openclawDisabled = !hasOpenClawKey || !hasContent || publishing;
 
         return (
           <div key={p.key} className="rounded-2xl p-4 relative" style={glassCard}>
@@ -387,13 +379,13 @@ export default function PublishTab({ content }: { content: string }) {
                 disabled={openclawDisabled}
                 className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5"
                 style={{
-                  background: openclawConfigured ? "rgba(124,58,237,0.08)" : "rgba(0,0,0,0.03)",
-                  border: openclawConfigured ? "1px solid rgba(124,58,237,0.2)" : "1px solid rgba(0,0,0,0.06)",
-                  color: openclawConfigured && hasContent ? "#7c3aed" : "#9a9a9a",
+                  background: hasOpenClawKey ? "rgba(124,58,237,0.08)" : "rgba(0,0,0,0.03)",
+                  border: hasOpenClawKey ? "1px solid rgba(124,58,237,0.2)" : "1px solid rgba(0,0,0,0.06)",
+                  color: hasOpenClawKey && hasContent ? "#7c3aed" : "#9a9a9a",
                   cursor: openclawDisabled ? "not-allowed" : "pointer",
-                  opacity: openclawConfigured ? 1 : 0.4,
+                  opacity: hasOpenClawKey ? 1 : 0.4,
                 }}
-                title={openclawConfigured ? "Auto-draft with OpenClaw browser automation" : "Add OPENCLAW_API_KEY to .env.local to enable"}
+                title={hasOpenClawKey ? "Auto-draft with OpenClaw browser automation" : "Add OPENCLAW_API_KEY to .env.local to enable"}
               >
                 {"\u{1F916}"} Auto-draft with OpenClaw
               </button>
