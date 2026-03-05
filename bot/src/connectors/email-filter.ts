@@ -34,6 +34,14 @@ const AUTOMATED_SENDERS = [
   "digest@", "updates@",
   "alerts@", "alert@",
   "noreply.", "no-reply.",
+  // Job application platforms
+  "@ashbyhq.com", "@workablemail.com", "@gem.com",
+  "@myworkday.com", "@polymer.co",
+  // Social media notifications
+  "@nextdoor.com", "@rs.email.nextdoor.com",
+  "@facebookmail.com", "@twitter.com", "@instagram.com",
+  // E-commerce
+  "@amazon.com", "@amazon.co.jp",
 ];
 
 function isAutomatedSender(from: string): boolean {
@@ -41,11 +49,27 @@ function isAutomatedSender(from: string): boolean {
   return AUTOMATED_SENDERS.some((p) => lower.includes(p));
 }
 
+// ─── 1b. Automated sender subdomain patterns ───
+// Subdomains like mail.*, email.*, news.* etc. are almost always automated
+
+const AUTOMATED_SUBDOMAINS = [
+  "mail.", "email.", "news.", "newsletter.",
+  "marketing.", "promo.", "campaign.", "em.", "rs.",
+  "bounce.", "send.", "bulk.", "msg.", "e.",
+];
+
+function isAutomatedSubdomain(from: string): boolean {
+  // Extract domain from "Name <user@sub.domain.com>" or "user@sub.domain.com"
+  const emailMatch = from.match(/@([^\s>]+)/i);
+  if (!emailMatch) return false;
+  const domain = emailMatch[1].toLowerCase();
+  return AUTOMATED_SUBDOMAINS.some((sub) => domain.startsWith(sub));
+}
+
 // ─── 2. Newsletter / marketing detection ───
 
 function isNewsletter(headers: EmailHeaders, snippet: string): boolean {
-  // List-Unsubscribe header is the strongest signal
-  if (headers.listUnsubscribe) return true;
+  // Note: List-Unsubscribe is checked earlier in shouldReply()
 
   // Body contains unsubscribe link
   const lower = snippet.toLowerCase();
@@ -76,8 +100,13 @@ function isCalendarOrAutoResponse(headers: EmailHeaders): boolean {
   // Auto-submitted header (RFC 3834)
   if (headers.autoSubmitted && headers.autoSubmitted !== "no") return true;
 
-  // Calendar response subjects
+  // Calendar response subjects (match at start or anywhere)
   const subjectLower = headers.subject.toLowerCase();
+  const startsWithPatterns = [
+    "accepted:", "declined:", "tentative:",
+  ];
+  if (startsWithPatterns.some((p) => subjectLower.startsWith(p))) return true;
+
   const autoSubjects = [
     "accepted:", "declined:", "tentative:",
     "re: accepted", "re: declined", "re: tentative",
@@ -108,6 +137,11 @@ function isTransactional(headers: EmailHeaders, snippet: string): boolean {
     "sign-in attempt", "login attempt",
     "subscription confirmed", "you've been added",
     "welcome to", // welcome emails from services
+    // Job application auto-replies
+    "thanks for applying", "thank you for applying",
+    "application confirmation", "application received",
+    "your application was sent", "your application has been",
+    "we received your application",
   ];
 
   if (transactionalSubjects.some((p) => subjectLower.includes(p))) return true;
@@ -142,13 +176,93 @@ function isSupportTicket(headers: EmailHeaders): boolean {
   return TICKET_ID_PATTERN.test(headers.subject);
 }
 
+// ─── 7. Emoji-heavy subjects (3+ emojis = marketing) ───
+
+const EMOJI_RE = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu;
+
+function isEmojiHeavySubject(subject: string): boolean {
+  const matches = subject.match(EMOJI_RE);
+  return !!matches && matches.length >= 3;
+}
+
+// ─── 8. Empty/near-empty snippet (auto-generated) ───
+
+function isEmptySnippet(snippet: string): boolean {
+  return snippet.trim().length < 20;
+}
+
+// ─── 9. Domain whitelist (two-tier trust) ───
+// Personal domains (gmail, yahoo, etc.) = fully trusted.
+// Whitelisted business domains = pass domain check but still filtered
+// if the sender looks automated (generic local part, long snippet, etc.)
+// Unknown domains = always filtered.
+
+const PERSONAL_DOMAINS = new Set([
+  "gmail.com", "googlemail.com",
+  "yahoo.com", "yahoo.co.jp",
+  "hotmail.com", "outlook.com", "live.com",
+  "icloud.com", "me.com", "mac.com",
+  "protonmail.com", "proton.me", "pm.me",
+  "aol.com", "zoho.com",
+]);
+
+export function extractDomain(from: string): string | null {
+  const match = from.match(/@([^\s>]+)/i);
+  if (!match) return null;
+  return match[1].toLowerCase();
+}
+
+function extractLocalPart(from: string): string | null {
+  const match = from.match(/([^<\s]+)@/i);
+  if (!match) return null;
+  return match[1].toLowerCase();
+}
+
+function isPersonalDomain(domain: string): boolean {
+  return PERSONAL_DOMAINS.has(domain);
+}
+
+// ─── 9b. Generic local part check ───
+// Real humans use their name (john@, sarah.lee@), not these generic addresses.
+
+const GENERIC_LOCAL_PARTS = new Set([
+  "news", "noreply", "no-reply", "info", "support", "service",
+  "marketing", "hello", "team", "notifications", "updates",
+  "alert", "alerts", "cs", "reply", "contact", "admin",
+  "sales", "billing", "help", "feedback", "newsletter",
+  "promo", "promotions", "offers", "deals", "announce",
+  "digest", "notification", "system", "mailer", "postmaster",
+  "do-not-reply", "donotreply", "members", "community",
+]);
+
+function isGenericLocalPart(from: string): boolean {
+  const local = extractLocalPart(from);
+  if (!local) return false;
+  return GENERIC_LOCAL_PARTS.has(local);
+}
+
+// ─── 9c. Long snippet check ───
+// Marketing emails tend to be long; personal emails are short.
+
+function isLongSnippet(snippet: string): boolean {
+  return snippet.length > 500;
+}
+
 // ─── Main filter ───
 
-export function shouldReply(headers: EmailHeaders, snippet: string): FilterResult {
+export function shouldReply(
+  headers: EmailHeaders,
+  snippet: string,
+  whitelistedDomains?: Set<string>
+): FilterResult {
   // Check in order of specificity (cheapest checks first)
 
   if (isAutomatedSender(headers.from)) {
     return { needsReply: false, reason: "automated sender" };
+  }
+
+  if (isAutomatedSubdomain(headers.from)) {
+    return { needsReply: false, reason: "automated subdomain (mail./email./news./etc.)" };
   }
 
   if (isBulkMail(headers)) {
@@ -157,6 +271,11 @@ export function shouldReply(headers: EmailHeaders, snippet: string): FilterResul
 
   if (isCalendarOrAutoResponse(headers)) {
     return { needsReply: false, reason: "calendar invite or auto-response" };
+  }
+
+  // List-Unsubscribe is the strongest marketing signal — check early
+  if (headers.listUnsubscribe) {
+    return { needsReply: false, reason: "has List-Unsubscribe header (marketing)" };
   }
 
   if (isNewsletter(headers, snippet)) {
@@ -171,5 +290,39 @@ export function shouldReply(headers: EmailHeaders, snippet: string): FilterResul
     return { needsReply: false, reason: "support ticket auto-response" };
   }
 
-  return { needsReply: true, reason: "" };
+  if (isEmojiHeavySubject(headers.subject)) {
+    return { needsReply: false, reason: "emoji-heavy subject (marketing)" };
+  }
+
+  if (isEmptySnippet(snippet)) {
+    return { needsReply: false, reason: "empty or near-empty snippet (auto-generated)" };
+  }
+
+  // ─── Two-tier domain trust ───
+  const domain = extractDomain(headers.from);
+
+  // Tier 1: Personal email domains are fully trusted
+  if (domain && isPersonalDomain(domain)) {
+    return { needsReply: true, reason: "" };
+  }
+
+  // Tier 2: Whitelisted business domains pass the domain gate
+  // but must still pass additional scrutiny
+  if (whitelistedDomains && domain && whitelistedDomains.has(domain)) {
+    // Even whitelisted business domains get filtered for these signals
+    if (isGenericLocalPart(headers.from)) {
+      const local = extractLocalPart(headers.from) ?? "unknown";
+      return { needsReply: false, reason: `generic sender address "${local}@" on business domain` };
+    }
+
+    if (isLongSnippet(snippet)) {
+      return { needsReply: false, reason: `long snippet (${snippet.length} chars) from business domain — likely automated` };
+    }
+
+    // Passed all checks — likely a real person at a known company
+    return { needsReply: true, reason: "" };
+  }
+
+  // Tier 3: Unknown domain — not personal, not whitelisted — filter it
+  return { needsReply: false, reason: `domain "${domain ?? "unknown"}" not in sent-to whitelist` };
 }

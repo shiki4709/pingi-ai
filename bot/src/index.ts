@@ -68,16 +68,18 @@ async function startDrip(chatId: number): Promise<void> {
 
   // Fetch pending items from Supabase for this user
   const userId = await getUserIdForChat(chatId);
+  console.log(`[drip] startDrip: chatId=${chatId} → userId=${userId ?? "NULL"}`);
   if (!userId) {
-    console.log(`[drip] No user found for chat ${chatId}, skipping`);
+    console.log(`[drip] No user found for chat ${chatId}, skipping — has this user sent /start?`);
     return;
   }
 
   const pending = await getPendingItemsForUser(userId);
+  console.log(`[drip] Found ${pending.length} pending reply_items for userId=${userId} (statuses: ${pending.map(i => i.status).join(", ") || "none"})`);
   const queue = pending.map((i) => i.id);
 
   if (queue.length === 0) {
-    console.log(`[drip] No pending items for user ${userId}`);
+    console.log(`[drip] No pending items for user ${userId} — check reply_items table has rows with user_id=${userId} AND status=pending`);
     return;
   }
 
@@ -120,6 +122,7 @@ function drainNext(chatId: number): void {
 // ─── Enqueue a single item to a specific chat ───
 // Called by the poll worker when new reply_items are detected.
 function enqueueItemForChat(chatId: number, itemId: string): void {
+  console.log(`[drip] enqueueItemForChat: chatId=${chatId} itemId=${itemId}`);
   let state = drips.get(chatId);
   if (!state) {
     state = { queue: [], timer: null };
@@ -128,7 +131,10 @@ function enqueueItemForChat(chatId: number, itemId: string): void {
   state.queue.push(itemId);
   // If nothing is currently dripping or waiting, kick off a drain
   if (!state.timer && state.queue.length === 1) {
+    console.log(`[drip] No active timer, kicking off drainNext for chat ${chatId}`);
     drainNext(chatId);
+  } else {
+    console.log(`[drip] Queued item ${itemId}, queue depth now ${state.queue.length} for chat ${chatId}`);
   }
 }
 

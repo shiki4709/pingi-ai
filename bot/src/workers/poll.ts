@@ -74,10 +74,14 @@ export function createPollWorker(opts: PollWorkerOptions = {}) {
           // Push newly inserted items to the user's Telegram chat
           if (onNewItem && result.insertedIds.length > 0) {
             const chatId = await getChatIdForUser(account.user_id);
+            console.log(`[poll] getChatIdForUser(${account.user_id}) → ${chatId ?? "NULL (no telegram_chat_id for this user!)"}`);
             if (chatId) {
               for (const itemId of result.insertedIds) {
+                console.log(`[poll] Enqueuing item ${itemId} for chat ${chatId}`);
                 onNewItem(chatId, itemId);
               }
+            } else {
+              console.warn(`[poll] WARNING: ${result.insertedIds.length} items inserted for user ${account.user_id} but no telegram_chat_id found — items will NOT be pushed`);
             }
           }
         } catch (e: any) {

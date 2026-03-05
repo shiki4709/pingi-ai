@@ -12,6 +12,7 @@ import {
   updateDraft,
   ensureUser,
 } from "./store.js";
+import { rewriteDraft } from "./services/drafter.js";
 import {
   formatItemCard,
   formatSentConfirmation,
@@ -103,9 +104,10 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
 
     // Ensure user exists in Supabase
     try {
-      await ensureUser(chatId, msg.from?.first_name);
+      const userId = await ensureUser(chatId, msg.from?.first_name);
+      console.log(`[handlers] /start: ensureUser OK — chatId=${chatId} → userId=${userId}`);
     } catch (e: any) {
-      console.error(`[handlers] ensureUser failed for chat ${chatId}:`, e.message);
+      console.error(`[handlers] /start: ensureUser FAILED for chat ${chatId}:`, e.message);
     }
 
     await sendMessage({
@@ -154,41 +156,10 @@ async function handleEditInstruction(
     return;
   }
 
-  // Apply edit (mock: simple string transforms, same logic as dashboard reference)
-  const oldDraft = item.draftText ?? "";
-  let newDraft = oldDraft;
-  const lower = instruction.toLowerCase();
-
-  if (lower.includes("casual") || lower.includes("chill")) {
-    newDraft = oldDraft.replace(/Thank you/g, "Thanks").replace(/\.$/, "");
-  } else if (lower.includes("shorter") || lower.includes("brief")) {
-    const sentences = oldDraft.split(/[.!?]+/).filter((s) => s.trim());
-    newDraft =
-      sentences.slice(0, Math.ceil(sentences.length / 2)).join(". ").trim() +
-      ".";
-  } else if (lower.includes("formal")) {
-    newDraft = oldDraft.replace(/Hey /g, "Hi ").replace(/Thanks/g, "Thank you");
-  } else if (
-    lower.includes("mention") ||
-    lower.includes("add") ||
-    lower.includes("include")
-  ) {
-    const detail = instruction
-      .replace(/^(mention|add|include|say)\s+(that\s+)?/i, "")
-      .trim();
-    newDraft =
-      oldDraft.replace(/[.!?]\s*$/, "") +
-      `. ${detail.charAt(0).toUpperCase() + detail.slice(1)}.`;
-  } else if (lower.includes("question") || lower.includes("ask")) {
-    newDraft = oldDraft.replace(/[.]\s*$/, "") + ". What's your take?";
-  } else {
-    newDraft =
-      oldDraft.replace(/[.!?]\s*$/, "") +
-      ". " +
-      instruction.charAt(0).toUpperCase() +
-      instruction.slice(1) +
-      ".";
-  }
+  // Rewrite draft via Claude API using the user's instruction
+  const originalMessage = `${item.contextText ?? ""}\n\n${item.originalText}`;
+  const currentDraft = item.draftText ?? "";
+  const newDraft = await rewriteDraft(originalMessage, currentDraft, instruction);
 
   await updateDraft(itemId, newDraft);
   // Re-fetch to get updated draft
@@ -289,15 +260,25 @@ export async function pushItemCard(
   chatId: number,
   itemId: string
 ): Promise<void> {
+  console.log(`[push] pushItemCard called: chatId=${chatId} itemId=${itemId}`);
   const item = await getItemById(itemId);
-  if (!item || item.status !== "pending") return;
+  if (!item) {
+    console.log(`[push] SKIP: item ${itemId} not found in DB`);
+    return;
+  }
+  if (item.status !== "pending") {
+    console.log(`[push] SKIP: item ${itemId} status="${item.status}" (not pending)`);
+    return;
+  }
 
+  console.log(`[push] Sending item card to chat ${chatId}: ${item.platform} from "${item.authorName}" — "${item.contextText ?? ""}"`);
   await sendMessage({
     chat_id: chatId,
     text: formatItemCard(item),
     parse_mode: "MarkdownV2",
     reply_markup: itemActions(itemId),
   });
+  console.log(`[push] Sent successfully: chatId=${chatId} itemId=${itemId}`);
 }
 
 function escapeExisting(text: string): string {

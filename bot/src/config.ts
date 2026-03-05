@@ -12,6 +12,7 @@ export const config = {
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY ?? "",
   gmailClientId: process.env.GMAIL_CLIENT_ID ?? "",
   gmailClientSecret: process.env.GMAIL_CLIENT_SECRET ?? "",
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   get usePolling(): boolean {
     return !this.webhookUrl;
   },

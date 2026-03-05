@@ -33,16 +33,19 @@ export async function fetchGmailItems(
       (Date.now() - lookbackHours * 60 * 60 * 1000) / 1000
     );
 
+    const gmailQuery = `is:inbox is:unread after:${after}`;
+    console.log(`  [gmail] Query: "${gmailQuery}" (after=${after}, lookbackHours=${lookbackHours})`);
+
     const res = await gmail.users.messages.list({
       userId: "me",
-      q: `is:inbox is:unread after:${after}`,
+      q: gmailQuery,
       maxResults: 50,
     });
 
     const messages = res.data.messages || [];
-    console.log(`  📧 Gmail: found ${messages.length} unread messages`);
+    console.log(`  [gmail] API returned ${messages.length} messages`);
 
-    for (const msg of messages.slice(0, 20)) {
+    for (const msg of messages.slice(0, 50)) {
       try {
         const full = await gmail.users.messages.get({
           userId: "me",
@@ -57,6 +60,9 @@ export async function fetchGmailItems(
           headers.find((h) => h.name === "Subject")?.value || "(no subject)";
         const dateStr = headers.find((h) => h.name === "Date")?.value;
         const date = dateStr ? new Date(dateStr) : new Date();
+
+        // Log every email before filtering
+        console.log(`  [gmail] id=${msg.id} from="${from}" subject="${subject}"`);
 
         // Skip automated/noreply emails
         const fromLower = from.toLowerCase();
