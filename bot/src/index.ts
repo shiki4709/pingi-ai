@@ -7,8 +7,14 @@ import {
   isEditing,
   onEditEnd,
 } from "./handlers.js";
-import { getPendingItemsForUser, getUserIdForChat } from "./store.js";
-import { deleteWebhook, getUpdates } from "./telegram.js";
+import {
+  getPendingItemsForUser,
+  getUserIdForChat,
+  getItemsSince,
+  getAllChatIds,
+} from "./store.js";
+import { generateWeeklyReport } from "./services/report.js";
+import { deleteWebhook, getUpdates, sendMessage } from "./telegram.js";
 import { createPollWorker } from "./workers/poll.js";
 import type { TelegramUpdate } from "./types.js";
 
@@ -138,6 +144,61 @@ function enqueueItemForChat(chatId: number, itemId: string): void {
   }
 }
 
+// ─── Weekly report ───
+
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+let weeklyReportTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Send a weekly engagement report to a single chat.
+ */
+export async function sendWeeklyReportToChat(chatId: number): Promise<void> {
+  const userId = await getUserIdForChat(chatId);
+  if (!userId) return;
+
+  const items = await getItemsSince(userId, 7);
+  const report = generateWeeklyReport(items);
+
+  await sendMessage({
+    chat_id: chatId,
+    text: report,
+    parse_mode: "MarkdownV2",
+  });
+}
+
+/**
+ * Broadcast the weekly report to every known chat.
+ */
+async function broadcastWeeklyReport(): Promise<void> {
+  const chatIds = await getAllChatIds();
+  console.log(`[report] Broadcasting weekly report to ${chatIds.length} chat(s)`);
+
+  for (const chatId of chatIds) {
+    try {
+      await sendWeeklyReportToChat(chatId);
+    } catch (err) {
+      console.error(`[report] Failed to send report to chat ${chatId}:`, err);
+    }
+  }
+}
+
+function startWeeklyReportTimer(): void {
+  // Fire once a week. In production you'd align to a specific day/time;
+  // for now a simple repeating interval is sufficient.
+  weeklyReportTimer = setInterval(() => {
+    broadcastWeeklyReport().catch((err) =>
+      console.error("[report] Weekly report broadcast failed:", err)
+    );
+  }, ONE_WEEK_MS);
+}
+
+function stopWeeklyReportTimer(): void {
+  if (weeklyReportTimer) {
+    clearInterval(weeklyReportTimer);
+    weeklyReportTimer = null;
+  }
+}
+
 // ─── Platform poll worker (Gmail + Twitter) ───
 const pollWorker = createPollWorker({
   onNewItem: enqueueItemForChat,
@@ -226,6 +287,9 @@ async function start(): Promise<void> {
   // Start the Gmail poll worker (checks every 3 minutes)
   pollWorker.start();
 
+  // Start weekly report broadcast timer
+  startWeeklyReportTimer();
+
   if (config.usePolling) {
     pollLoop();
   } else {
@@ -238,6 +302,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     stopPolling();
     stopDrips();
+    stopWeeklyReportTimer();
     pollWorker.stop();
     app.close();
   });

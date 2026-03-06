@@ -199,3 +199,35 @@ export async function getUserIdForChat(
 
   return data?.id ?? null;
 }
+
+// ─── Report queries ───
+
+/**
+ * Fetch all items detected in the last `days` days for a given user.
+ * Includes sent, skipped, and pending items.
+ */
+export async function getItemsSince(
+  userId: string,
+  days: number
+): Promise<TrackedItem[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from("reply_items")
+    .select("*")
+    .eq("user_id", userId)
+    .gte("detected_at", since)
+    .order("detected_at", { ascending: false });
+  return (data ?? []).map(rowToItem);
+}
+
+/**
+ * Return all known Telegram chat IDs (for broadcasting reports).
+ */
+export async function getAllChatIds(): Promise<number[]> {
+  const { data } = await supabase
+    .from("users")
+    .select("telegram_chat_id");
+  return (data ?? [])
+    .map((row: Record<string, any>) => row.telegram_chat_id as number | null)
+    .filter((id: number | null): id is number => id != null);
+}
