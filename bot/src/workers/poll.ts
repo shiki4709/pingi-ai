@@ -1,5 +1,6 @@
 import { supabase } from "../supabase.js";
 import { fetchGmailForUser } from "../connectors/gmail.js";
+import { fetchTwitterForUser } from "../connectors/twitter.js";
 import { getChatIdForUser } from "../store.js";
 
 const DEFAULT_INTERVAL_MS = 3 * 60_000; // 3 minutes
@@ -88,6 +89,64 @@ export function createPollWorker(opts: PollWorkerOptions = {}) {
           console.error(`[poll] ${label} error:`, e.message);
         }
       }
+
+      // ─── Twitter polling ───
+      // Twitter uses a single Bearer token (app-level), not per-user OAuth.
+      // We check all users who have a connected Twitter account and fetch mentions for each.
+      if (process.env.TWITTER_BEARER_TOKEN && process.env.TWITTER_USER_ID) {
+        // Find users who have connected a Twitter account
+        const { data: twitterAccounts, error: twError } = await supabase
+          .from("connected_accounts")
+          .select("user_id, platform_username")
+          .eq("platform", "twitter");
+
+        if (twError) {
+          console.error("[poll] Failed to fetch Twitter accounts:", twError.message);
+        } else if (twitterAccounts && twitterAccounts.length > 0) {
+          console.log(`[poll] Checking ${twitterAccounts.length} Twitter account(s)`);
+
+          for (const twAccount of twitterAccounts) {
+            const twLabel = `${twAccount.user_id}/${twAccount.platform_username}`;
+            try {
+              const twResult = await fetchTwitterForUser(
+                twAccount.user_id,
+                lookbackHours
+              );
+
+              if (twResult.inserted > 0 || twResult.errors.length > 0) {
+                console.log(
+                  `[poll] twitter ${twLabel}: ${twResult.inserted} new` +
+                  (twResult.errors.length > 0
+                    ? `, ${twResult.errors.length} error(s)`
+                    : "")
+                );
+              }
+
+              if (twResult.errors.length > 0) {
+                for (const err of twResult.errors) {
+                  console.error(`[poll] twitter ${twLabel}: ${err}`);
+                }
+              }
+
+              if (onNewItem && twResult.insertedIds.length > 0) {
+                const chatId = await getChatIdForUser(twAccount.user_id);
+                if (chatId) {
+                  for (const itemId of twResult.insertedIds) {
+                    console.log(`[poll] Enqueuing twitter item ${itemId} for chat ${chatId}`);
+                    onNewItem(chatId, itemId);
+                  }
+                } else {
+                  console.warn(
+                    `[poll] WARNING: ${twResult.insertedIds.length} twitter items for user ${twAccount.user_id} but no telegram_chat_id`
+                  );
+                }
+              }
+            } catch (e: any) {
+              console.error(`[poll] twitter ${twLabel} error:`, e.message);
+            }
+          }
+        }
+      }
     } finally {
       running = false;
     }
@@ -100,7 +159,7 @@ export function createPollWorker(opts: PollWorkerOptions = {}) {
     /** Start the periodic poll loop. */
     start(): void {
       if (timer) return;
-      console.log(`[poll] Starting Gmail poll worker (interval: ${intervalMs / 1000}s)`);
+      console.log(`[poll] Starting poll worker — Gmail + Twitter (interval: ${intervalMs / 1000}s)`);
       // Run immediately on start, then on interval
       tick();
       timer = setInterval(tick, intervalMs);

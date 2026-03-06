@@ -138,8 +138,8 @@ function enqueueItemForChat(chatId: number, itemId: string): void {
   }
 }
 
-// ─── Gmail poll worker ───
-const gmailWorker = createPollWorker({
+// ─── Platform poll worker (Gmail + Twitter) ───
+const pollWorker = createPollWorker({
   onNewItem: enqueueItemForChat,
 });
 
@@ -224,7 +224,7 @@ async function start(): Promise<void> {
   console.log(`Pingi bot running on ${config.host}:${config.port} [${mode}]`);
 
   // Start the Gmail poll worker (checks every 3 minutes)
-  gmailWorker.start();
+  pollWorker.start();
 
   if (config.usePolling) {
     pollLoop();
@@ -238,7 +238,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     stopPolling();
     stopDrips();
-    gmailWorker.stop();
+    pollWorker.stop();
     app.close();
   });
 }
