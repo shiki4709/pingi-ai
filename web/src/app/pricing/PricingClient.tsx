@@ -38,7 +38,7 @@ const TIERS = [
       "Custom tone profiles",
       "Publish directly from dashboard",
     ],
-    cta: "Upgrade to Pro",
+    cta: "Start 3-day free trial",
     highlight: true,
   },
 ] as const;
@@ -166,7 +166,7 @@ export default function PricingClient() {
                     color: "#2a8a4a",
                   }}
                 >
-                  Recommended
+                  3-day free trial
                 </span>
               )}
 

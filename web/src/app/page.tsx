@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 const T = {
   ink: "#1a1a1a",
@@ -11,6 +12,9 @@ const T = {
   green: "#2a8a4a",
   greenSoft: "rgba(42,138,74,0.08)",
   bg: "rgba(242,240,236,1)",
+  tgBlue: "#229ED9",
+  tgBubble: "#E3F2FD",
+  tgBubbleOut: "#DCF8C6",
 };
 
 const serif = "'Instrument Serif', Georgia, serif";
@@ -19,6 +23,29 @@ const sans = "'DM Sans', sans-serif";
 const background = `radial-gradient(ellipse at 20% 0%, rgba(232,228,221,0.8) 0%, transparent 50%),
   radial-gradient(ellipse at 80% 100%, rgba(226,220,210,0.6) 0%, transparent 50%),
   radial-gradient(ellipse at 50% 50%, ${T.bg} 0%, rgba(234,230,223,1) 100%)`;
+
+// ─── Keyframes injected once ───
+
+const keyframesCSS = `
+@keyframes slideInMsg {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+@keyframes dash-flow {
+  0% { stroke-dashoffset: 16; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes float-phone {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+`;
+
+// ─── Reusable components ───
 
 function GlassCard({
   children,
@@ -114,7 +141,499 @@ function SectionSub({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── How it works step ───
+// ─── SVG Icons ───
+
+function GmailIcon({ size = 32 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M20 4H4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" fill="#F4F4F4" stroke="#E0E0E0" strokeWidth="0.5"/>
+      <path d="M22 6l-10 7L2 6" stroke="#EA4335" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <path d="M2 6l3 2.5" stroke="#4285F4" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M22 6l-3 2.5" stroke="#34A853" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function TelegramIcon({ size = 32 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="11" fill={T.tgBlue}/>
+      <path d="M6.5 12.3l2.3.8 1 3c.1.2.3.3.5.2l1.4-1.2 2.7 2c.3.2.6 0 .7-.3l2-9.5c.1-.4-.2-.6-.5-.5L6.5 11.5c-.4.1-.4.6 0 .8z" fill="white"/>
+    </svg>
+  );
+}
+
+function SlackIcon({ size = 32 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M6 15a2 2 0 01-2-2 2 2 0 012-2h2v2a2 2 0 01-2 2z" fill="#E01E5A"/>
+      <path d="M9 15a2 2 0 002-2V7a2 2 0 10-4 0v6a2 2 0 002 2z" fill="#E01E5A"/>
+      <path d="M9 6a2 2 0 002-2 2 2 0 00-2-2 2 2 0 00-2 2v2h2z" fill="#36C5F0"/>
+      <path d="M9 9a2 2 0 00-2-2H1a2 2 0 100 4h6a2 2 0 002-2z" fill="#36C5F0"/>
+      <path d="M18 9a2 2 0 012 2 2 2 0 01-2 2h-2V9a2 2 0 012-2z" fill="#2EB67D"/>
+      <path d="M15 9a2 2 0 00-2 2v6a2 2 0 104 0v-6a2 2 0 00-2-2z" fill="#2EB67D"/>
+      <path d="M15 20a2 2 0 01-2-2v-2h2a2 2 0 110 4z" fill="#ECB22E"/>
+      <path d="M15 15a2 2 0 002-2h6a2 2 0 110 4h-6a2 2 0 01-2-2z" fill="#ECB22E"/>
+    </svg>
+  );
+}
+
+// ─── Telegram Phone Mockup ───
+
+const mockMessages = [
+  {
+    sender: "Pingi",
+    text: "New email from Sarah Chen",
+    sub: "Re: Q3 partnership proposal",
+    draft: "Hi Sarah, thanks for the detailed proposal. I've reviewed the terms and I'm aligned on the revenue share structure. Let me loop in our ops team for next steps.",
+    delay: 0,
+  },
+  {
+    sender: "Pingi",
+    text: "New email from Marcus Webb",
+    sub: "Follow-up: API integration timeline",
+    draft: "Hey Marcus, good question. We're targeting end of month for the v2 endpoints. I'll send over the updated spec by Friday.",
+    delay: 2,
+  },
+  {
+    sender: "Pingi",
+    text: "New email from Lisa Park",
+    sub: "Invoice #4821 — quick question",
+    draft: "Hi Lisa, the discrepancy is from the mid-cycle plan upgrade. I'll have finance send a corrected invoice today.",
+    delay: 4,
+  },
+];
+
+function TelegramMockup() {
+  return (
+    <div
+      style={{
+        width: 280,
+        maxWidth: "100%",
+        animation: "float-phone 4s ease-in-out infinite",
+      }}
+    >
+      {/* Phone frame */}
+      <div
+        style={{
+          background: "rgba(255,255,255,0.7)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderRadius: 28,
+          border: "1px solid rgba(255,255,255,0.6)",
+          boxShadow:
+            "0 20px 60px rgba(0,0,0,0.12), 0 1px 0 rgba(255,255,255,0.8) inset",
+          overflow: "hidden",
+        }}
+      >
+        {/* Status bar */}
+        <div
+          style={{
+            background: T.tgBlue,
+            padding: "10px 16px 8px",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              fontWeight: 800,
+              color: "#fff",
+              fontFamily: serif,
+            }}
+          >
+            P
+          </div>
+          <div>
+            <div
+              style={{
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                lineHeight: 1.2,
+              }}
+            >
+              Pingi
+            </div>
+            <div
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                fontSize: 10,
+                lineHeight: 1.2,
+              }}
+            >
+              online
+            </div>
+          </div>
+        </div>
+
+        {/* Chat area */}
+        <div
+          style={{
+            padding: "12px 10px",
+            minHeight: 320,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            background: "rgba(230,225,218,0.3)",
+          }}
+        >
+          {mockMessages.map((msg, i) => (
+            <div
+              key={i}
+              style={{
+                animation: `slideInMsg 0.5s ease-out ${msg.delay}s both`,
+              }}
+            >
+              {/* Message bubble */}
+              <div
+                style={{
+                  background: "#fff",
+                  borderRadius: "12px 12px 12px 4px",
+                  padding: "8px 10px",
+                  maxWidth: "92%",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: T.tgBlue,
+                    marginBottom: 3,
+                  }}
+                >
+                  {msg.sender}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: T.ink,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {msg.text}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: T.muted,
+                    marginTop: 2,
+                  }}
+                >
+                  {msg.sub}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: T.sub,
+                    marginTop: 6,
+                    padding: "5px 7px",
+                    background: "rgba(0,0,0,0.03)",
+                    borderRadius: 6,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {msg.draft.length > 80
+                    ? msg.draft.slice(0, 80) + "..."
+                    : msg.draft}
+                </div>
+                {/* Buttons */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 4,
+                    marginTop: 6,
+                  }}
+                >
+                  {["Send", "Edit", "Skip"].map((btn) => (
+                    <div
+                      key={btn}
+                      style={{
+                        flex: 1,
+                        textAlign: "center",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        padding: "5px 0",
+                        borderRadius: 6,
+                        color:
+                          btn === "Send"
+                            ? "#fff"
+                            : btn === "Edit"
+                              ? T.tgBlue
+                              : T.muted,
+                        background:
+                          btn === "Send"
+                            ? T.tgBlue
+                            : btn === "Edit"
+                              ? `${T.tgBlue}15`
+                              : "rgba(0,0,0,0.04)",
+                        border:
+                          btn === "Edit"
+                            ? `1px solid ${T.tgBlue}30`
+                            : "1px solid transparent",
+                      }}
+                    >
+                      {btn}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Platform Flow Diagram ───
+
+function PlatformFlow() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 0,
+        padding: "40px 20px 0",
+      }}
+    >
+      {/* Gmail */}
+      <div style={{ textAlign: "center" }}>
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: "rgba(255,255,255,0.7)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            border: "1px solid rgba(255,255,255,0.5)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <GmailIcon size={28} />
+        </div>
+        <div style={{ fontSize: 11, color: T.muted, marginTop: 6, fontWeight: 500 }}>
+          Gmail
+        </div>
+      </div>
+
+      {/* Animated line 1 */}
+      <svg width="80" height="20" style={{ overflow: "visible", margin: "0 -4px", marginBottom: 18 }}>
+        <line
+          x1="0" y1="10" x2="80" y2="10"
+          stroke={T.muted}
+          strokeWidth="1.5"
+          strokeDasharray="4 4"
+          style={{ animation: "dash-flow 0.8s linear infinite" }}
+        />
+        <polygon points="76,6 82,10 76,14" fill={T.muted} />
+      </svg>
+
+      {/* Pingi */}
+      <div style={{ textAlign: "center" }}>
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: "linear-gradient(135deg, #1a1a1a 0%, #3a3a3a 100%)",
+            boxShadow: "0 6px 24px rgba(0,0,0,0.15)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 22,
+            fontWeight: 800,
+            fontFamily: serif,
+            color: "#fff",
+          }}
+        >
+          P
+        </div>
+        <div style={{ fontSize: 11, color: T.ink, marginTop: 6, fontWeight: 600 }}>
+          Pingi
+        </div>
+      </div>
+
+      {/* Animated line 2 */}
+      <svg width="80" height="20" style={{ overflow: "visible", margin: "0 -4px", marginBottom: 18 }}>
+        <line
+          x1="0" y1="10" x2="80" y2="10"
+          stroke={T.tgBlue}
+          strokeWidth="1.5"
+          strokeDasharray="4 4"
+          style={{ animation: "dash-flow 0.8s linear infinite" }}
+        />
+        <polygon points="76,6 82,10 76,14" fill={T.tgBlue} />
+      </svg>
+
+      {/* Telegram */}
+      <div style={{ textAlign: "center" }}>
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: "rgba(255,255,255,0.7)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            border: "1px solid rgba(255,255,255,0.5)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <TelegramIcon size={28} />
+        </div>
+        <div style={{ fontSize: 11, color: T.muted, marginTop: 6, fontWeight: 500 }}>
+          Telegram
+        </div>
+      </div>
+
+      {/* Dotted line to Slack (coming soon) */}
+      <svg width="60" height="20" style={{ overflow: "visible", margin: "0 -4px", marginBottom: 18 }}>
+        <line
+          x1="0" y1="10" x2="60" y2="10"
+          stroke="rgba(0,0,0,0.12)"
+          strokeWidth="1.5"
+          strokeDasharray="3 5"
+        />
+      </svg>
+
+      {/* Slack */}
+      <div style={{ textAlign: "center", opacity: 0.45 }}>
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: "rgba(255,255,255,0.5)",
+            border: "1px solid rgba(0,0,0,0.06)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <SlackIcon size={28} />
+        </div>
+        <div style={{ fontSize: 11, color: T.muted, marginTop: 6, fontWeight: 500 }}>
+          Soon
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Counting animation ───
+
+function useCountUp(
+  target: number,
+  duration: number,
+  decimals: number = 0
+): [React.RefCallback<HTMLDivElement>, string] {
+  const elRef = useRef<HTMLDivElement | null>(null);
+  const [value, setValue] = useState("0");
+  const hasRun = useRef(false);
+
+  const animate = useCallback(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+    const start = performance.now();
+    const step = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = eased * target;
+      setValue(current.toFixed(decimals));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration, decimals]);
+
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  const setRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+      elRef.current = node;
+      if (!node) return;
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            animate();
+            observer.disconnect();
+          }
+        },
+        { threshold: 0.3 }
+      );
+      observer.observe(node);
+      observerRef.current = observer;
+    },
+    [animate]
+  );
+
+  return [setRef, value];
+}
+
+function CountStat({
+  target,
+  suffix,
+  label,
+  color,
+  duration = 1500,
+  decimals = 0,
+}: {
+  target: number;
+  suffix: string;
+  label: string;
+  color: string;
+  duration?: number;
+  decimals?: number;
+}) {
+  const [setRef, value] = useCountUp(target, duration, decimals);
+  return (
+    <div ref={setRef} style={{ marginBottom: 16 }}>
+      <div
+        style={{
+          fontFamily: serif,
+          fontSize: 36,
+          fontWeight: 400,
+          color,
+          lineHeight: 1,
+        }}
+      >
+        {value}
+        {suffix}
+      </div>
+      <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>
+        {label}
+      </div>
+    </div>
+  );
+}
+
+// ─── How it works steps ───
 
 const steps = [
   {
@@ -137,19 +656,7 @@ const steps = [
   },
 ];
 
-// ─── Stats ───
-
-const beforeStats = [
-  { value: "61%", label: "Response rate" },
-  { value: "11h", label: "Avg reply time" },
-  { value: "23", label: "Missed / month" },
-];
-
-const afterStats = [
-  { value: "90%+", label: "Response rate" },
-  { value: "3h", label: "Avg reply time" },
-  { value: "0", label: "Missed" },
-];
+// ─── Main page ───
 
 export default function LandingPage() {
   return (
@@ -160,6 +667,8 @@ export default function LandingPage() {
         fontFamily: sans,
       }}
     >
+      <style dangerouslySetInnerHTML={{ __html: keyframesCSS }} />
+
       {/* ─── Nav ─── */}
       <nav
         style={{
@@ -210,7 +719,7 @@ export default function LandingPage() {
             textDecoration: "none",
             padding: "8px 20px",
             borderRadius: 10,
-            border: `1px solid rgba(0,0,0,0.08)`,
+            border: "1px solid rgba(0,0,0,0.08)",
             background: "rgba(255,255,255,0.5)",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
@@ -223,51 +732,63 @@ export default function LandingPage() {
       {/* ─── Hero ─── */}
       <section
         style={{
-          textAlign: "center",
-          padding: "80px 32px 60px",
-          maxWidth: 720,
+          padding: "60px 32px 20px",
+          maxWidth: 1060,
           margin: "0 auto",
+          display: "flex",
+          alignItems: "center",
+          gap: 48,
+          flexWrap: "wrap",
+          justifyContent: "center",
         }}
       >
-        <h1
-          style={{
-            fontFamily: serif,
-            fontSize: "clamp(36px, 5vw, 56px)",
-            fontWeight: 400,
-            color: T.ink,
-            margin: "0 0 20px",
-            letterSpacing: "-0.02em",
-            lineHeight: 1.1,
-          }}
-        >
-          Stop missing the replies that matter
-        </h1>
-        <p
-          style={{
-            fontSize: 18,
-            color: T.sub,
-            margin: "0 auto 36px",
-            maxWidth: 540,
-            lineHeight: 1.65,
-          }}
-        >
-          Pingi monitors your Gmail, filters out noise, and sends you only the
-          messages that need a reply — with an AI draft ready to send. All
-          through Telegram.
-        </p>
-        <PrimaryButton href="/auth" style={{ fontSize: 16, padding: "16px 52px" }}>
-          Get started free
-        </PrimaryButton>
-        <p
-          style={{
-            fontSize: 13,
-            color: T.muted,
-            marginTop: 14,
-          }}
-        >
-          Free forever. No credit card required.
-        </p>
+        {/* Left: text */}
+        <div style={{ flex: "1 1 380px", maxWidth: 520, textAlign: "left" }}>
+          <h1
+            style={{
+              fontFamily: serif,
+              fontSize: "clamp(36px, 5vw, 52px)",
+              fontWeight: 400,
+              color: T.ink,
+              margin: "0 0 20px",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.1,
+            }}
+          >
+            Stop missing the replies that matter
+          </h1>
+          <p
+            style={{
+              fontSize: 18,
+              color: T.sub,
+              margin: "0 0 32px",
+              lineHeight: 1.65,
+              maxWidth: 460,
+            }}
+          >
+            Pingi monitors your Gmail, filters out noise, and sends you only the
+            messages that need a reply — with an AI draft ready to send. All
+            through Telegram.
+          </p>
+          <PrimaryButton
+            href="/auth"
+            style={{ fontSize: 16, padding: "16px 52px" }}
+          >
+            Get started free
+          </PrimaryButton>
+          <p style={{ fontSize: 13, color: T.muted, marginTop: 14 }}>
+            Free forever. No credit card required.
+          </p>
+        </div>
+
+        {/* Right: phone mockup */}
+        <div style={{ flex: "0 0 auto" }}>
+          <TelegramMockup />
+        </div>
       </section>
+
+      {/* ─── Platform Flow ─── */}
+      <PlatformFlow />
 
       {/* ─── The Problem ─── */}
       <section
@@ -278,11 +799,7 @@ export default function LandingPage() {
           margin: "0 auto",
         }}
       >
-        <GlassCard
-          style={{
-            padding: "40px 36px",
-          }}
-        >
+        <GlassCard style={{ padding: "40px 36px" }}>
           <p
             style={{
               fontFamily: serif,
@@ -418,30 +935,26 @@ export default function LandingPage() {
             >
               Before Pingi
             </p>
-            {beforeStats.map((stat) => (
-              <div key={stat.label} style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    fontFamily: serif,
-                    fontSize: 32,
-                    fontWeight: 400,
-                    color: T.ink,
-                    lineHeight: 1,
-                  }}
-                >
-                  {stat.value}
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: T.muted,
-                    marginTop: 4,
-                  }}
-                >
-                  {stat.label}
-                </div>
-              </div>
-            ))}
+            <CountStat
+              target={61}
+              suffix="%"
+              label="Response rate"
+              color={T.ink}
+            />
+            <CountStat
+              target={11}
+              suffix="h"
+              label="Avg reply time"
+              color={T.ink}
+              duration={1200}
+            />
+            <CountStat
+              target={23}
+              suffix=""
+              label="Missed / month"
+              color={T.ink}
+              duration={1000}
+            />
           </GlassCard>
 
           {/* After */}
@@ -463,30 +976,27 @@ export default function LandingPage() {
             >
               After Pingi
             </p>
-            {afterStats.map((stat) => (
-              <div key={stat.label} style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    fontFamily: serif,
-                    fontSize: 32,
-                    fontWeight: 400,
-                    color: T.green,
-                    lineHeight: 1,
-                  }}
-                >
-                  {stat.value}
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: T.sub,
-                    marginTop: 4,
-                  }}
-                >
-                  {stat.label}
-                </div>
-              </div>
-            ))}
+            <CountStat
+              target={94}
+              suffix="%"
+              label="Response rate"
+              color={T.green}
+            />
+            <CountStat
+              target={2.3}
+              suffix="h"
+              label="Avg reply time"
+              color={T.green}
+              duration={1200}
+              decimals={1}
+            />
+            <CountStat
+              target={0}
+              suffix=""
+              label="Missed"
+              color={T.green}
+              duration={800}
+            />
           </GlassCard>
         </div>
       </section>
@@ -535,7 +1045,9 @@ export default function LandingPage() {
               }}
             >
               $0
-              <span style={{ fontSize: 16, color: T.muted, fontFamily: sans }}>
+              <span
+                style={{ fontSize: 16, color: T.muted, fontFamily: sans }}
+              >
                 {" "}
                 / month
               </span>
@@ -567,11 +1079,7 @@ export default function LandingPage() {
                   }}
                 >
                   <span
-                    style={{
-                      color: T.green,
-                      fontSize: 14,
-                      fontWeight: 700,
-                    }}
+                    style={{ color: T.green, fontSize: 14, fontWeight: 700 }}
                   >
                     &#10003;
                   </span>
@@ -586,7 +1094,7 @@ export default function LandingPage() {
                 textAlign: "center",
                 padding: "12px 24px",
                 borderRadius: 10,
-                border: `1px solid rgba(0,0,0,0.1)`,
+                border: "1px solid rgba(0,0,0,0.1)",
                 background: "rgba(255,255,255,0.6)",
                 color: T.ink,
                 fontSize: 14,
@@ -621,7 +1129,7 @@ export default function LandingPage() {
                 textTransform: "uppercase",
               }}
             >
-              Popular
+              3-day free trial
             </div>
             <p
               style={{
@@ -645,7 +1153,9 @@ export default function LandingPage() {
               }}
             >
               $19
-              <span style={{ fontSize: 16, color: T.muted, fontFamily: sans }}>
+              <span
+                style={{ fontSize: 16, color: T.muted, fontFamily: sans }}
+              >
                 {" "}
                 / month
               </span>
@@ -679,11 +1189,7 @@ export default function LandingPage() {
                   }}
                 >
                   <span
-                    style={{
-                      color: T.green,
-                      fontSize: 14,
-                      fontWeight: 700,
-                    }}
+                    style={{ color: T.green, fontSize: 14, fontWeight: 700 }}
                   >
                     &#10003;
                   </span>
@@ -796,9 +1302,7 @@ export default function LandingPage() {
             >
               P
             </div>
-            <span style={{ fontSize: 13, color: T.muted }}>
-              Pingi AI
-            </span>
+            <span style={{ fontSize: 13, color: T.muted }}>Pingi AI</span>
           </div>
           <div
             style={{

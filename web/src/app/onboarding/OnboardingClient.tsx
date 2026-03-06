@@ -67,6 +67,7 @@ export default function OnboardingClient() {
   const [linkCode, setLinkCode] = useState<string | null>(null);
   const [telegramLinked, setTelegramLinked] = useState(false);
   const [checkingTelegram, setCheckingTelegram] = useState(false);
+  const [startingTrial, setStartingTrial] = useState(false);
 
   useEffect(() => {
     getSupabaseBrowser()
@@ -123,6 +124,26 @@ export default function OnboardingClient() {
   const handleConnectGmail = () => {
     if (!user) return;
     window.location.href = `/api/auth/gmail?user_id=${user.id}`;
+  };
+
+  const handleStartTrial = async () => {
+    if (!user) return;
+    setStartingTrial(true);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      // ignore
+    } finally {
+      setStartingTrial(false);
+    }
   };
 
   // Determine current step
@@ -185,7 +206,7 @@ export default function OnboardingClient() {
 
       {/* All set state */}
       {telegramLinked ? (
-        <div style={{ textAlign: "center", maxWidth: 400 }}>
+        <div style={{ textAlign: "center", maxWidth: 440 }}>
           <div
             style={{
               width: 48,
@@ -218,13 +239,79 @@ export default function OnboardingClient() {
             style={{
               fontSize: 14,
               color: T.sub,
-              margin: "0 0 28px",
+              margin: "0 0 24px",
               lineHeight: 1.6,
             }}
           >
             Pingi will start monitoring your inbox and send you notifications in
             Telegram when someone needs a reply.
           </p>
+
+          {/* Trial offer card */}
+          <div
+            style={{
+              ...glassCard,
+              border: `1.5px solid ${T.green}40`,
+              padding: "20px 20px",
+              marginBottom: 20,
+              textAlign: "center",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: T.green,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                margin: "0 0 8px",
+              }}
+            >
+              Unlock Pro
+            </p>
+            <p
+              style={{
+                fontFamily: "'Instrument Serif', Georgia, serif",
+                fontSize: 20,
+                fontWeight: 400,
+                color: T.ink,
+                margin: "0 0 6px",
+                lineHeight: 1.3,
+              }}
+            >
+              Start your 3-day free trial of Pro
+            </p>
+            <p
+              style={{
+                fontSize: 13,
+                color: T.sub,
+                margin: "0 0 16px",
+                lineHeight: 1.5,
+              }}
+            >
+              Full access, no charge until day 4. Cancel anytime.
+            </p>
+            <button
+              onClick={handleStartTrial}
+              disabled={startingTrial}
+              style={{
+                width: "100%",
+                padding: "12px 24px",
+                borderRadius: 10,
+                border: "none",
+                background: `linear-gradient(135deg, ${T.green}, #1e7a3a)`,
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: startingTrial ? "wait" : "pointer",
+                fontFamily: "'DM Sans', sans-serif",
+                boxShadow: "0 4px 16px rgba(42,138,74,0.15)",
+              }}
+            >
+              {startingTrial ? "Redirecting..." : "Start free trial"}
+            </button>
+          </div>
+
           <button
             onClick={() => router.push("/")}
             style={{
@@ -238,10 +325,28 @@ export default function OnboardingClient() {
               cursor: "pointer",
               fontFamily: "'DM Sans', sans-serif",
               boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+              marginBottom: 8,
             }}
           >
             Go to dashboard
           </button>
+          <div>
+            <button
+              onClick={() => router.push("/")}
+              style={{
+                background: "none",
+                border: "none",
+                color: T.muted,
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "'DM Sans', sans-serif",
+                textDecoration: "underline",
+                padding: "4px 0",
+              }}
+            >
+              Skip, stay on free plan
+            </button>
+          </div>
         </div>
       ) : (
         <>

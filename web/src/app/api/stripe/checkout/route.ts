@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
       customer_email: email,
       metadata: { userId },
       line_items: [{ price: priceId, quantity: 1 }],
+      subscription_data: {
+        trial_period_days: 3,
+      },
       success_url: `${origin}/pricing?success=true`,
       cancel_url: `${origin}/pricing?canceled=true`,
     });
