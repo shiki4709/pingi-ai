@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import type { User } from "@supabase/supabase-js";
@@ -29,12 +29,44 @@ const glassCard: React.CSSProperties = {
 const BOT_USERNAME =
   process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "PingiAIBot";
 
+function StepDot({
+  done,
+  active,
+  number,
+}: {
+  done: boolean;
+  active: boolean;
+  number: number;
+}) {
+  return (
+    <div
+      style={{
+        width: 26,
+        height: 26,
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 11,
+        fontWeight: 600,
+        background: done ? T.green : active ? T.ink : "rgba(0,0,0,0.08)",
+        color: done || active ? "#fff" : T.muted,
+        transition: "all 0.3s",
+      }}
+    >
+      {done ? "\u2713" : number}
+    </div>
+  );
+}
+
 export default function OnboardingClient() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [gmailConnected, setGmailConnected] = useState(false);
   const [linkCode, setLinkCode] = useState<string | null>(null);
+  const [telegramLinked, setTelegramLinked] = useState(false);
+  const [checkingTelegram, setCheckingTelegram] = useState(false);
 
   useEffect(() => {
     getSupabaseBrowser()
@@ -51,7 +83,9 @@ export default function OnboardingClient() {
             body: JSON.stringify({ userId: data.user.id }),
           })
             .then((r) => r.json())
-            .then((d) => { if (d.code) setLinkCode(d.code); })
+            .then((d) => {
+              if (d.code) setLinkCode(d.code);
+            })
             .catch(() => {});
         }
         setLoading(false);
@@ -63,8 +97,26 @@ export default function OnboardingClient() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("gmail") === "connected") {
       setGmailConnected(true);
+      // Clean up URL
+      window.history.replaceState({}, "", "/onboarding");
     }
   }, []);
+
+  const checkTelegramLinked = useCallback(async () => {
+    if (!user) return;
+    setCheckingTelegram(true);
+    try {
+      const res = await fetch(`/api/telegram-status?userId=${user.id}`);
+      const data = await res.json();
+      if (data.linked) {
+        setTelegramLinked(true);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCheckingTelegram(false);
+    }
+  }, [user]);
 
   if (loading) return null;
 
@@ -72,6 +124,9 @@ export default function OnboardingClient() {
     if (!user) return;
     window.location.href = `/api/auth/gmail?user_id=${user.id}`;
   };
+
+  // Determine current step
+  const step = telegramLinked ? 3 : gmailConnected ? 2 : 1;
 
   return (
     <div
@@ -92,47 +147,35 @@ export default function OnboardingClient() {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
-          marginBottom: 24,
+          gap: 0,
+          marginBottom: 28,
         }}
       >
-        {["Sign Up", "Connect"].map((label, i) => (
+        {["Connect Gmail", "Link Telegram", "Done"].map((label, i) => (
           <div
             key={label}
-            style={{ display: "flex", alignItems: "center", gap: 8 }}
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
           >
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 11,
-                fontWeight: 600,
-                background: i === 0 ? T.green : T.ink,
-                color: "#fff",
-              }}
-            >
-              {i === 0 ? "\u2713" : 2}
-            </div>
+            <StepDot done={step > i + 1} active={step === i + 1} number={i + 1} />
             <span
               style={{
                 fontSize: 12,
-                fontWeight: i === 1 ? 600 : 400,
-                color: i === 1 ? T.ink : T.muted,
+                fontWeight: step === i + 1 ? 600 : 400,
+                color: step === i + 1 ? T.ink : step > i + 1 ? T.green : T.muted,
+                whiteSpace: "nowrap",
               }}
             >
               {label}
             </span>
-            {i === 0 && (
+            {i < 2 && (
               <div
                 style={{
-                  width: 32,
+                  width: 28,
                   height: 1.5,
-                  background: `${T.green}40`,
+                  background: step > i + 1 ? `${T.green}50` : "rgba(0,0,0,0.06)",
+                  margin: "0 6px",
                   borderRadius: 1,
+                  transition: "background 0.3s",
                 }}
               />
             )}
@@ -140,198 +183,256 @@ export default function OnboardingClient() {
         ))}
       </div>
 
-      <h2
-        style={{
-          fontFamily: "'Instrument Serif', Georgia, serif",
-          fontSize: 26,
-          fontWeight: 400,
-          color: T.ink,
-          margin: "0 0 4px",
-        }}
-      >
-        Connect your platforms
-      </h2>
-      <p style={{ fontSize: 14, color: T.muted, margin: "0 0 28px" }}>
-        Where should Pingi watch?
-      </p>
-
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 420,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        {/* Gmail card */}
-        <div
-          style={{
-            ...glassCard,
-            borderColor: gmailConnected ? `${T.green}50` : T.border,
-            background: gmailConnected ? T.greenSoft : T.glass,
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-          }}
-        >
+      {/* All set state */}
+      {telegramLinked ? (
+        <div style={{ textAlign: "center", maxWidth: 400 }}>
           <div
             style={{
-              width: 38,
-              height: 38,
-              borderRadius: 10,
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              background: T.green,
+              color: "#fff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 13,
+              fontSize: 22,
               fontWeight: 700,
-              color: "#EA4335",
-              background: "rgba(234,67,53,0.04)",
-              border: "1px solid rgba(234,67,53,0.08)",
+              margin: "0 auto 16px",
             }}
           >
-            G
+            {"\u2713"}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
-              Gmail
-            </div>
-            <div style={{ fontSize: 12, color: T.muted }}>
-              Monitor emails needing reply
-            </div>
-          </div>
-          {gmailConnected ? (
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: T.green,
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
-              {"\u2713"}
-            </div>
-          ) : (
-            <button
-              onClick={handleConnectGmail}
-              style={{
-                padding: "7px 16px",
-                borderRadius: 10,
-                border: "none",
-                background: "linear-gradient(135deg, #1a1a1a, #333)",
-                color: "#fff",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "'DM Sans', sans-serif",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-              }}
-            >
-              Connect
-            </button>
-          )}
-        </div>
-
-        {/* Telegram card */}
-        <div
-          style={{
-            ...glassCard,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#229ED9",
-                background: "rgba(34,158,217,0.04)",
-                border: "1px solid rgba(34,158,217,0.08)",
-              }}
-            >
-              TG
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
-                Telegram
-              </div>
-              <div style={{ fontSize: 12, color: T.muted }}>
-                Get notified and approve drafts
-              </div>
-            </div>
-          </div>
-          <div
+          <h2
             style={{
-              background: "rgba(0,0,0,0.025)",
-              borderRadius: 10,
-              padding: "10px 14px",
-              fontSize: 13,
+              fontFamily: "'Instrument Serif', Georgia, serif",
+              fontSize: 26,
+              fontWeight: 400,
+              color: T.ink,
+              margin: "0 0 8px",
+            }}
+          >
+            All set
+          </h2>
+          <p
+            style={{
+              fontSize: 14,
               color: T.sub,
+              margin: "0 0 28px",
               lineHeight: 1.6,
             }}
           >
-            Open Telegram and search for{" "}
-            <span style={{ fontWeight: 600, color: T.ink }}>
-              @{BOT_USERNAME}
-            </span>
-            , then send:
-            {linkCode ? (
-              <code
+            Pingi will start monitoring your inbox and send you notifications in
+            Telegram when someone needs a reply.
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            style={{
+              padding: "12px 44px",
+              borderRadius: 12,
+              border: "none",
+              background: "linear-gradient(135deg, #1a1a1a, #333)",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+            }}
+          >
+            Go to dashboard
+          </button>
+        </div>
+      ) : (
+        <>
+          <h2
+            style={{
+              fontFamily: "'Instrument Serif', Georgia, serif",
+              fontSize: 26,
+              fontWeight: 400,
+              color: T.ink,
+              margin: "0 0 4px",
+            }}
+          >
+            {gmailConnected ? "Link Telegram" : "Connect Gmail"}
+          </h2>
+          <p style={{ fontSize: 14, color: T.muted, margin: "0 0 28px" }}>
+            {gmailConnected
+              ? "Pingi sends notifications and draft replies here"
+              : "Let Pingi monitor your inbox for messages needing replies"}
+          </p>
+
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            {/* Step 1: Gmail */}
+            <div
+              style={{
+                ...glassCard,
+                borderColor: gmailConnected ? `${T.green}50` : T.border,
+                background: gmailConnected ? T.greenSoft : T.glass,
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+              }}
+            >
+              <div
                 style={{
-                  display: "block",
-                  marginTop: 8,
-                  background: "rgba(0,0,0,0.05)",
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: T.ink,
-                  letterSpacing: "0.05em",
-                  userSelect: "all",
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: gmailConnected ? T.green : "#EA4335",
+                  background: gmailConnected
+                    ? T.greenSoft
+                    : "rgba(234,67,53,0.04)",
+                  border: `1px solid ${gmailConnected ? `${T.green}20` : "rgba(234,67,53,0.08)"}`,
                 }}
               >
-                /link {linkCode}
-              </code>
-            ) : (
-              <span style={{ color: T.muted }}> loading code...</span>
-            )}
-          </div>
-        </div>
-      </div>
+                {gmailConnected ? "\u2713" : "G"}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
+                  {gmailConnected ? "Gmail connected" : "Gmail"}
+                </div>
+                <div style={{ fontSize: 12, color: T.muted }}>
+                  {gmailConnected
+                    ? "Pingi is monitoring your inbox"
+                    : "Monitor emails needing reply"}
+                </div>
+              </div>
+              {!gmailConnected && (
+                <button
+                  onClick={handleConnectGmail}
+                  style={{
+                    padding: "7px 16px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: "linear-gradient(135deg, #1a1a1a, #333)",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "'DM Sans', sans-serif",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                  }}
+                >
+                  Connect
+                </button>
+              )}
+            </div>
 
-      {/* Done button */}
-      <button
-        onClick={() => router.push("/")}
-        style={{
-          marginTop: 28,
-          padding: "12px 44px",
-          borderRadius: 12,
-          border: "none",
-          background: "linear-gradient(135deg, #1a1a1a, #333)",
-          color: "#fff",
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: "pointer",
-          fontFamily: "'DM Sans', sans-serif",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
-        }}
-      >
-        Done
-      </button>
+            {/* Step 2: Telegram */}
+            <div
+              style={{
+                ...glassCard,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                opacity: gmailConnected ? 1 : 0.5,
+                pointerEvents: gmailConnected ? "auto" : "none",
+                transition: "opacity 0.3s",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#229ED9",
+                    background: "rgba(34,158,217,0.04)",
+                    border: "1px solid rgba(34,158,217,0.08)",
+                  }}
+                >
+                  TG
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
+                    Telegram
+                  </div>
+                  <div style={{ fontSize: 12, color: T.muted }}>
+                    Get notified and approve drafts
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: "rgba(0,0,0,0.025)",
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                  fontSize: 13,
+                  color: T.sub,
+                  lineHeight: 1.6,
+                }}
+              >
+                Open Telegram and search for{" "}
+                <span style={{ fontWeight: 600, color: T.ink }}>
+                  @{BOT_USERNAME}
+                </span>
+                , then send this message:
+                {linkCode ? (
+                  <code
+                    style={{
+                      display: "block",
+                      marginTop: 10,
+                      background: "rgba(0,0,0,0.05)",
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      fontSize: 15,
+                      fontWeight: 600,
+                      color: T.ink,
+                      letterSpacing: "0.05em",
+                      userSelect: "all",
+                      textAlign: "center",
+                    }}
+                  >
+                    /link {linkCode}
+                  </code>
+                ) : (
+                  <span style={{ color: T.muted }}> loading code...</span>
+                )}
+              </div>
+
+              <button
+                onClick={checkTelegramLinked}
+                disabled={checkingTelegram}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: "linear-gradient(135deg, #1a1a1a, #333)",
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: checkingTelegram ? "wait" : "pointer",
+                  fontFamily: "'DM Sans', sans-serif",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                  alignSelf: "stretch",
+                }}
+              >
+                {checkingTelegram ? "Checking..." : "I've linked Telegram"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -32,6 +32,7 @@ function trackChatId(update: TelegramUpdate): void {
 // ─── Process a single Telegram update ───
 async function processUpdate(update: TelegramUpdate): Promise<void> {
   trackChatId(update);
+  console.log(`[index] processUpdate: update_id=${update.update_id} has_message=${!!update.message} has_callback=${!!update.callback_query} text="${update.message?.text ?? ""}"`)
 
   if (update.message) {
     await handleMessage(update.message);

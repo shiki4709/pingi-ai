@@ -262,33 +262,45 @@ export async function redeemLinkCode(
   code: string,
   chatId: number
 ): Promise<{ userId: string } | { error: string }> {
+  console.log(`[store] redeemLinkCode: code="${code}" (normalized="${code.toUpperCase()}") chatId=${chatId}`);
+
   const { data: row, error } = await supabase
     .from("link_codes")
     .select("user_id, expires_at")
     .eq("code", code.toUpperCase())
     .single();
 
+  console.log(`[store] redeemLinkCode lookup:`, { row, error: error?.message ?? null });
+
   if (error || !row) {
+    console.log(`[store] redeemLinkCode: code not found in link_codes table`);
     return { error: "Invalid code. Check and try again." };
   }
 
-  if (new Date(row.expires_at) < new Date()) {
+  const expiresAt = new Date(row.expires_at);
+  const now = new Date();
+  console.log(`[store] redeemLinkCode: expires_at=${expiresAt.toISOString()} now=${now.toISOString()} expired=${expiresAt < now}`);
+
+  if (expiresAt < now) {
     await supabase.from("link_codes").delete().eq("code", code.toUpperCase());
     return { error: "Code expired. Go back to the web app to get a new one." };
   }
 
   // Link Telegram chat to the existing web user
+  console.log(`[store] redeemLinkCode: updating users.telegram_chat_id=${chatId} for user_id=${row.user_id}`);
   const { error: updateErr } = await supabase
     .from("users")
     .update({ telegram_chat_id: chatId })
     .eq("id", row.user_id);
 
   if (updateErr) {
+    console.error(`[store] redeemLinkCode: update failed:`, updateErr.message);
     return { error: "Failed to link account. Try again." };
   }
 
   // Clean up used code
   await supabase.from("link_codes").delete().eq("code", code.toUpperCase());
+  console.log(`[store] redeemLinkCode: SUCCESS — user ${row.user_id} linked to chat ${chatId}`);
 
   return { userId: row.user_id };
 }

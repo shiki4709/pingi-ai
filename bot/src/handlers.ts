@@ -104,6 +104,7 @@ function itemActions(itemId: string) {
 export async function handleMessage(msg: TelegramMessage): Promise<void> {
   const chatId = msg.chat.id;
   const text = msg.text ?? "";
+  console.log(`[handlers] handleMessage: chatId=${chatId} text="${text}"`);
 
   if (text.startsWith("/start")) {
     endEditSession(chatId);
@@ -185,7 +186,8 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
 
   // /link CODE — connect web account to this Telegram chat
   if (text.startsWith("/link")) {
-    const code = text.replace(/^\/link\s*/, "").trim();
+    const code = text.replace(/^\/link(@\w+)?\s*/, "").trim();
+    console.log(`[handlers] /link command: chatId=${chatId} code="${code}"`);
     if (!code) {
       await sendMessage({
         chat_id: chatId,
@@ -195,17 +197,27 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
       return;
     }
 
-    const result = await redeemLinkCode(code, chatId);
-    if ("error" in result) {
+    try {
+      const result = await redeemLinkCode(code, chatId);
+      console.log(`[handlers] /link redeemLinkCode result:`, JSON.stringify(result));
+      if ("error" in result) {
+        await sendMessage({
+          chat_id: chatId,
+          text: escapeExisting(result.error),
+          parse_mode: "MarkdownV2",
+        });
+      } else {
+        await sendMessage({
+          chat_id: chatId,
+          text: `Linked\\! You'll start receiving notifications here\\.`,
+          parse_mode: "MarkdownV2",
+        });
+      }
+    } catch (e: any) {
+      console.error(`[handlers] /link EXCEPTION:`, e);
       await sendMessage({
         chat_id: chatId,
-        text: escapeExisting(result.error),
-        parse_mode: "MarkdownV2",
-      });
-    } else {
-      await sendMessage({
-        chat_id: chatId,
-        text: `Linked\\! You'll start receiving notifications here\\.`,
+        text: escapeExisting(`Error: ${e.message}`),
         parse_mode: "MarkdownV2",
       });
     }

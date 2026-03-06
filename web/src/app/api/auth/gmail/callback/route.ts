@@ -87,5 +87,5 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.redirect(new URL("/auth/gmail/success", request.url));
+  return NextResponse.redirect(new URL("/onboarding?gmail=connected", request.url));
 }
