@@ -330,6 +330,14 @@ export function shouldReply(
     return { needsReply: true, reason: "" };
   }
 
+  // Tier 0: Empty whitelist = new account, skip domain check entirely.
+  // All the automated/newsletter/transactional filters above already ran,
+  // so anything that reaches here is likely a real person.
+  if (whitelistedDomains && whitelistedDomains.size === 0) {
+    console.log(`[email-filter] whitelist bypass: empty whitelist for new account — letting through "${headers.from}"`);
+    return { needsReply: true, reason: "" };
+  }
+
   // Tier 2: Whitelisted business domains pass the domain gate
   // but must still pass additional scrutiny
   if (whitelistedDomains && domain && whitelistedDomains.has(domain)) {
