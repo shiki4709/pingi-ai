@@ -202,7 +202,8 @@ async function handleEditInstruction(
   }
 
   // Rewrite draft via Claude API using the user's instruction
-  const originalMessage = `${item.contextText ?? ""}\n\n${item.originalText}`;
+  const body = item.originalBody ?? item.originalText;
+  const originalMessage = `${item.contextText ?? ""}\n\n${body}`;
   const currentDraft = item.draftText ?? "";
   const newDraft = await rewriteDraft(originalMessage, currentDraft, instruction);
 

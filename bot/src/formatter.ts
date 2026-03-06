@@ -51,7 +51,9 @@ export function formatItemCard(item: TrackedItem): string {
   const handle = item.authorHandle ? ` ${esc(item.authorHandle)}` : "";
   const age = esc(formatAge(item.detectedAt));
   const ctxLine = item.contextText ? `Re: ${esc(item.contextText)}\n` : "";
-  const original = esc(item.originalText);
+  const bodyRaw = item.originalBody ?? item.originalText;
+  const bodyTrimmed = bodyRaw.length > 1000 ? bodyRaw.slice(0, 1000) + "..." : bodyRaw;
+  const original = esc(bodyTrimmed);
 
   let msg =
     `${urgencyTag} \\| ${platform} \\| ${context}\n\n` +

@@ -1,6 +1,6 @@
 import { google } from "googleapis";
 import { supabase } from "../supabase.js";
-import { shouldReply, extractDomain, type EmailHeaders, type FilterContext } from "./email-filter.js";
+import { shouldReply, extractDomain, extractLocalPart, GENERIC_LOCAL_PARTS, type EmailHeaders, type FilterContext } from "./email-filter.js";
 import { classifyAndDraft } from "../services/drafter.js";
 import { getSignOff } from "../store.js";
 
@@ -29,6 +29,41 @@ function getHeader(
   name: string
 ): string | undefined {
   return headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? undefined;
+}
+
+/**
+ * Extract plain text body from Gmail message payload.
+ * Handles both simple messages and multipart MIME structures.
+ */
+function extractPlainTextBody(payload: any): string {
+  if (!payload) return "";
+
+  // Simple message with body directly on payload
+  if (payload.mimeType === "text/plain" && payload.body?.data) {
+    return decodeBase64Url(payload.body.data);
+  }
+
+  // Multipart: recurse into parts looking for text/plain
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      if (part.mimeType === "text/plain" && part.body?.data) {
+        return decodeBase64Url(part.body.data);
+      }
+      // Nested multipart (e.g., multipart/alternative inside multipart/mixed)
+      if (part.parts) {
+        const nested = extractPlainTextBody(part);
+        if (nested) return nested;
+      }
+    }
+  }
+
+  return "";
+}
+
+function decodeBase64Url(data: string): string {
+  // Gmail uses URL-safe base64: replace -/_ with +//, then decode
+  const base64 = data.replace(/-/g, "+").replace(/_/g, "/");
+  return Buffer.from(base64, "base64").toString("utf-8");
 }
 
 export interface ConnectedAccount {
@@ -229,8 +264,34 @@ export async function fetchGmailForUser(
     }
   }
 
+  // Debug probe: can the API see max@aoniclife.com?
+  // TODO: remove after confirming the email comes through
+  try {
+    const debugQuery = "from:max@aoniclife.com";
+    const debugRes = await gmail.users.messages.list({
+      userId: "me",
+      q: debugQuery,
+      maxResults: 5,
+    });
+    const debugIds = (debugRes.data.messages ?? []).map((m) => m.id).filter(Boolean);
+    if (debugIds.length > 0) {
+      const inMain = debugIds.filter((id) => allIds.has(id!));
+      const missing = debugIds.filter((id) => !allIds.has(id!));
+      console.log(`[gmail] DEBUG "${debugQuery}" found ${debugIds.length} messages: ${debugIds.join(", ")}`);
+      if (inMain.length > 0) console.log(`[gmail] DEBUG  -> ${inMain.length} already in main results`);
+      if (missing.length > 0) {
+        console.log(`[gmail] DEBUG  -> ${missing.length} MISSING from main queries, adding: ${missing.join(", ")}`);
+        for (const id of missing) allIds.add(id!);
+      }
+    } else {
+      console.log(`[gmail] DEBUG "${debugQuery}" returned 0 messages — API cannot see this email`);
+    }
+  } catch (e: any) {
+    console.log(`[gmail] DEBUG aoniclife probe failed: ${e.message}`);
+  }
+
   const messageIds = [...allIds];
-  console.log(`[gmail] ${messageIds.length} unique message IDs after merging both queries`);
+  console.log(`[gmail] ${messageIds.length} unique message IDs after merging all queries`);
 
   if (messageIds.length === 0) {
     console.log("[gmail] No messages found matching any query");
@@ -315,15 +376,67 @@ export async function fetchGmailForUser(
         }
       }
 
-      const mentionsUserName = account.platform_username
-        ? snippet.toLowerCase().includes(
-            account.platform_username.split("@")[0].toLowerCase()
-          )
-        : false;
+      // Decode HTML entities in snippet for name matching
+      const decodedSnippet = snippet
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&#x27;/g, "'")
+        .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+      const snippetLowerDecoded = decodedSnippet.toLowerCase();
 
-      const filterContext: FilterContext = { isReplyThread, mentionsUserName };
+      // Check multiple name variants: email local part, first name from display name
+      let mentionsUserName = false;
+      if (account.platform_username) {
+        const emailLocal = account.platform_username.split("@")[0].toLowerCase();
+        // Try the full local part (e.g., "harukamorimori")
+        if (snippetLowerDecoded.includes(emailLocal)) mentionsUserName = true;
+        // Try splitting on dots/underscores for first name (e.g., "haruka.morimori" → "haruka")
+        const firstPart = emailLocal.split(/[._-]/)[0];
+        if (firstPart.length >= 3 && snippetLowerDecoded.includes(firstPart)) mentionsUserName = true;
+      }
+
+      // Detect personal outreach: real human sender + outreach language in snippet
+      const OUTREACH_SIGNALS = [
+        "i would love to", "i'd love to", "love to chat",
+        "jump on a call", "set up a meeting", "set up a call",
+        "schedule a call", "schedule a meeting", "grab a coffee",
+        "let's chat", "let's connect", "let's talk",
+        "your application", "your profile", "your resume", "your cv",
+        "your background", "your experience",
+        "reach out to you", "reaching out", "wanted to connect",
+        "following up", "checking in",
+        "are you available", "are you free", "do you have time",
+        "would you be open", "would you be interested",
+        "i came across", "i saw your",
+      ];
+      const senderLocal = extractLocalPart(from);
+      const isHumanSender = senderLocal ? !GENERIC_LOCAL_PARTS.has(senderLocal) : false;
+      const hasOutreachLanguage = OUTREACH_SIGNALS.some((s) => snippetLowerDecoded.includes(s));
+      const hasPersonalOutreach = isHumanSender && hasOutreachLanguage;
+
+      const filterContext: FilterContext = { isReplyThread, mentionsUserName, hasPersonalOutreach };
+
+      // Debug: log all filter inputs for aoniclife.com
+      if (from.toLowerCase().includes("aoniclife.com")) {
+        console.log(`[gmail] DEBUG aoniclife.com filter inputs:`);
+        console.log(`[gmail] DEBUG   from="${from}" subject="${subject}"`);
+        console.log(`[gmail] DEBUG   snippet="${snippet.slice(0, 200)}"`);
+        console.log(`[gmail] DEBUG   decodedSnippet="${decodedSnippet.slice(0, 200)}"`);
+        console.log(`[gmail] DEBUG   isReplyThread=${isReplyThread} mentionsUserName=${mentionsUserName} hasPersonalOutreach=${hasPersonalOutreach}`);
+        console.log(`[gmail] DEBUG   isHumanSender=${isHumanSender} (local="${senderLocal}") hasOutreachLanguage=${hasOutreachLanguage}`);
+        console.log(`[gmail] DEBUG   listUnsubscribe=${emailHeaders.listUnsubscribe ?? "(none)"}`);
+        console.log(`[gmail] DEBUG   precedence=${emailHeaders.precedence ?? "(none)"}`);
+      }
 
       const filterResult = shouldReply(emailHeaders, snippet, whitelistedDomains, filterContext);
+
+      if (from.toLowerCase().includes("aoniclife.com")) {
+        console.log(`[gmail] DEBUG aoniclife.com result: needsReply=${filterResult.needsReply} reason="${filterResult.reason}"`);
+      }
+
       if (!filterResult.needsReply) {
         result.filtered++;
         console.log(
@@ -337,9 +450,23 @@ export async function fetchGmailForUser(
       const { name, handle } = extractName(from);
       const urgency = boostForGmail(calculateUrgency(date));
 
-      // Classify context and generate draft via Claude API
+      // Fetch full message body for draft generation (only for emails that pass filter)
+      let fullBody = "";
+      try {
+        const fullMsg = await gmail.users.messages.get({
+          userId: "me",
+          id: msgId,
+          format: "full",
+        });
+        fullBody = extractPlainTextBody(fullMsg.data.payload) || snippet;
+      } catch {
+        // Fall back to snippet if full fetch fails
+        fullBody = snippet;
+      }
+
+      // Classify context and generate draft via Claude API (using full body)
       const { context, draftText } = await classifyAndDraft(
-        "gmail", name, subject, snippet, signOff
+        "gmail", name, subject, fullBody, signOff
       );
 
       const priorityScore = urgency === "red" ? 8 : urgency === "amber" ? 5 : 3;
@@ -358,6 +485,7 @@ export async function fetchGmailForUser(
           author_name: name,
           author_handle: handle,
           original_text: snippet,
+          original_body: fullBody || null,
           context_text: subject,
           draft_text: draftText || null,
           detected_at: date.toISOString(),

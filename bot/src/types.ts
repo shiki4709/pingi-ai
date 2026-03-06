@@ -64,6 +64,8 @@ export interface EngagementItem {
   authorName: string;
   authorHandle?: string;
   originalText: string;
+  /** Full email body (plain text) when available, otherwise same as originalText */
+  originalBody?: string;
   contextText?: string;
   detectedAt: Date;
   draftText?: string;

@@ -24,6 +24,7 @@ function rowToItem(row: Record<string, any>): TrackedItem {
     authorName: row.author_name,
     authorHandle: row.author_handle ?? undefined,
     originalText: row.original_text,
+    originalBody: row.original_body ?? undefined,
     contextText: row.context_text ?? undefined,
     detectedAt: new Date(row.detected_at),
     draftText: row.draft_text ?? undefined,

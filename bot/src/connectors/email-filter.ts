@@ -24,6 +24,8 @@ export interface FilterContext {
   isReplyThread?: boolean;
   /** True if the email snippet contains the user's name */
   mentionsUserName?: boolean;
+  /** True if sender has a human name pattern AND snippet contains outreach language */
+  hasPersonalOutreach?: boolean;
 }
 
 // ─── 1. Automated sender addresses ───
@@ -126,6 +128,19 @@ function isCalendarOrAutoResponse(headers: EmailHeaders): boolean {
   return autoSubjects.some((p) => subjectLower.includes(p));
 }
 
+// ─── Generic local parts (used by multiple checks below) ───
+// Real humans use their name (john@, sarah.lee@), not these generic addresses.
+
+export const GENERIC_LOCAL_PARTS = new Set([
+  "news", "noreply", "no-reply", "info", "support", "service",
+  "marketing", "hello", "team", "notifications", "updates",
+  "alert", "alerts", "cs", "reply", "contact", "admin",
+  "sales", "billing", "help", "feedback", "newsletter",
+  "promo", "promotions", "offers", "deals", "announce",
+  "digest", "notification", "system", "mailer", "postmaster",
+  "do-not-reply", "donotreply", "members", "community",
+]);
+
 // ─── 4. Receipts and transactional ───
 
 function isTransactional(headers: EmailHeaders, snippet: string): boolean {
@@ -145,14 +160,25 @@ function isTransactional(headers: EmailHeaders, snippet: string): boolean {
     "sign-in attempt", "login attempt",
     "subscription confirmed", "you've been added",
     "welcome to", // welcome emails from services
-    // Job application auto-replies
+  ];
+
+  if (transactionalSubjects.some((p) => subjectLower.includes(p))) return true;
+
+  // Job application auto-replies: only filter if sender is generic (noreply, team, etc.)
+  // Real recruiters (max@, sarah@) writing about applications should get through.
+  const jobAppPatterns = [
     "thanks for applying", "thank you for applying",
     "application confirmation", "application received",
     "your application was sent", "your application has been",
     "we received your application",
   ];
-
-  if (transactionalSubjects.some((p) => subjectLower.includes(p))) return true;
+  const hasJobAppSubject = jobAppPatterns.some((p) => subjectLower.includes(p))
+    || jobAppPatterns.some((p) => snippetLower.includes(p));
+  if (hasJobAppSubject) {
+    const local = extractLocalPart(headers.from);
+    if (local && GENERIC_LOCAL_PARTS.has(local)) return true;
+    // Human sender with job-app language — don't filter (likely a real recruiter)
+  }
 
   // Snippet-level signals for receipts
   const transactionalSnippets = [
@@ -220,7 +246,7 @@ export function extractDomain(from: string): string | null {
   return match[1].toLowerCase();
 }
 
-function extractLocalPart(from: string): string | null {
+export function extractLocalPart(from: string): string | null {
   const match = from.match(/([^<\s]+)@/i);
   if (!match) return null;
   return match[1].toLowerCase();
@@ -231,17 +257,6 @@ function isPersonalDomain(domain: string): boolean {
 }
 
 // ─── 9b. Generic local part check ───
-// Real humans use their name (john@, sarah.lee@), not these generic addresses.
-
-const GENERIC_LOCAL_PARTS = new Set([
-  "news", "noreply", "no-reply", "info", "support", "service",
-  "marketing", "hello", "team", "notifications", "updates",
-  "alert", "alerts", "cs", "reply", "contact", "admin",
-  "sales", "billing", "help", "feedback", "newsletter",
-  "promo", "promotions", "offers", "deals", "announce",
-  "digest", "notification", "system", "mailer", "postmaster",
-  "do-not-reply", "donotreply", "members", "community",
-]);
 
 function isGenericLocalPart(from: string): boolean {
   const local = extractLocalPart(from);
@@ -334,11 +349,14 @@ export function shouldReply(
 
   // Tier 3: Unknown domain — not personal, not whitelisted
   // But let through if it looks like a reply to something the user initiated,
-  // or if it mentions the user by name (likely addressed to them personally).
+  // mentions the user by name, or has personal outreach signals from a real person.
   if (filterContext?.isReplyThread) {
     return { needsReply: true, reason: "" };
   }
   if (filterContext?.mentionsUserName) {
+    return { needsReply: true, reason: "" };
+  }
+  if (filterContext?.hasPersonalOutreach) {
     return { needsReply: true, reason: "" };
   }
 
