@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   // Exchange authorization code for tokens
   let tokens;
   try {
-    tokens = await exchangeCode(code);
+    tokens = await exchangeCode(code, request.url);
   } catch (e: any) {
     console.error("Gmail token exchange failed:", e.message);
     return NextResponse.redirect(
@@ -44,6 +44,17 @@ export async function GET(request: NextRequest) {
     console.error("Failed to fetch Gmail address:", e.message);
     // Non-fatal: proceed with "unknown", will be updated on next token refresh
   }
+
+  // Ensure user exists in public.users (auth.users may exist but public.users may not)
+  const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+  await supabase.from("users").upsert(
+    {
+      id: userId,
+      email: authUser?.user?.email ?? emailAddress,
+      name: authUser?.user?.user_metadata?.full_name ?? authUser?.user?.user_metadata?.name ?? null,
+    },
+    { onConflict: "id" }
+  );
 
   // Upsert into connected_accounts (keyed by user + platform + email)
   const { error: dbError } = await supabase.from("connected_accounts").upsert(

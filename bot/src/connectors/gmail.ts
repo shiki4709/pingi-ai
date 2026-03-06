@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import { supabase } from "../supabase.js";
 import { shouldReply, extractDomain, extractLocalPart, GENERIC_LOCAL_PARTS, type EmailHeaders, type FilterContext } from "./email-filter.js";
 import { classifyAndDraft } from "../services/drafter.js";
-import { getSignOff } from "../store.js";
+import { getSignOff, canGenerateDraft } from "../store.js";
 
 // Urgency thresholds (same as src/urgency.ts)
 function calculateUrgency(detectedAt: Date): "red" | "amber" | "green" {
@@ -465,9 +465,26 @@ export async function fetchGmailForUser(
       }
 
       // Classify context and generate draft via Claude API (using full body)
-      const { context, draftText } = await classifyAndDraft(
-        "gmail", name, subject, fullBody, signOff
-      );
+      // Gate drafts behind subscription: free plan = 10/month
+      const draftCheck = await canGenerateDraft(account.user_id);
+      let context: string;
+      let draftText: string | null;
+
+      if (draftCheck.allowed) {
+        const classified = await classifyAndDraft(
+          "gmail", name, subject, fullBody, signOff
+        );
+        context = classified.context;
+        draftText = classified.draftText;
+      } else {
+        // Over free limit — skip draft, classify as OPERATIONAL fallback
+        context = "OPERATIONAL";
+        draftText = null;
+        console.log(
+          `[gmail] Draft skipped for user ${account.user_id}: ` +
+          `free plan limit reached (${draftCheck.usage}/${draftCheck.limit})`
+        );
+      }
 
       const priorityScore = urgency === "red" ? 8 : urgency === "amber" ? 5 : 3;
 

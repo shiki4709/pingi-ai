@@ -34,6 +34,7 @@ export default function OnboardingClient() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [gmailConnected, setGmailConnected] = useState(false);
+  const [linkCode, setLinkCode] = useState<string | null>(null);
 
   useEffect(() => {
     getSupabaseBrowser()
@@ -43,6 +44,15 @@ export default function OnboardingClient() {
           router.replace("/auth");
         } else {
           setUser(data.user);
+          // Generate a link code for Telegram pairing
+          fetch("/api/link-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: data.user.id }),
+          })
+            .then((r) => r.json())
+            .then((d) => { if (d.code) setLinkCode(d.code); })
+            .catch(() => {});
         }
         setLoading(false);
       });
@@ -278,18 +288,27 @@ export default function OnboardingClient() {
             <span style={{ fontWeight: 600, color: T.ink }}>
               @{BOT_USERNAME}
             </span>
-            , then send{" "}
-            <code
-              style={{
-                background: "rgba(0,0,0,0.05)",
-                padding: "2px 6px",
-                borderRadius: 4,
-                fontSize: 12,
-              }}
-            >
-              /start
-            </code>{" "}
-            to activate notifications.
+            , then send:
+            {linkCode ? (
+              <code
+                style={{
+                  display: "block",
+                  marginTop: 8,
+                  background: "rgba(0,0,0,0.05)",
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: T.ink,
+                  letterSpacing: "0.05em",
+                  userSelect: "all",
+                }}
+              >
+                /link {linkCode}
+              </code>
+            ) : (
+              <span style={{ color: T.muted }}> loading code...</span>
+            )}
           </div>
         </div>
       </div>

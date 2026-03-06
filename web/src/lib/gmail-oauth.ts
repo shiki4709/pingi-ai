@@ -6,19 +6,24 @@ const SCOPES = [
   "https://www.googleapis.com/auth/gmail.modify",
 ];
 
-const REDIRECT_URI =
-  process.env.GMAIL_REDIRECT_URI ?? "http://localhost:3000/api/auth/gmail/callback";
+function resolveRedirectUri(requestUrl?: string): string {
+  if (process.env.GMAIL_REDIRECT_URI) return process.env.GMAIL_REDIRECT_URI;
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    (requestUrl ? new URL(requestUrl).origin : "http://localhost:3000");
+  return `${base}/api/auth/gmail/callback`;
+}
 
-export function getOAuth2Client() {
+export function getOAuth2Client(requestUrl?: string) {
   return new google.auth.OAuth2(
     process.env.GMAIL_CLIENT_ID,
     process.env.GMAIL_CLIENT_SECRET,
-    REDIRECT_URI
+    resolveRedirectUri(requestUrl)
   );
 }
 
-export function getAuthUrl(userId: string): string {
-  const client = getOAuth2Client();
+export function getAuthUrl(userId: string, requestUrl?: string): string {
+  const client = getOAuth2Client(requestUrl);
   return client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
@@ -27,8 +32,8 @@ export function getAuthUrl(userId: string): string {
   });
 }
 
-export async function exchangeCode(code: string) {
-  const client = getOAuth2Client();
+export async function exchangeCode(code: string, requestUrl?: string) {
+  const client = getOAuth2Client(requestUrl);
   const { tokens } = await client.getToken(code);
   return tokens;
 }

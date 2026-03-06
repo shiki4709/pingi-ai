@@ -200,6 +200,99 @@ export async function getUserIdForChat(
   return data?.id ?? null;
 }
 
+// ─── Subscription & draft usage ───
+
+const FREE_DRAFT_LIMIT = 10;
+
+/**
+ * Count how many reply_items with a non-null draft_text this user has created
+ * in the current calendar month.
+ */
+export async function getDraftUsageThisMonth(
+  userId: string
+): Promise<number> {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  const { count } = await supabase
+    .from("reply_items")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .not("draft_text", "is", null)
+    .gte("detected_at", startOfMonth);
+
+  return count ?? 0;
+}
+
+/**
+ * Check whether a user is allowed to generate a draft.
+ * Returns { allowed: true } or { allowed: false, usage, limit }.
+ */
+export async function canGenerateDraft(
+  userId: string
+): Promise<{ allowed: true } | { allowed: false; usage: number; limit: number }> {
+  // Check for active Pro subscription
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("plan, status")
+    .eq("user_id", userId)
+    .single();
+
+  if (sub?.plan === "pro" && sub?.status === "active") {
+    return { allowed: true };
+  }
+
+  // Free plan: check monthly usage
+  const usage = await getDraftUsageThisMonth(userId);
+  if (usage < FREE_DRAFT_LIMIT) {
+    return { allowed: true };
+  }
+
+  return { allowed: false, usage, limit: FREE_DRAFT_LIMIT };
+}
+
+// ─── Link code redemption ───
+
+/**
+ * Redeem a 6-character link code from the web onboarding flow.
+ * Looks up the code, checks expiry, sets telegram_chat_id on the user,
+ * then deletes the code. Returns the user_id on success, null on failure.
+ */
+export async function redeemLinkCode(
+  code: string,
+  chatId: number
+): Promise<{ userId: string } | { error: string }> {
+  const { data: row, error } = await supabase
+    .from("link_codes")
+    .select("user_id, expires_at")
+    .eq("code", code.toUpperCase())
+    .single();
+
+  if (error || !row) {
+    return { error: "Invalid code. Check and try again." };
+  }
+
+  if (new Date(row.expires_at) < new Date()) {
+    await supabase.from("link_codes").delete().eq("code", code.toUpperCase());
+    return { error: "Code expired. Go back to the web app to get a new one." };
+  }
+
+  // Link Telegram chat to the existing web user
+  const { error: updateErr } = await supabase
+    .from("users")
+    .update({ telegram_chat_id: chatId })
+    .eq("id", row.user_id);
+
+  if (updateErr) {
+    return { error: "Failed to link account. Try again." };
+  }
+
+  // Clean up used code
+  await supabase.from("link_codes").delete().eq("code", code.toUpperCase());
+
+  return { userId: row.user_id };
+}
+
 // ─── Report queries ───
 
 /**

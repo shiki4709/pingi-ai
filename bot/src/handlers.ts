@@ -13,6 +13,9 @@ import {
   ensureUser,
   setSignOff,
   getSignOffForChat,
+  redeemLinkCode,
+  canGenerateDraft,
+  getUserIdForChat,
 } from "./store.js";
 import { rewriteDraft } from "./services/drafter.js";
 import { sendGmailReply } from "./connectors/gmail-send.js";
@@ -180,6 +183,35 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     return;
   }
 
+  // /link CODE — connect web account to this Telegram chat
+  if (text.startsWith("/link")) {
+    const code = text.replace(/^\/link\s*/, "").trim();
+    if (!code) {
+      await sendMessage({
+        chat_id: chatId,
+        text: `Send your 6\\-character link code:\n\`/link ABC123\``,
+        parse_mode: "MarkdownV2",
+      });
+      return;
+    }
+
+    const result = await redeemLinkCode(code, chatId);
+    if ("error" in result) {
+      await sendMessage({
+        chat_id: chatId,
+        text: escapeExisting(result.error),
+        parse_mode: "MarkdownV2",
+      });
+    } else {
+      await sendMessage({
+        chat_id: chatId,
+        text: `Linked\\! You'll start receiving notifications here\\.`,
+        parse_mode: "MarkdownV2",
+      });
+    }
+    return;
+  }
+
   // If the user is in edit mode, treat any text as an edit instruction
   const session = editSessions.get(chatId);
   if (session) {
@@ -336,11 +368,36 @@ export async function pushItemCard(
   }
 
   console.log(`[push] Sending item card to chat ${chatId}: ${item.platform} from "${item.authorName}" — "${item.contextText ?? ""}"`);
+
+  let text = formatItemCard(item);
+
+  // If no draft, check if this is because of the free plan limit
+  if (!item.draftText) {
+    const userId = await getUserIdForChat(chatId);
+    if (userId) {
+      const draftCheck = await canGenerateDraft(userId);
+      if (!draftCheck.allowed) {
+        text +=
+          `\n\n_Free plan limit reached \\(${draftCheck.usage}/${draftCheck.limit} drafts this month\\)\\._` +
+          `\n_Upgrade to Pro for unlimited drafts\\._`;
+      }
+    }
+  }
+
+  const buttons = item.draftText
+    ? itemActions(itemId)
+    : inlineButtons([
+        [
+          { text: "Skip", data: `skip:${itemId}` },
+          { text: "Upgrade to Pro", url: "https://pingi.ai/pricing" },
+        ],
+      ]);
+
   await sendMessage({
     chat_id: chatId,
-    text: formatItemCard(item),
+    text,
     parse_mode: "MarkdownV2",
-    reply_markup: itemActions(itemId),
+    reply_markup: buttons,
   });
   console.log(`[push] Sent successfully: chatId=${chatId} itemId=${itemId}`);
 }

@@ -14,6 +14,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const url = getAuthUrl(userId);
+  const url = getAuthUrl(userId, request.url);
   return NextResponse.redirect(url);
 }
