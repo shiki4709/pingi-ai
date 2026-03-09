@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:x": "tsx watch src/x-engage/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
@@ -13,12 +14,15 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@supabase/supabase-js": "^2.98.0",
+    "@the-convocation/twitter-scraper": "^0.22.1",
     "dotenv": "^17.3.1",
     "fastify": "^5.2.1",
-    "googleapis": "^171.4.0"
+    "googleapis": "^171.4.0",
+    "twitter-api-v2": "^1.29.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",
+    "@types/tough-cookie": "^4.0.5",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }

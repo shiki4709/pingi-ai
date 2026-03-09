@@ -13,12 +13,17 @@ import {
   ensureUser,
   setSignOff,
   getSignOffForChat,
-  redeemLinkCode,
+  linkByEmail,
   canGenerateDraft,
   getUserIdForChat,
 } from "./store.js";
 import { rewriteDraft } from "./services/drafter.js";
 import { sendGmailReply } from "./connectors/gmail-send.js";
+import {
+  getTopicsForUser,
+  addTopicForUser,
+  removeTopicForUser,
+} from "./connectors/twitter-engage.js";
 import {
   formatItemCard,
   formatSentConfirmation,
@@ -38,6 +43,7 @@ interface EditSession {
 }
 
 const editSessions = new Map<number, EditSession>();
+const awaitingEmail = new Set<number>();
 
 // Callback for index.ts to resume drip when edit ends
 let editEndCallback: ((chatId: number) => void) | null = null;
@@ -109,24 +115,27 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
   if (text.startsWith("/start")) {
     endEditSession(chatId);
 
-    // Ensure user exists in Supabase
-    try {
-      const userId = await ensureUser(chatId, msg.from?.first_name);
-      console.log(`[handlers] /start: ensureUser OK — chatId=${chatId} → userId=${userId}`);
-    } catch (e: any) {
-      console.error(`[handlers] /start: ensureUser FAILED for chat ${chatId}:`, e.message);
+    // Check if already linked
+    const existing = await getUserIdForChat(chatId);
+    if (existing) {
+      await sendMessage({
+        chat_id: chatId,
+        text:
+          `*Pingi*\n\n` +
+          `You're already connected\\. I'll send you notifications here when someone needs a reply\\.`,
+        parse_mode: "MarkdownV2",
+      });
+      return;
     }
 
+    awaitingEmail.add(chatId);
     await sendMessage({
       chat_id: chatId,
       text:
         `*Pingi*\n\n` +
         `Welcome\\. Pingi monitors your Gmail, X, and LinkedIn and sends you messages here when someone needs a reply\\.\n\n` +
-        `Each notification comes with a draft in your voice and three buttons: *Send*, *Edit*, or *Skip*\\.`,
+        `What email did you sign up with on Pingi?`,
       parse_mode: "MarkdownV2",
-      reply_markup: inlineButtons([
-        [{ text: "Set up your account", url: "https://pingi.ai/onboarding" }],
-      ]),
     });
     return;
   }
@@ -184,40 +193,131 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     return;
   }
 
-  // /link CODE — connect web account to this Telegram chat
-  if (text.startsWith("/link")) {
-    const code = text.replace(/^\/link(@\w+)?\s*/, "").trim();
-    console.log(`[handlers] /link command: chatId=${chatId} code="${code}"`);
-    if (!code) {
+  // Email input — connect web account to this Telegram chat
+  if (awaitingEmail.has(chatId) && !text.startsWith("/")) {
+    if (!text.includes("@") || !text.includes(".")) {
       await sendMessage({
         chat_id: chatId,
-        text: `Send your 6\\-character link code:\n\`/link ABC123\``,
+        text: "That doesn't look like an email\\. Try again\\.",
         parse_mode: "MarkdownV2",
       });
       return;
     }
 
     try {
-      const result = await redeemLinkCode(code, chatId);
-      console.log(`[handlers] /link redeemLinkCode result:`, JSON.stringify(result));
+      const result = await linkByEmail(text, chatId);
+      console.log(`[handlers] linkByEmail result:`, JSON.stringify(result));
       if ("error" in result) {
+        // Keep awaiting — user can try another email
         await sendMessage({
           chat_id: chatId,
           text: escapeExisting(result.error),
           parse_mode: "MarkdownV2",
         });
       } else {
+        awaitingEmail.delete(chatId);
         await sendMessage({
           chat_id: chatId,
-          text: `Linked\\! You'll start receiving notifications here\\.`,
+          text: `Connected\\! You'll start receiving notifications here\\.`,
           parse_mode: "MarkdownV2",
         });
       }
     } catch (e: any) {
-      console.error(`[handlers] /link EXCEPTION:`, e);
+      console.error(`[handlers] linkByEmail EXCEPTION:`, e);
       await sendMessage({
         chat_id: chatId,
         text: escapeExisting(`Error: ${e.message}`),
+        parse_mode: "MarkdownV2",
+      });
+    }
+    return;
+  }
+
+  // /topics — manage engagement topics for proactive X outreach
+  if (text.startsWith("/topics")) {
+    const arg = text.replace(/^\/topics(@\w+)?\s*/, "").trim();
+    const userId = await getUserIdForChat(chatId);
+
+    if (!userId) {
+      await sendMessage({
+        chat_id: chatId,
+        text: `Send /start first to set up your account\\.`,
+        parse_mode: "MarkdownV2",
+      });
+      return;
+    }
+
+    // /topics add <topic>
+    if (arg.startsWith("add ")) {
+      const topic = arg.slice(4).trim();
+      if (!topic) {
+        await sendMessage({
+          chat_id: chatId,
+          text: `Usage: \`/topics add AI agents\``,
+          parse_mode: "MarkdownV2",
+        });
+        return;
+      }
+      console.log(`[handlers] /topics add: userId=${userId} topic="${topic}"`);
+      const ok = await addTopicForUser(userId, topic);
+      await sendMessage({
+        chat_id: chatId,
+        text: ok
+          ? `Added topic: *${escapeExisting(topic)}*\n\nPingi will search X for relevant tweets every 30 minutes and send you draft comments\\.`
+          : `Failed to add topic\\. Try again\\.`,
+        parse_mode: "MarkdownV2",
+      });
+      return;
+    }
+
+    // /topics remove <topic>
+    if (arg.startsWith("remove ")) {
+      const topic = arg.slice(7).trim();
+      if (!topic) {
+        await sendMessage({
+          chat_id: chatId,
+          text: `Usage: \`/topics remove AI agents\``,
+          parse_mode: "MarkdownV2",
+        });
+        return;
+      }
+      console.log(`[handlers] /topics remove: userId=${userId} topic="${topic}"`);
+      const ok = await removeTopicForUser(userId, topic);
+      await sendMessage({
+        chat_id: chatId,
+        text: ok
+          ? `Removed topic: *${escapeExisting(topic)}*`
+          : `Failed to remove topic\\. Check the name and try again\\.`,
+        parse_mode: "MarkdownV2",
+      });
+      return;
+    }
+
+    // /topics (list)
+    console.log(`[handlers] /topics list: userId=${userId}`);
+    const topics = await getTopicsForUser(userId);
+    if (topics.length === 0) {
+      await sendMessage({
+        chat_id: chatId,
+        text:
+          `*Engagement topics*\n\n` +
+          `No topics set\\. Add one to start getting proactive engagement suggestions:\n\n` +
+          `\`/topics add AI agents\`\n` +
+          `\`/topics add founder marketing\`\n` +
+          `\`/topics add SaaS growth\``,
+        parse_mode: "MarkdownV2",
+      });
+    } else {
+      const list = topics
+        .map((t, i) => `${i + 1}\\. ${escapeExisting(t.topic)}`)
+        .join("\n");
+      await sendMessage({
+        chat_id: chatId,
+        text:
+          `*Engagement topics*\n\n${list}\n\n` +
+          `Pingi searches X for these topics every 30 minutes\\.\n\n` +
+          `\`/topics add <topic>\` to add\n` +
+          `\`/topics remove <topic>\` to remove`,
         parse_mode: "MarkdownV2",
       });
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback } from "react";
 
 const T = {
   ink: "#1a1a1a",
@@ -163,243 +163,18 @@ function TelegramIcon({ size = 32 }: { size?: number }) {
   );
 }
 
-function SlackIcon({ size = 32 }: { size?: number }) {
+function XIcon({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M6 15a2 2 0 01-2-2 2 2 0 012-2h2v2a2 2 0 01-2 2z" fill="#E01E5A"/>
-      <path d="M9 15a2 2 0 002-2V7a2 2 0 10-4 0v6a2 2 0 002 2z" fill="#E01E5A"/>
-      <path d="M9 6a2 2 0 002-2 2 2 0 00-2-2 2 2 0 00-2 2v2h2z" fill="#36C5F0"/>
-      <path d="M9 9a2 2 0 00-2-2H1a2 2 0 100 4h6a2 2 0 002-2z" fill="#36C5F0"/>
-      <path d="M18 9a2 2 0 012 2 2 2 0 01-2 2h-2V9a2 2 0 012-2z" fill="#2EB67D"/>
-      <path d="M15 9a2 2 0 00-2 2v6a2 2 0 104 0v-6a2 2 0 00-2-2z" fill="#2EB67D"/>
-      <path d="M15 20a2 2 0 01-2-2v-2h2a2 2 0 110 4z" fill="#ECB22E"/>
-      <path d="M15 15a2 2 0 002-2h6a2 2 0 110 4h-6a2 2 0 01-2-2z" fill="#ECB22E"/>
+      <rect width="24" height="24" rx="4" fill="#000"/>
+      <path d="M13.5 10.5L18.5 4.5H17L12.9 9.6L9.5 4.5H5L10.3 12.9L5 19.5H6.5L11 13.8L14.5 19.5H19L13.5 10.5Z" fill="white" strokeWidth="0"/>
     </svg>
   );
 }
 
-// ─── Telegram Phone Mockup ───
+// ─── Mini flow diagram for product cards ───
 
-const mockMessages = [
-  {
-    sender: "Pingi",
-    text: "New email from Sarah Chen",
-    sub: "Re: Q3 partnership proposal",
-    draft: "Hi Sarah, thanks for the detailed proposal. I've reviewed the terms and I'm aligned on the revenue share structure. Let me loop in our ops team for next steps.",
-    delay: 0,
-  },
-  {
-    sender: "Pingi",
-    text: "New email from Marcus Webb",
-    sub: "Follow-up: API integration timeline",
-    draft: "Hey Marcus, good question. We're targeting end of month for the v2 endpoints. I'll send over the updated spec by Friday.",
-    delay: 2,
-  },
-  {
-    sender: "Pingi",
-    text: "New email from Lisa Park",
-    sub: "Invoice #4821 — quick question",
-    draft: "Hi Lisa, the discrepancy is from the mid-cycle plan upgrade. I'll have finance send a corrected invoice today.",
-    delay: 4,
-  },
-];
-
-function TelegramMockup() {
-  return (
-    <div
-      style={{
-        width: 280,
-        maxWidth: "100%",
-        animation: "float-phone 4s ease-in-out infinite",
-      }}
-    >
-      {/* Phone frame */}
-      <div
-        style={{
-          background: "rgba(255,255,255,0.7)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          borderRadius: 28,
-          border: "1px solid rgba(255,255,255,0.6)",
-          boxShadow:
-            "0 20px 60px rgba(0,0,0,0.12), 0 1px 0 rgba(255,255,255,0.8) inset",
-          overflow: "hidden",
-        }}
-      >
-        {/* Status bar */}
-        <div
-          style={{
-            background: T.tgBlue,
-            padding: "10px 16px 8px",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.25)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-              fontWeight: 800,
-              color: "#fff",
-              fontFamily: serif,
-            }}
-          >
-            P
-          </div>
-          <div>
-            <div
-              style={{
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 600,
-                lineHeight: 1.2,
-              }}
-            >
-              Pingi
-            </div>
-            <div
-              style={{
-                color: "rgba(255,255,255,0.7)",
-                fontSize: 10,
-                lineHeight: 1.2,
-              }}
-            >
-              online
-            </div>
-          </div>
-        </div>
-
-        {/* Chat area */}
-        <div
-          style={{
-            padding: "12px 10px",
-            minHeight: 320,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            background: "rgba(230,225,218,0.3)",
-          }}
-        >
-          {mockMessages.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                animation: `slideInMsg 0.5s ease-out ${msg.delay}s both`,
-              }}
-            >
-              {/* Message bubble */}
-              <div
-                style={{
-                  background: "#fff",
-                  borderRadius: "12px 12px 12px 4px",
-                  padding: "8px 10px",
-                  maxWidth: "92%",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: T.tgBlue,
-                    marginBottom: 3,
-                  }}
-                >
-                  {msg.sender}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: T.ink,
-                    lineHeight: 1.3,
-                  }}
-                >
-                  {msg.text}
-                </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: T.muted,
-                    marginTop: 2,
-                  }}
-                >
-                  {msg.sub}
-                </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: T.sub,
-                    marginTop: 6,
-                    padding: "5px 7px",
-                    background: "rgba(0,0,0,0.03)",
-                    borderRadius: 6,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {msg.draft.length > 80
-                    ? msg.draft.slice(0, 80) + "..."
-                    : msg.draft}
-                </div>
-                {/* Buttons */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 4,
-                    marginTop: 6,
-                  }}
-                >
-                  {["Send", "Edit", "Skip"].map((btn) => (
-                    <div
-                      key={btn}
-                      style={{
-                        flex: 1,
-                        textAlign: "center",
-                        fontSize: 10,
-                        fontWeight: 600,
-                        padding: "5px 0",
-                        borderRadius: 6,
-                        color:
-                          btn === "Send"
-                            ? "#fff"
-                            : btn === "Edit"
-                              ? T.tgBlue
-                              : T.muted,
-                        background:
-                          btn === "Send"
-                            ? T.tgBlue
-                            : btn === "Edit"
-                              ? `${T.tgBlue}15`
-                              : "rgba(0,0,0,0.04)",
-                        border:
-                          btn === "Edit"
-                            ? `1px solid ${T.tgBlue}30`
-                            : "1px solid transparent",
-                      }}
-                    >
-                      {btn}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Platform Flow Diagram ───
-
-function PlatformFlow() {
+function FlowDiagram({ sourceIcon, sourceLabel }: { sourceIcon: React.ReactNode; sourceLabel: string }) {
   return (
     <div
       style={{
@@ -407,16 +182,16 @@ function PlatformFlow() {
         alignItems: "center",
         justifyContent: "center",
         gap: 0,
-        padding: "40px 20px 0",
+        padding: "24px 0 8px",
       }}
     >
-      {/* Gmail */}
+      {/* Source */}
       <div style={{ textAlign: "center" }}>
         <div
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 16,
+            width: 44,
+            height: 44,
+            borderRadius: 12,
             background: "rgba(255,255,255,0.7)",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
@@ -427,38 +202,32 @@ function PlatformFlow() {
             justifyContent: "center",
           }}
         >
-          <GmailIcon size={28} />
+          {sourceIcon}
         </div>
-        <div style={{ fontSize: 11, color: T.muted, marginTop: 6, fontWeight: 500 }}>
-          Gmail
+        <div style={{ fontSize: 10, color: T.muted, marginTop: 4, fontWeight: 500 }}>
+          {sourceLabel}
         </div>
       </div>
 
-      {/* Animated line 1 */}
-      <svg width="80" height="20" style={{ overflow: "visible", margin: "0 -4px", marginBottom: 18 }}>
-        <line
-          x1="0" y1="10" x2="80" y2="10"
-          stroke={T.muted}
-          strokeWidth="1.5"
-          strokeDasharray="4 4"
-          style={{ animation: "dash-flow 0.8s linear infinite" }}
-        />
-        <polygon points="76,6 82,10 76,14" fill={T.muted} />
+      {/* Arrow 1 */}
+      <svg width="48" height="20" style={{ overflow: "visible", margin: "0 -2px", marginBottom: 14 }}>
+        <line x1="0" y1="10" x2="48" y2="10" stroke={T.muted} strokeWidth="1.5" strokeDasharray="4 4" style={{ animation: "dash-flow 0.8s linear infinite" }} />
+        <polygon points="44,6 50,10 44,14" fill={T.muted} />
       </svg>
 
       {/* Pingi */}
       <div style={{ textAlign: "center" }}>
         <div
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 16,
+            width: 44,
+            height: 44,
+            borderRadius: 12,
             background: "linear-gradient(135deg, #1a1a1a 0%, #3a3a3a 100%)",
             boxShadow: "0 6px 24px rgba(0,0,0,0.15)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 22,
+            fontSize: 18,
             fontWeight: 800,
             fontFamily: serif,
             color: "#fff",
@@ -466,30 +235,24 @@ function PlatformFlow() {
         >
           P
         </div>
-        <div style={{ fontSize: 11, color: T.ink, marginTop: 6, fontWeight: 600 }}>
+        <div style={{ fontSize: 10, color: T.ink, marginTop: 4, fontWeight: 600 }}>
           Pingi
         </div>
       </div>
 
-      {/* Animated line 2 */}
-      <svg width="80" height="20" style={{ overflow: "visible", margin: "0 -4px", marginBottom: 18 }}>
-        <line
-          x1="0" y1="10" x2="80" y2="10"
-          stroke={T.tgBlue}
-          strokeWidth="1.5"
-          strokeDasharray="4 4"
-          style={{ animation: "dash-flow 0.8s linear infinite" }}
-        />
-        <polygon points="76,6 82,10 76,14" fill={T.tgBlue} />
+      {/* Arrow 2 */}
+      <svg width="48" height="20" style={{ overflow: "visible", margin: "0 -2px", marginBottom: 14 }}>
+        <line x1="0" y1="10" x2="48" y2="10" stroke={T.tgBlue} strokeWidth="1.5" strokeDasharray="4 4" style={{ animation: "dash-flow 0.8s linear infinite" }} />
+        <polygon points="44,6 50,10 44,14" fill={T.tgBlue} />
       </svg>
 
       {/* Telegram */}
       <div style={{ textAlign: "center" }}>
         <div
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 16,
+            width: 44,
+            height: 44,
+            borderRadius: 12,
             background: "rgba(255,255,255,0.7)",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
@@ -500,41 +263,10 @@ function PlatformFlow() {
             justifyContent: "center",
           }}
         >
-          <TelegramIcon size={28} />
+          <TelegramIcon size={22} />
         </div>
-        <div style={{ fontSize: 11, color: T.muted, marginTop: 6, fontWeight: 500 }}>
+        <div style={{ fontSize: 10, color: T.muted, marginTop: 4, fontWeight: 500 }}>
           Telegram
-        </div>
-      </div>
-
-      {/* Dotted line to Slack (coming soon) */}
-      <svg width="60" height="20" style={{ overflow: "visible", margin: "0 -4px", marginBottom: 18 }}>
-        <line
-          x1="0" y1="10" x2="60" y2="10"
-          stroke="rgba(0,0,0,0.12)"
-          strokeWidth="1.5"
-          strokeDasharray="3 5"
-        />
-      </svg>
-
-      {/* Slack */}
-      <div style={{ textAlign: "center", opacity: 0.45 }}>
-        <div
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 16,
-            background: "rgba(255,255,255,0.5)",
-            border: "1px solid rgba(0,0,0,0.06)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <SlackIcon size={28} />
-        </div>
-        <div style={{ fontSize: 11, color: T.muted, marginTop: 6, fontWeight: 500 }}>
-          Soon
         </div>
       </div>
     </div>
@@ -633,29 +365,6 @@ function CountStat({
   );
 }
 
-// ─── How it works steps ───
-
-const steps = [
-  {
-    number: "1",
-    title: "Connect Gmail",
-    description:
-      "One-click OAuth. Pingi gets read-only access to scan for messages that need a reply. Nothing is stored except what matters.",
-  },
-  {
-    number: "2",
-    title: "Get notified in Telegram",
-    description:
-      "When someone needs a reply, Pingi sends you a notification with the original message and an AI-drafted response in your voice.",
-  },
-  {
-    number: "3",
-    title: "Send, Edit, or Skip",
-    description:
-      "Tap Send to reply instantly. Tap Edit to adjust the tone. Tap Skip to ignore. Three buttons, zero context switching.",
-  },
-];
-
 // ─── Main page ───
 
 export default function LandingPage() {
@@ -732,167 +441,212 @@ export default function LandingPage() {
       {/* ─── Hero ─── */}
       <section
         style={{
-          padding: "60px 32px 20px",
-          maxWidth: 1060,
+          padding: "80px 32px 20px",
+          maxWidth: 800,
           margin: "0 auto",
-          display: "flex",
-          alignItems: "center",
-          gap: 48,
-          flexWrap: "wrap",
-          justifyContent: "center",
+          textAlign: "center",
         }}
       >
-        {/* Left: text */}
-        <div style={{ flex: "1 1 380px", maxWidth: 520, textAlign: "left" }}>
-          <h1
-            style={{
-              fontFamily: serif,
-              fontSize: "clamp(36px, 5vw, 52px)",
-              fontWeight: 400,
-              color: T.ink,
-              margin: "0 0 20px",
-              letterSpacing: "-0.02em",
-              lineHeight: 1.1,
-            }}
-          >
-            Stop missing the replies that matter
-          </h1>
-          <p
-            style={{
-              fontSize: 18,
-              color: T.sub,
-              margin: "0 0 32px",
-              lineHeight: 1.65,
-              maxWidth: 460,
-            }}
-          >
-            Pingi monitors your Gmail, filters out noise, and sends you only the
-            messages that need a reply — with an AI draft ready to send. All
-            through Telegram.
-          </p>
-          <PrimaryButton
-            href="/auth"
-            style={{ fontSize: 16, padding: "16px 52px" }}
-          >
-            Get started free
-          </PrimaryButton>
-          <p style={{ fontSize: 13, color: T.muted, marginTop: 14 }}>
-            Free forever. No credit card required.
-          </p>
-        </div>
+        <h1
+          style={{
+            fontFamily: serif,
+            fontSize: "clamp(36px, 5vw, 52px)",
+            fontWeight: 400,
+            color: T.ink,
+            margin: "0 0 20px",
+            letterSpacing: "-0.02em",
+            lineHeight: 1.1,
+          }}
+        >
+          Your AI engagement agent
+        </h1>
+        <p
+          style={{
+            fontSize: 18,
+            color: T.sub,
+            margin: "0 auto 40px",
+            lineHeight: 1.65,
+            maxWidth: 560,
+          }}
+        >
+          Stop missing important emails. Start building your online presence.
+          Pingi handles both — through Telegram.
+        </p>
+        <PrimaryButton
+          href="/auth"
+          style={{ fontSize: 16, padding: "16px 52px" }}
+        >
+          Get started free
+        </PrimaryButton>
+        <p style={{ fontSize: 13, color: T.muted, marginTop: 14 }}>
+          3-day free trial. No credit card required.
+        </p>
+      </section>
 
-        {/* Right: phone mockup */}
-        <div style={{ flex: "0 0 auto" }}>
-          <TelegramMockup />
+      {/* ─── Two Product Cards ─── */}
+      <section
+        style={{
+          padding: "60px 32px",
+          maxWidth: 1000,
+          margin: "0 auto",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+            gap: 24,
+          }}
+        >
+          {/* Inbox Agent */}
+          <GlassCard style={{ padding: "36px 32px", display: "flex", flexDirection: "column" }}>
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: T.muted,
+                textTransform: "uppercase",
+                letterSpacing: "0.12em",
+                margin: "0 0 8px",
+              }}
+            >
+              For busy founders, creators, people with ADHD
+            </p>
+            <h3
+              style={{
+                fontFamily: serif,
+                fontSize: 28,
+                fontWeight: 400,
+                color: T.ink,
+                margin: "0 0 16px",
+                lineHeight: 1.2,
+              }}
+            >
+              Inbox Agent
+            </h3>
+            <p
+              style={{
+                fontSize: 15,
+                color: T.ink,
+                margin: "0 0 12px",
+                lineHeight: 1.5,
+                fontWeight: 500,
+              }}
+            >
+              You get 100+ emails a day. Only 3-5 need a reply. You miss the ones that matter.
+            </p>
+            <p
+              style={{
+                fontSize: 14,
+                color: T.sub,
+                margin: "0 0 4px",
+                lineHeight: 1.6,
+                flex: 1,
+              }}
+            >
+              Pingi monitors your Gmail, filters noise, drafts replies, and sends only what matters to Telegram. Tap Send, Edit, or Skip.
+            </p>
+            <FlowDiagram sourceIcon={<GmailIcon size={22} />} sourceLabel="Gmail" />
+          </GlassCard>
+
+          {/* Engage Agent */}
+          <GlassCard style={{ padding: "36px 32px", display: "flex", flexDirection: "column" }}>
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: T.muted,
+                textTransform: "uppercase",
+                letterSpacing: "0.12em",
+                margin: "0 0 8px",
+              }}
+            >
+              For creators, founders building personal brand
+            </p>
+            <h3
+              style={{
+                fontFamily: serif,
+                fontSize: 28,
+                fontWeight: 400,
+                color: T.ink,
+                margin: "0 0 16px",
+                lineHeight: 1.2,
+              }}
+            >
+              Engage Agent
+            </h3>
+            <p
+              style={{
+                fontSize: 15,
+                color: T.ink,
+                margin: "0 0 12px",
+                lineHeight: 1.5,
+                fontWeight: 500,
+              }}
+            >
+              You want to engage on X but don&apos;t have time to scroll, read, and write thoughtful replies.
+            </p>
+            <p
+              style={{
+                fontSize: 14,
+                color: T.sub,
+                margin: "0 0 4px",
+                lineHeight: 1.6,
+                flex: 1,
+              }}
+            >
+              Pingi watches accounts you care about, drafts smart replies when they post, and sends them to Telegram. Review, edit, and post in 10 seconds.
+            </p>
+            <FlowDiagram sourceIcon={<XIcon size={22} />} sourceLabel="X" />
+          </GlassCard>
         </div>
       </section>
 
-      {/* ─── Platform Flow ─── */}
-      <PlatformFlow />
-
-      {/* ─── The Problem ─── */}
+      {/* ─── One subscription. Both agents. ─── */}
       <section
         style={{
           textAlign: "center",
-          padding: "60px 32px",
+          padding: "40px 32px",
           maxWidth: 640,
           margin: "0 auto",
         }}
       >
         <GlassCard style={{ padding: "40px 36px" }}>
-          <p
+          <h2
             style={{
               fontFamily: serif,
               fontSize: 28,
               fontWeight: 400,
               color: T.ink,
-              margin: "0 0 16px",
+              margin: "0 0 12px",
               lineHeight: 1.3,
               letterSpacing: "-0.01em",
             }}
           >
-            You get 100+ emails a day.
-            <br />
-            Only 3 to 5 need a reply.
-            <br />
-            The rest is noise.
-          </p>
+            One subscription. Both agents.
+          </h2>
           <p
             style={{
               fontSize: 17,
+              color: T.sub,
+              margin: "0 0 8px",
+              lineHeight: 1.5,
+            }}
+          >
+            $19/mo unlocks unlimited Gmail monitoring and X engagement.
+            Everything runs through Telegram — no new apps to learn.
+          </p>
+          <p
+            style={{
+              fontSize: 15,
               color: T.green,
               margin: 0,
               fontWeight: 600,
             }}
           >
-            Pingi finds the signal.
+            AI writes. You approve.
           </p>
         </GlassCard>
-      </section>
-
-      {/* ─── How it works ─── */}
-      <section
-        style={{
-          textAlign: "center",
-          padding: "60px 32px",
-          maxWidth: 960,
-          margin: "0 auto",
-        }}
-      >
-        <SectionHeading>How it works</SectionHeading>
-        <SectionSub>Three steps. Under two minutes to set up.</SectionSub>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 20,
-          }}
-        >
-          {steps.map((step) => (
-            <GlassCard key={step.number}>
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: T.ink,
-                  background: "rgba(0,0,0,0.04)",
-                  border: "1px solid rgba(0,0,0,0.06)",
-                  margin: "0 auto 16px",
-                }}
-              >
-                {step.number}
-              </div>
-              <h3
-                style={{
-                  fontFamily: serif,
-                  fontSize: 20,
-                  fontWeight: 400,
-                  color: T.ink,
-                  margin: "0 0 8px",
-                }}
-              >
-                {step.title}
-              </h3>
-              <p
-                style={{
-                  fontSize: 14,
-                  color: T.sub,
-                  margin: 0,
-                  lineHeight: 1.6,
-                }}
-              >
-                {step.description}
-              </p>
-            </GlassCard>
-          ))}
-        </div>
       </section>
 
       {/* ─── Before / After ─── */}
@@ -1064,6 +818,7 @@ export default function LandingPage() {
             >
               {[
                 "1 Gmail account",
+                "3 X accounts to watch",
                 "5 AI drafts per month",
                 "Telegram notifications",
                 "Smart email filtering",
@@ -1172,10 +927,9 @@ export default function LandingPage() {
             >
               {[
                 "Unlimited Gmail accounts",
-                "200 AI drafts per month",
-                "Telegram notifications",
-                "Weekly engagement reports",
-                "X and Slack coming soon",
+                "Unlimited X accounts",
+                "Unlimited AI drafts",
+                "Both Inbox + Engage agents",
                 "Priority support",
               ].map((f) => (
                 <li

@@ -16,6 +16,7 @@ import {
 import { generateWeeklyReport } from "./services/report.js";
 import { deleteWebhook, getUpdates, sendMessage } from "./telegram.js";
 import { createPollWorker } from "./workers/poll.js";
+import { startEngagementWorker, stopEngagementWorker } from "./connectors/twitter-engage.js";
 import type { TelegramUpdate } from "./types.js";
 
 const app = Fastify({ logger: true });
@@ -288,6 +289,9 @@ async function start(): Promise<void> {
   // Start the Gmail poll worker (checks every 3 minutes)
   pollWorker.start();
 
+  // Start proactive X engagement worker (searches every 30 minutes)
+  startEngagementWorker();
+
   // Start weekly report broadcast timer
   startWeeklyReportTimer();
 
@@ -304,6 +308,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     stopPolling();
     stopDrips();
     stopWeeklyReportTimer();
+    stopEngagementWorker();
     pollWorker.stop();
     app.close();
   });
