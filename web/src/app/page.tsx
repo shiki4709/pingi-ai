@@ -760,211 +760,126 @@ export default function LandingPage() {
         style={{
           textAlign: "center",
           padding: "60px 32px",
-          maxWidth: 800,
+          maxWidth: 520,
           margin: "0 auto",
         }}
       >
-        <SectionHeading>Simple pricing</SectionHeading>
-        <SectionSub>Start free. Upgrade when you need more.</SectionSub>
+        <SectionHeading>One plan. Full access.</SectionHeading>
+        <SectionSub>Try everything free for 3 days. Then $19/mo.</SectionSub>
 
-        <div
+        <GlassCard
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 20,
+            border: `1.5px solid ${T.green}40`,
+            position: "relative",
             textAlign: "left",
           }}
         >
-          {/* Free */}
-          <GlassCard>
-            <p
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: T.muted,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                margin: "0 0 4px",
-              }}
-            >
-              Free
-            </p>
-            <div
-              style={{
-                fontFamily: serif,
-                fontSize: 36,
-                fontWeight: 400,
-                color: T.ink,
-                margin: "0 0 20px",
-              }}
-            >
-              $0
-              <span
-                style={{ fontSize: 16, color: T.muted, fontFamily: sans }}
-              >
-                {" "}
-                / month
-              </span>
-            </div>
-            <ul
-              style={{
-                listStyle: "none",
-                padding: 0,
-                margin: "0 0 24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-              }}
-            >
-              {[
-                "1 Gmail account",
-                "3 X accounts to watch",
-                "5 AI drafts per month",
-                "Telegram notifications",
-                "Smart email filtering",
-              ].map((f) => (
-                <li
-                  key={f}
-                  style={{
-                    fontSize: 14,
-                    color: T.sub,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <span
-                    style={{ color: T.green, fontSize: 14, fontWeight: 700 }}
-                  >
-                    &#10003;
-                  </span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/auth"
-              style={{
-                display: "block",
-                textAlign: "center",
-                padding: "12px 24px",
-                borderRadius: 10,
-                border: "1px solid rgba(0,0,0,0.1)",
-                background: "rgba(255,255,255,0.6)",
-                color: T.ink,
-                fontSize: 14,
-                fontWeight: 600,
-                textDecoration: "none",
-                fontFamily: sans,
-              }}
-            >
-              Get started
-            </Link>
-          </GlassCard>
-
-          {/* Pro */}
-          <GlassCard
+          <div
             style={{
-              border: `1.5px solid ${T.green}40`,
-              position: "relative",
+              position: "absolute",
+              top: -12,
+              right: 20,
+              background: T.green,
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "4px 12px",
+              borderRadius: 8,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
             }}
           >
-            <div
-              style={{
-                position: "absolute",
-                top: -12,
-                right: 20,
-                background: T.green,
-                color: "#fff",
-                fontSize: 11,
-                fontWeight: 700,
-                padding: "4px 12px",
-                borderRadius: 8,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-              }}
+            3-day free trial
+          </div>
+          <p
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: T.green,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              margin: "0 0 4px",
+            }}
+          >
+            Pingi Pro
+          </p>
+          <div
+            style={{
+              fontFamily: serif,
+              fontSize: 40,
+              fontWeight: 400,
+              color: T.ink,
+              margin: "0 0 24px",
+            }}
+          >
+            $19
+            <span
+              style={{ fontSize: 16, color: T.muted, fontFamily: sans }}
             >
-              3-day free trial
-            </div>
-            <p
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: T.green,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                margin: "0 0 4px",
-              }}
-            >
-              Pro
-            </p>
-            <div
-              style={{
-                fontFamily: serif,
-                fontSize: 36,
-                fontWeight: 400,
-                color: T.ink,
-                margin: "0 0 20px",
-              }}
-            >
-              $19
-              <span
-                style={{ fontSize: 16, color: T.muted, fontFamily: sans }}
+              {" "}/ month
+            </span>
+          </div>
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: "0 0 28px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            {[
+              "Unlimited Gmail accounts",
+              "Unlimited X accounts to watch",
+              "Unlimited AI-drafted replies",
+              "Inbox Agent + Engage Agent",
+              "Smart email filtering",
+              "Weekly engagement reports",
+            ].map((f) => (
+              <li
+                key={f}
+                style={{
+                  fontSize: 14,
+                  color: T.sub,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
               >
-                {" "}
-                / month
-              </span>
-            </div>
-            <ul
-              style={{
-                listStyle: "none",
-                padding: 0,
-                margin: "0 0 24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-              }}
-            >
-              {[
-                "Unlimited Gmail accounts",
-                "Unlimited X accounts",
-                "Unlimited AI drafts",
-                "Both Inbox + Engage agents",
-                "Priority support",
-              ].map((f) => (
-                <li
-                  key={f}
-                  style={{
-                    fontSize: 14,
-                    color: T.sub,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
+                <span
+                  style={{ color: T.green, fontSize: 14, fontWeight: 700 }}
                 >
-                  <span
-                    style={{ color: T.green, fontSize: 14, fontWeight: 700 }}
-                  >
-                    &#10003;
-                  </span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <PrimaryButton
-              href="/auth"
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "12px 24px",
-                boxSizing: "border-box",
-                background: `linear-gradient(135deg, ${T.green}, #1e7a3a)`,
-              }}
-            >
-              Start free trial
-            </PrimaryButton>
-          </GlassCard>
-        </div>
+                  &#10003;
+                </span>
+                {f}
+              </li>
+            ))}
+          </ul>
+          <PrimaryButton
+            href="/auth"
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "14px 24px",
+              boxSizing: "border-box",
+              background: `linear-gradient(135deg, ${T.green}, #1e7a3a)`,
+            }}
+          >
+            Start 3-day free trial
+          </PrimaryButton>
+          <p
+            style={{
+              textAlign: "center",
+              fontSize: 13,
+              color: T.muted,
+              marginTop: 12,
+              marginBottom: 0,
+            }}
+          >
+            No charge for 3 days. Cancel anytime.
+          </p>
+        </GlassCard>
       </section>
 
       {/* ─── Built for ADHD ─── */}

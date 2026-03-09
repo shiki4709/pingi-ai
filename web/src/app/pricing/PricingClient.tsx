@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 const T = {
   ink: "#1a1a1a",
@@ -47,19 +48,12 @@ function GlassCard({
   );
 }
 
-const FREE_FEATURES = [
-  "1 Gmail account",
-  "3 X accounts to watch",
-  "5 AI drafts per month",
-  "Telegram notifications",
-  "Smart email filtering",
-];
-
-const PRO_FEATURES = [
+const FEATURES = [
   "Unlimited Gmail accounts",
-  "Unlimited X accounts",
-  "Unlimited AI drafts",
-  "Both Inbox + Engage agents",
+  "Unlimited X accounts to watch",
+  "Unlimited AI-drafted replies",
+  "Inbox Agent + Engage Agent",
+  "Smart email filtering",
   "Weekly engagement reports",
   "Priority support",
 ];
@@ -70,25 +64,58 @@ export default function PricingClient() {
   const canceled = searchParams.get("canceled") === "true";
   const upgraded = searchParams.get("upgraded") === "true";
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  async function handleUpgrade() {
+  useEffect(() => {
+    getSupabaseBrowser()
+      .auth.getUser()
+      .then(({ data }) => {
+        if (data.user) {
+          setUserId(data.user.id);
+          setUserEmail(data.user.email ?? null);
+        }
+      });
+  }, []);
+
+  async function handleStartTrial() {
+    if (!userId || !userEmail) {
+      // Not logged in — send to auth first
+      window.location.href = "/auth";
+      return;
+    }
+
     setLoading(true);
+    setError(null);
+
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: "demo-user",
-          email: "user@example.com",
-        }),
+        body: JSON.stringify({ userId, email: userEmail }),
       });
+
       const data = await res.json();
+
+      if (!res.ok) {
+        console.error("[pricing] Checkout error:", data);
+        setError(data.error ?? "Something went wrong");
+        setLoading(false);
+        return;
+      }
+
       if (data.url) {
         window.location.href = data.url;
       } else if (data.upgraded) {
         window.location.href = "/pricing?upgraded=true";
+      } else {
+        setError("No checkout URL returned");
+        setLoading(false);
       }
-    } catch {
+    } catch (e) {
+      console.error("[pricing] Fetch error:", e);
+      setError("Network error. Please try again.");
       setLoading(false);
     }
   }
@@ -172,7 +199,7 @@ export default function PricingClient() {
       {/* ─── Content ─── */}
       <section
         style={{
-          maxWidth: 800,
+          maxWidth: 520,
           margin: "0 auto",
           padding: "60px 32px 80px",
         }}
@@ -188,14 +215,7 @@ export default function PricingClient() {
               textAlign: "center",
             }}
           >
-            <p
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: T.green,
-                margin: 0,
-              }}
-            >
+            <p style={{ fontSize: 14, fontWeight: 600, color: T.green, margin: 0 }}>
               Your Pro subscription is active. Welcome aboard.
             </p>
           </GlassCard>
@@ -210,41 +230,23 @@ export default function PricingClient() {
               textAlign: "center",
             }}
           >
-            <p
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: T.green,
-                margin: 0,
-              }}
-            >
+            <p style={{ fontSize: 14, fontWeight: 600, color: T.green, margin: 0 }}>
               You&apos;ve been upgraded to Pro.
             </p>
           </GlassCard>
         )}
         {canceled && (
           <GlassCard
-            style={{
-              marginBottom: 24,
-              padding: "16px 24px",
-              textAlign: "center",
-            }}
+            style={{ marginBottom: 24, padding: "16px 24px", textAlign: "center" }}
           >
-            <p
-              style={{
-                fontSize: 14,
-                fontWeight: 500,
-                color: T.sub,
-                margin: 0,
-              }}
-            >
+            <p style={{ fontSize: 14, fontWeight: 500, color: T.sub, margin: 0 }}>
               Checkout was canceled. You can try again anytime.
             </p>
           </GlassCard>
         )}
 
         {/* Heading */}
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
           <h1
             style={{
               fontFamily: serif,
@@ -256,7 +258,7 @@ export default function PricingClient() {
               lineHeight: 1.1,
             }}
           >
-            Simple, transparent pricing
+            One plan. Full access.
           </h1>
           <p
             style={{
@@ -264,228 +266,143 @@ export default function PricingClient() {
               color: T.sub,
               margin: 0,
               lineHeight: 1.6,
-              maxWidth: 480,
-              marginLeft: "auto",
-              marginRight: "auto",
             }}
           >
-            Start free with both agents. Upgrade when you need unlimited
-            accounts and AI drafts.
+            Try everything free for 3 days. Then $19/mo.
           </p>
         </div>
 
-        {/* Tier cards */}
-        <div
+        {/* Single Pro card */}
+        <GlassCard
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 20,
+            border: `1.5px solid ${T.green}40`,
+            position: "relative",
           }}
         >
-          {/* Free */}
-          <GlassCard style={{ display: "flex", flexDirection: "column" }}>
-            <p
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: T.muted,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                margin: "0 0 4px",
-              }}
-            >
-              Free
-            </p>
-            <div
-              style={{
-                fontFamily: serif,
-                fontSize: 36,
-                fontWeight: 400,
-                color: T.ink,
-                margin: "0 0 24px",
-              }}
-            >
-              $0
-              <span
-                style={{ fontSize: 16, color: T.muted, fontFamily: sans }}
-              >
-                {" "}
-                / month
-              </span>
-            </div>
-            <ul
-              style={{
-                listStyle: "none",
-                padding: 0,
-                margin: "0 0 28px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-                flex: 1,
-              }}
-            >
-              {FREE_FEATURES.map((f) => (
-                <li
-                  key={f}
-                  style={{
-                    fontSize: 14,
-                    color: T.sub,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  <span
-                    style={{ color: T.green, fontSize: 14, fontWeight: 700, flexShrink: 0 }}
-                  >
-                    &#10003;
-                  </span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/auth"
-              style={{
-                display: "block",
-                textAlign: "center",
-                padding: "12px 24px",
-                borderRadius: 10,
-                border: "1px solid rgba(0,0,0,0.1)",
-                background: "rgba(255,255,255,0.6)",
-                color: T.ink,
-                fontSize: 14,
-                fontWeight: 600,
-                textDecoration: "none",
-                fontFamily: sans,
-              }}
-            >
-              Get started
-            </Link>
-          </GlassCard>
-
-          {/* Pro */}
-          <GlassCard
+          <div
             style={{
-              border: `1.5px solid ${T.green}40`,
-              position: "relative",
-              display: "flex",
-              flexDirection: "column",
+              position: "absolute",
+              top: -12,
+              right: 20,
+              background: T.green,
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "4px 12px",
+              borderRadius: 8,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
             }}
           >
-            <div
-              style={{
-                position: "absolute",
-                top: -12,
-                right: 20,
-                background: T.green,
-                color: "#fff",
-                fontSize: 11,
-                fontWeight: 700,
-                padding: "4px 12px",
-                borderRadius: 8,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-              }}
-            >
-              3-day free trial
-            </div>
+            3-day free trial
+          </div>
+
+          <p
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: T.green,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              margin: "0 0 4px",
+            }}
+          >
+            Pingi Pro
+          </p>
+          <div
+            style={{
+              fontFamily: serif,
+              fontSize: 40,
+              fontWeight: 400,
+              color: T.ink,
+              margin: "0 0 24px",
+            }}
+          >
+            $19
+            <span style={{ fontSize: 16, color: T.muted, fontFamily: sans }}>
+              {" "}/ month
+            </span>
+          </div>
+
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: "0 0 28px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            {FEATURES.map((f) => (
+              <li
+                key={f}
+                style={{
+                  fontSize: 14,
+                  color: T.sub,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  lineHeight: 1.4,
+                }}
+              >
+                <span
+                  style={{ color: T.green, fontSize: 14, fontWeight: 700, flexShrink: 0 }}
+                >
+                  &#10003;
+                </span>
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          <button
+            onClick={handleStartTrial}
+            disabled={loading}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "14px 24px",
+              borderRadius: 12,
+              border: "none",
+              background: `linear-gradient(135deg, ${T.green}, #1e7a3a)`,
+              color: "#fff",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: loading ? "wait" : "pointer",
+              fontFamily: sans,
+              boxShadow: "0 4px 16px rgba(42,138,74,0.15)",
+            }}
+          >
+            {loading ? "Redirecting..." : "Start 3-day free trial"}
+          </button>
+
+          {error && (
             <p
               style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: T.green,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                margin: "0 0 4px",
+                fontSize: 13,
+                color: "#c0392b",
+                margin: "12px 0 0",
+                textAlign: "center",
               }}
             >
-              Pro
+              {error}
             </p>
-            <div
-              style={{
-                fontFamily: serif,
-                fontSize: 36,
-                fontWeight: 400,
-                color: T.ink,
-                margin: "0 0 24px",
-              }}
-            >
-              $19
-              <span
-                style={{ fontSize: 16, color: T.muted, fontFamily: sans }}
-              >
-                {" "}
-                / month
-              </span>
-            </div>
-            <ul
-              style={{
-                listStyle: "none",
-                padding: 0,
-                margin: "0 0 28px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-                flex: 1,
-              }}
-            >
-              {PRO_FEATURES.map((f) => (
-                <li
-                  key={f}
-                  style={{
-                    fontSize: 14,
-                    color: T.sub,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  <span
-                    style={{ color: T.green, fontSize: 14, fontWeight: 700, flexShrink: 0 }}
-                  >
-                    &#10003;
-                  </span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <button
-              onClick={handleUpgrade}
-              disabled={loading}
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "12px 24px",
-                borderRadius: 10,
-                border: "none",
-                background: `linear-gradient(135deg, ${T.green}, #1e7a3a)`,
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: loading ? "wait" : "pointer",
-                fontFamily: sans,
-                boxShadow: "0 4px 16px rgba(42,138,74,0.15)",
-              }}
-            >
-              {loading ? "Redirecting..." : "Start free trial"}
-            </button>
-          </GlassCard>
-        </div>
+          )}
+        </GlassCard>
 
-        {/* Bottom note */}
         <p
           style={{
             textAlign: "center",
             fontSize: 13,
             color: T.muted,
-            marginTop: 32,
+            marginTop: 24,
+            lineHeight: 1.5,
           }}
         >
-          All plans include both Inbox and Engage agents. No credit card
-          required for the free plan.
+          No charge for 3 days. Cancel anytime.
+          <br />
+          Includes both Inbox and Engage agents.
         </p>
       </section>
 
@@ -529,23 +446,12 @@ export default function PricingClient() {
             <span style={{ fontSize: 13, color: T.muted }}>Pingi AI</span>
           </div>
           <div
-            style={{
-              display: "flex",
-              gap: 24,
-              fontSize: 13,
-              color: T.muted,
-            }}
+            style={{ display: "flex", gap: 24, fontSize: 13, color: T.muted }}
           >
-            <Link
-              href="/auth"
-              style={{ color: T.muted, textDecoration: "none" }}
-            >
+            <Link href="/auth" style={{ color: T.muted, textDecoration: "none" }}>
               Sign up
             </Link>
-            <Link
-              href="/"
-              style={{ color: T.muted, textDecoration: "none" }}
-            >
+            <Link href="/" style={{ color: T.muted, textDecoration: "none" }}>
               Home
             </Link>
           </div>

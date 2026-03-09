@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStripe } from "@/lib/stripe";
 import { createClient } from "@supabase/supabase-js";
 
 const ADMIN_EMAILS = ["shiki4709@gmail.com"];
 
 function getSupabase() {
-  return createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
-  );
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) {
+    throw new Error("SUPABASE_URL or SUPABASE_SERVICE_KEY not configured");
+  }
+  return createClient(url, key);
 }
 
 export async function POST(request: NextRequest) {
@@ -16,7 +17,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { userId, email } = body as { userId?: string; email?: string };
 
+    console.log(`[stripe/checkout] POST: userId=${userId} email=${email}`);
+
     if (!userId || !email) {
+      console.error("[stripe/checkout] Missing userId or email");
       return NextResponse.json(
         { error: "userId and email are required" },
         { status: 400 }
@@ -29,13 +33,11 @@ export async function POST(request: NextRequest) {
 
       const supabase = getSupabase();
 
-      // Update plan on users table
       await supabase
         .from("users")
         .update({ plan: "pro" })
         .eq("id", userId);
 
-      // Upsert subscriptions table
       await supabase.from("subscriptions").upsert(
         {
           user_id: userId,
@@ -58,17 +60,34 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const priceId = process.env.STRIPE_PRO_PRICE_ID;
-    if (!priceId) {
+    // Validate Stripe env vars
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+      console.error("[stripe/checkout] STRIPE_SECRET_KEY is not set");
       return NextResponse.json(
-        { error: "Stripe Pro price not configured" },
+        { error: "Stripe is not configured. Set STRIPE_SECRET_KEY." },
         { status: 503 }
       );
     }
 
+    const priceId = process.env.STRIPE_PRO_PRICE_ID;
+    if (!priceId) {
+      console.error("[stripe/checkout] STRIPE_PRO_PRICE_ID is not set");
+      return NextResponse.json(
+        { error: "Stripe Pro price not configured. Set STRIPE_PRO_PRICE_ID." },
+        { status: 503 }
+      );
+    }
+
+    // Lazy-import stripe to avoid crashing if key is missing
+    const { getStripe } = await import("@/lib/stripe");
+    const stripe = getStripe();
+
     const origin = request.headers.get("origin") || "http://localhost:3000";
 
-    const session = await getStripe().checkout.sessions.create({
+    console.log(`[stripe/checkout] Creating session: priceId=${priceId} email=${email}`);
+
+    const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
       customer_email: email,
@@ -81,11 +100,13 @@ export async function POST(request: NextRequest) {
       cancel_url: `${origin}/pricing?canceled=true`,
     });
 
+    console.log(`[stripe/checkout] Session created: id=${session.id} url=${session.url?.slice(0, 60)}...`);
     return NextResponse.json({ url: session.url });
-  } catch (err) {
-    console.error("[stripe/checkout] error:", err);
+  } catch (err: any) {
+    console.error("[stripe/checkout] Error:", err.message ?? err);
+    if (err.stack) console.error("[stripe/checkout] Stack:", err.stack);
     return NextResponse.json(
-      { error: "Failed to create checkout session" },
+      { error: err.message ?? "Failed to create checkout session" },
       { status: 500 }
     );
   }
