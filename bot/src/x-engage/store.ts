@@ -272,6 +272,38 @@ export async function countPostedLastHour(
   return count ?? 0;
 }
 
+// ─── Plan helpers ───
+
+const ADMIN_EMAILS = ["shiki4709@gmail.com"];
+
+export async function hasPro(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("users")
+    .select("plan, trial_ends_at, email")
+    .eq("id", userId)
+    .single();
+
+  if (!data) return false;
+  if (data.email && ADMIN_EMAILS.includes(data.email.toLowerCase())) return true;
+  if (data.plan === "pro") return true;
+  if (data.plan === "trial" && data.trial_ends_at) {
+    return new Date(data.trial_ends_at) > new Date();
+  }
+  return false;
+}
+
+export async function isTrialExpired(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("users")
+    .select("plan, trial_ends_at")
+    .eq("id", userId)
+    .single();
+
+  if (!data || data.plan !== "trial") return false;
+  if (!data.trial_ends_at) return true;
+  return new Date(data.trial_ends_at) <= new Date();
+}
+
 /** Get all user IDs that have watched accounts configured. */
 export async function getUsersWithAccounts(): Promise<
   { userId: string; accounts: string[] }[]

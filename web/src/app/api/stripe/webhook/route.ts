@@ -78,6 +78,12 @@ export async function POST(request: NextRequest) {
           },
           { onConflict: "user_id" }
         );
+
+        // Also update plan on users table
+        await getSupabase()
+          .from("users")
+          .update({ plan: "pro" })
+          .eq("id", userId);
         break;
       }
 
@@ -106,10 +112,26 @@ export async function POST(request: NextRequest) {
 
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
+
+        // Get user_id before updating
+        const { data: subRow } = await getSupabase()
+          .from("subscriptions")
+          .select("user_id")
+          .eq("stripe_subscription_id", sub.id)
+          .single();
+
         await getSupabase()
           .from("subscriptions")
           .update({ status: "canceled", plan: "free" })
           .eq("stripe_subscription_id", sub.id);
+
+        // Revert plan on users table
+        if (subRow?.user_id) {
+          await getSupabase()
+            .from("users")
+            .update({ plan: "free" })
+            .eq("id", subRow.user_id);
+        }
         break;
       }
     }

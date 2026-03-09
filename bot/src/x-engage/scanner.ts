@@ -12,8 +12,11 @@ import {
   hasSeenTweet,
   insertEngageItem,
   countPostedLastHour,
+  hasPro,
+  isTrialExpired,
 } from "./store.js";
 import { pushItemCard } from "./handlers.js";
+import { sendMessage } from "./telegram.js";
 
 const SCAN_INTERVAL_MS = 30 * 60_000; // 30 minutes
 const MAX_POSTS_PER_HOUR = 5;
@@ -71,6 +74,16 @@ export async function scanForUser(
   const chatId = chatIdOverride ?? (await getChatIdForUser(userId));
   if (!chatId) {
     console.log(`[scanner] User ${userId} has no linked chat, skipping`);
+    return 0;
+  }
+
+  // Check trial/plan status
+  if (await isTrialExpired(userId)) {
+    await sendMessage({
+      chat_id: chatId,
+      text: "Your free trial ended. Upgrade to Pro for $19/mo to keep unlimited access: https://pingi-ai.vercel.app/pricing",
+    });
+    console.log(`[scanner] User ${userId} trial expired, skipping scan`);
     return 0;
   }
 

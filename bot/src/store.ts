@@ -200,9 +200,46 @@ export async function getUserIdForChat(
   return data?.id ?? null;
 }
 
-// ─── Subscription & draft usage ───
+// ─── Plan & draft usage ───
 
-const FREE_DRAFT_LIMIT = 10;
+const ADMIN_EMAILS = ["shiki4709@gmail.com"];
+const FREE_DRAFT_LIMIT = 5;
+
+/**
+ * Check if a user has Pro access.
+ * Pro = plan is 'pro', OR plan is 'trial' with trial_ends_at in the future,
+ * OR email is in the admin list.
+ */
+export async function hasPro(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("users")
+    .select("plan, trial_ends_at, email")
+    .eq("id", userId)
+    .single();
+
+  if (!data) return false;
+  if (data.email && ADMIN_EMAILS.includes(data.email.toLowerCase())) return true;
+  if (data.plan === "pro") return true;
+  if (data.plan === "trial" && data.trial_ends_at) {
+    return new Date(data.trial_ends_at) > new Date();
+  }
+  return false;
+}
+
+/**
+ * Check if user's trial has expired (plan='trial' but past trial_ends_at).
+ */
+export async function isTrialExpired(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("users")
+    .select("plan, trial_ends_at")
+    .eq("id", userId)
+    .single();
+
+  if (!data || data.plan !== "trial") return false;
+  if (!data.trial_ends_at) return true;
+  return new Date(data.trial_ends_at) <= new Date();
+}
 
 /**
  * Count how many reply_items with a non-null draft_text this user has created
@@ -226,19 +263,12 @@ export async function getDraftUsageThisMonth(
 
 /**
  * Check whether a user is allowed to generate a draft.
- * Returns { allowed: true } or { allowed: false, usage, limit }.
+ * Pro/trial users: unlimited. Free users: 5/month.
  */
 export async function canGenerateDraft(
   userId: string
 ): Promise<{ allowed: true } | { allowed: false; usage: number; limit: number }> {
-  // Check for active Pro subscription
-  const { data: sub } = await supabase
-    .from("subscriptions")
-    .select("plan, status")
-    .eq("user_id", userId)
-    .single();
-
-  if (sub?.plan === "pro" && sub?.status === "active") {
+  if (await hasPro(userId)) {
     return { allowed: true };
   }
 
