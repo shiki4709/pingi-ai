@@ -183,18 +183,21 @@ export async function getTopicsForUser(userId: string): Promise<UserTopic[]> {
     .from("user_topics")
     .select("*")
     .eq("user_id", userId)
-    .order("created_at", { ascending: true });
+    .single();
 
-  if (error) {
-    console.error("[engage] Failed to fetch topics:", error.message);
+  if (error || !data) {
+    if (error && !error.message.includes("0 rows")) {
+      console.error("[engage] Failed to fetch topics:", error.message);
+    }
     return [];
   }
 
-  return (data ?? []).map((row: any) => ({
-    id: row.id,
-    userId: row.user_id,
-    topic: row.topic,
-    createdAt: row.created_at,
+  const topics = Array.isArray(data.topics) ? data.topics as string[] : [];
+  return topics.map((t: string) => ({
+    id: data.id ?? data.user_id,
+    userId: data.user_id,
+    topic: t,
+    createdAt: data.created_at ?? new Date().toISOString(),
   }));
 }
 
@@ -202,10 +205,16 @@ export async function addTopicForUser(
   userId: string,
   topic: string
 ): Promise<boolean> {
-  const { error } = await supabase.from("user_topics").insert({
-    user_id: userId,
-    topic: topic.trim(),
-  });
+  const current = await getTopicsForUser(userId);
+  const currentTopics = current.map((t) => t.topic);
+  const normalized = topic.trim().toLowerCase();
+  if (currentTopics.includes(normalized)) return true;
+
+  const updated = [...currentTopics, normalized];
+  const { error } = await supabase.from("user_topics").upsert(
+    { user_id: userId, topics: updated },
+    { onConflict: "user_id" }
+  );
   if (error) {
     console.error("[engage] Failed to add topic:", error.message);
     return false;
@@ -217,11 +226,16 @@ export async function removeTopicForUser(
   userId: string,
   topic: string
 ): Promise<boolean> {
+  const current = await getTopicsForUser(userId);
+  const currentTopics = current.map((t) => t.topic);
+  const normalized = topic.trim().toLowerCase();
+  const filtered = currentTopics.filter((t) => t !== normalized);
+  if (filtered.length === currentTopics.length) return false;
+
   const { error } = await supabase
     .from("user_topics")
-    .delete()
-    .eq("user_id", userId)
-    .ilike("topic", topic.trim());
+    .update({ topics: filtered })
+    .eq("user_id", userId);
   if (error) {
     console.error("[engage] Failed to remove topic:", error.message);
     return false;
@@ -401,10 +415,10 @@ async function searchAndDraftForTopic(
 export async function runEngagementScan(): Promise<void> {
   console.log("[engage] Starting engagement scan");
 
-  // Get all users who have topics configured
+  // Get all users who have topics configured (jsonb array column)
   const { data: topicRows, error } = await supabase
     .from("user_topics")
-    .select("user_id, topic");
+    .select("user_id, topics");
 
   if (error) {
     console.error("[engage] Failed to fetch user topics:", error.message);
@@ -416,12 +430,13 @@ export async function runEngagementScan(): Promise<void> {
     return;
   }
 
-  // Group topics by user
+  // Group topics by user (topics is a jsonb array of strings)
   const topicsByUser = new Map<string, string[]>();
   for (const row of topicRows) {
-    const list = topicsByUser.get(row.user_id) ?? [];
-    list.push(row.topic);
-    topicsByUser.set(row.user_id, list);
+    const topics = Array.isArray(row.topics) ? row.topics as string[] : [];
+    if (topics.length > 0) {
+      topicsByUser.set(row.user_id, topics);
+    }
   }
 
   for (const [userId, topics] of topicsByUser) {
