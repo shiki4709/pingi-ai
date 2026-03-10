@@ -105,8 +105,9 @@ export default function OnboardingClient() {
   const [inboxLinked, setInboxLinked] = useState(false);
   const [checkingInbox, setCheckingInbox] = useState(false);
 
-  // Engage Agent state — no code needed, just instructions
-  const [engageStarted, setEngageStarted] = useState(false);
+  // Engage Agent state
+  const [engageLinked, setEngageLinked] = useState(false);
+  const [checkingEngage, setCheckingEngage] = useState(false);
 
   // Track which agents were set up
   const [inboxDone, setInboxDone] = useState(false);
@@ -114,6 +115,7 @@ export default function OnboardingClient() {
 
   // Trial
   const [startingTrial, setStartingTrial] = useState(false);
+  const [trialActivated, setTrialActivated] = useState(false);
 
   useEffect(() => {
     getSupabaseBrowser()
@@ -138,28 +140,80 @@ export default function OnboardingClient() {
     }
   }, []);
 
-  const checkInboxLinked = useCallback(async () => {
-    if (!user) return;
-    setCheckingInbox(true);
+  // Fetch link status from API
+  const fetchLinkStatus = useCallback(async () => {
+    if (!user) return null;
     try {
       const res = await fetch(`/api/telegram-status?userId=${user.id}`);
-      const data = await res.json();
-      if (data.linked) {
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }, [user]);
+
+  // Manual "I've linked Telegram" button for inbox
+  const checkInboxLinked = useCallback(async () => {
+    setCheckingInbox(true);
+    const data = await fetchLinkStatus();
+    if (data?.inbox_linked) {
+      setInboxLinked(true);
+      setInboxDone(true);
+      if (selected.has("engage") && !engageDone) {
+        setPhase("engage-setup");
+      } else {
+        setPhase("done");
+      }
+    }
+    setCheckingInbox(false);
+  }, [fetchLinkStatus, selected, engageDone]);
+
+  // Manual "I've set up the Engage bot" button
+  const checkEngageLinked = useCallback(async () => {
+    setCheckingEngage(true);
+    const data = await fetchLinkStatus();
+    if (data?.x_linked) {
+      setEngageLinked(true);
+      setEngageDone(true);
+      setPhase("done");
+    }
+    setCheckingEngage(false);
+  }, [fetchLinkStatus]);
+
+  // Poll every 3s while on inbox-setup (step 2) or engage-setup
+  useEffect(() => {
+    const shouldPollInbox = phase === "inbox-setup" && gmailConnected && !inboxLinked;
+    const shouldPollEngage = phase === "engage-setup" && !engageLinked;
+    if (!shouldPollInbox && !shouldPollEngage) return;
+    if (!user) return;
+
+    const interval = setInterval(async () => {
+      const data = await fetchLinkStatus();
+      if (!data) return;
+
+      if (shouldPollInbox && data.inbox_linked) {
         setInboxLinked(true);
         setInboxDone(true);
-        // Move to next phase
-        if (selected.has("engage") && !engageDone) {
-          setPhase("engage-setup");
-        } else {
-          setPhase("done");
-        }
+        // Small delay so user sees the green checkmark before advancing
+        setTimeout(() => {
+          if (selected.has("engage") && !engageDone) {
+            setPhase("engage-setup");
+          } else {
+            setPhase("done");
+          }
+        }, 1200);
       }
-    } catch {
-      // ignore
-    } finally {
-      setCheckingInbox(false);
-    }
-  }, [user, selected, engageDone]);
+
+      if (shouldPollEngage && data.x_linked) {
+        setEngageLinked(true);
+        setEngageDone(true);
+        setTimeout(() => {
+          setPhase("done");
+        }, 1200);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [phase, gmailConnected, inboxLinked, engageLinked, user, fetchLinkStatus, selected, engageDone]);
 
   const handleConnectGmail = () => {
     if (!user) return;
@@ -176,7 +230,11 @@ export default function OnboardingClient() {
         body: JSON.stringify({ userId: user.id, email: user.email }),
       });
       const data = await res.json();
-      if (data.url) {
+      if (data.trial_activated) {
+        setTrialActivated(true);
+      } else if (data.upgraded) {
+        setTrialActivated(true);
+      } else if (data.url) {
         window.location.href = data.url;
       }
     } catch {
@@ -215,17 +273,8 @@ export default function OnboardingClient() {
     }
   };
 
-  const finishEngage = () => {
-    setEngageDone(true);
-    setPhase("done");
-  };
-
   const skipEngage = () => {
-    if (inboxDone || engageDone) {
-      setPhase("done");
-    } else {
-      setPhase("done");
-    }
+    setPhase("done");
   };
 
   if (loading) return null;
@@ -601,6 +650,8 @@ export default function OnboardingClient() {
                 opacity: gmailConnected ? 1 : 0.5,
                 pointerEvents: gmailConnected ? "auto" : "none",
                 transition: "opacity 0.3s",
+                borderColor: inboxLinked ? `${T.green}50` : T.border,
+                background: inboxLinked ? T.greenSoft : T.glass,
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -614,72 +665,90 @@ export default function OnboardingClient() {
                     justifyContent: "center",
                     fontSize: 13,
                     fontWeight: 700,
-                    color: T.tgBlue,
-                    background: "rgba(34,158,217,0.04)",
-                    border: "1px solid rgba(34,158,217,0.08)",
+                    color: inboxLinked ? T.green : T.tgBlue,
+                    background: inboxLinked
+                      ? T.greenSoft
+                      : "rgba(34,158,217,0.04)",
+                    border: `1px solid ${inboxLinked ? `${T.green}20` : "rgba(34,158,217,0.08)"}`,
                   }}
                 >
-                  TG
+                  {inboxLinked ? "\u2713" : "TG"}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
-                    Telegram
+                    {inboxLinked ? "Telegram linked" : "Telegram"}
                   </div>
-                  <div style={{ fontSize: 12, color: T.muted }}>
-                    Get notified and approve drafts
+                  <div style={{ fontSize: 12, color: inboxLinked ? T.green : T.muted }}>
+                    {inboxLinked
+                      ? "Inbox Agent is connected"
+                      : "Get notified and approve drafts"}
                   </div>
                 </div>
               </div>
 
-              <div
-                style={{
-                  background: "rgba(0,0,0,0.025)",
-                  borderRadius: 10,
-                  padding: "12px 14px",
-                  fontSize: 13,
-                  color: T.sub,
-                  lineHeight: 1.6,
-                }}
-              >
-                1. Open{" "}
-                <a
-                  href={`https://t.me/${INBOX_BOT}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: T.tgBlue, fontWeight: 600, textDecoration: "none" }}
-                >
-                  @{INBOX_BOT}
-                </a>{" "}
-                on Telegram
-                <br />
-                2. Send{" "}
-                <span style={{ fontWeight: 600, color: T.ink }}>/start</span>
-                <br />
-                3. Enter your email:{" "}
-                <span style={{ fontWeight: 600, color: T.ink }}>
-                  {userEmail}
-                </span>
-              </div>
+              {!inboxLinked && (
+                <>
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,0.025)",
+                      borderRadius: 10,
+                      padding: "12px 14px",
+                      fontSize: 13,
+                      color: T.sub,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    1. Open{" "}
+                    <a
+                      href={`https://t.me/${INBOX_BOT}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: T.tgBlue, fontWeight: 600, textDecoration: "none" }}
+                    >
+                      @{INBOX_BOT}
+                    </a>{" "}
+                    on Telegram
+                    <br />
+                    2. Send{" "}
+                    <span style={{ fontWeight: 600, color: T.ink }}>/start</span>
+                    <br />
+                    3. Enter your email:{" "}
+                    <span style={{ fontWeight: 600, color: T.ink }}>
+                      {userEmail}
+                    </span>
+                  </div>
 
-              <button
-                onClick={checkInboxLinked}
-                disabled={checkingInbox}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: 10,
-                  border: "none",
-                  background: "linear-gradient(135deg, #1a1a1a, #333)",
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: checkingInbox ? "wait" : "pointer",
-                  fontFamily: sans,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  alignSelf: "stretch",
-                }}
-              >
-                {checkingInbox ? "Checking..." : "I\u2019ve linked Telegram"}
-              </button>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: T.muted,
+                      textAlign: "center",
+                    }}
+                  >
+                    Waiting for link... checking automatically
+                  </div>
+
+                  <button
+                    onClick={checkInboxLinked}
+                    disabled={checkingInbox}
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: 10,
+                      border: "none",
+                      background: "linear-gradient(135deg, #1a1a1a, #333)",
+                      color: "#fff",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: checkingInbox ? "wait" : "pointer",
+                      fontFamily: sans,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                      alignSelf: "stretch",
+                    }}
+                  >
+                    {checkingInbox ? "Checking..." : "I\u2019ve linked Telegram"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -690,62 +759,6 @@ export default function OnboardingClient() {
       {/* ─── Engage Setup Phase ─── */}
       {phase === "engage-setup" && (
         <div style={{ textAlign: "center", maxWidth: 440 }}>
-          {/* Step indicator */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 0,
-              marginBottom: 28,
-            }}
-          >
-            {["Open bot", "Send /start", "Add accounts"].map((label, i) => {
-              const currentStep = engageStarted ? 3 : 1;
-              return (
-                <div
-                  key={label}
-                  style={{ display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  <StepDot
-                    done={currentStep > i + 1}
-                    active={currentStep === i + 1}
-                    number={i + 1}
-                  />
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: currentStep === i + 1 ? 600 : 400,
-                      color:
-                        currentStep > i + 1
-                          ? T.green
-                          : currentStep === i + 1
-                            ? T.ink
-                            : T.muted,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {label}
-                  </span>
-                  {i < 2 && (
-                    <div
-                      style={{
-                        width: 28,
-                        height: 1.5,
-                        background:
-                          currentStep > i + 1
-                            ? `${T.green}50`
-                            : "rgba(0,0,0,0.06)",
-                        margin: "0 6px",
-                        borderRadius: 1,
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
           <p
             style={{
               fontSize: 11,
@@ -782,100 +795,149 @@ export default function OnboardingClient() {
               gap: 12,
             }}
           >
-            {/* Step 1: Open the bot */}
             <div
               style={{
                 ...glassCard,
                 display: "flex",
                 flexDirection: "column",
                 gap: 12,
+                borderColor: engageLinked ? `${T.green}50` : T.border,
+                background: engageLinked ? T.greenSoft : T.glass,
               }}
             >
-              <div
-                style={{
-                  background: "rgba(0,0,0,0.025)",
-                  borderRadius: 10,
-                  padding: "14px 14px",
-                  fontSize: 13,
-                  color: T.sub,
-                  lineHeight: 1.8,
-                }}
-              >
-                <strong style={{ color: T.ink }}>Step 1.</strong> Open{" "}
-                <a
-                  href={`https://t.me/${ENGAGE_BOT}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: T.tgBlue, fontWeight: 600, textDecoration: "none" }}
-                >
-                  @{ENGAGE_BOT}
-                </a>{" "}
-                on Telegram
-                <br />
-                <strong style={{ color: T.ink }}>Step 2.</strong> Send{" "}
-                <span style={{ fontWeight: 600, color: T.ink }}>/start</span>{" "}
-                and enter your email:{" "}
-                <code
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div
                   style={{
-                    background: "rgba(0,0,0,0.05)",
-                    padding: "2px 6px",
-                    borderRadius: 4,
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     fontSize: 13,
-                    fontWeight: 600,
-                    color: T.ink,
-                    userSelect: "all",
+                    fontWeight: 700,
+                    color: engageLinked ? T.green : T.tgBlue,
+                    background: engageLinked
+                      ? T.greenSoft
+                      : "rgba(34,158,217,0.04)",
+                    border: `1px solid ${engageLinked ? `${T.green}20` : "rgba(34,158,217,0.08)"}`,
                   }}
                 >
-                  {userEmail}
-                </code>
-                <br />
-                <strong style={{ color: T.ink }}>Step 3.</strong> Use{" "}
-                <span style={{ fontWeight: 600, color: T.ink }}>
-                  /watch @handle
-                </span>{" "}
-                to add accounts you want to engage with
+                  {engageLinked ? "\u2713" : "TG"}
+                </div>
+                <div style={{ flex: 1, textAlign: "left" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
+                    {engageLinked ? "Telegram linked" : "Link @" + ENGAGE_BOT}
+                  </div>
+                  <div style={{ fontSize: 12, color: engageLinked ? T.green : T.muted }}>
+                    {engageLinked
+                      ? "Engage Agent is connected"
+                      : "Follow the steps below"}
+                  </div>
+                </div>
               </div>
 
-              <a
-                href={`https://t.me/${ENGAGE_BOT}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "block",
-                  padding: "10px 20px",
-                  borderRadius: 10,
-                  border: "none",
-                  background: "linear-gradient(135deg, #1a1a1a, #333)",
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: sans,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  textDecoration: "none",
-                  textAlign: "center",
-                }}
-              >
-                Open @{ENGAGE_BOT} on Telegram
-              </a>
-            </div>
+              {!engageLinked && (
+                <>
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,0.025)",
+                      borderRadius: 10,
+                      padding: "14px 14px",
+                      fontSize: 13,
+                      color: T.sub,
+                      lineHeight: 1.8,
+                      textAlign: "left",
+                    }}
+                  >
+                    <strong style={{ color: T.ink }}>Step 1.</strong> Open{" "}
+                    <a
+                      href={`https://t.me/${ENGAGE_BOT}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: T.tgBlue, fontWeight: 600, textDecoration: "none" }}
+                    >
+                      @{ENGAGE_BOT}
+                    </a>{" "}
+                    on Telegram
+                    <br />
+                    <strong style={{ color: T.ink }}>Step 2.</strong> Send{" "}
+                    <span style={{ fontWeight: 600, color: T.ink }}>/start</span>{" "}
+                    and enter your email:{" "}
+                    <code
+                      style={{
+                        background: "rgba(0,0,0,0.05)",
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: T.ink,
+                        userSelect: "all",
+                      }}
+                    >
+                      {userEmail}
+                    </code>
+                    <br />
+                    <strong style={{ color: T.ink }}>Step 3.</strong> Use{" "}
+                    <span style={{ fontWeight: 600, color: T.ink }}>
+                      /watch @handle
+                    </span>{" "}
+                    to add accounts you want to engage with
+                  </div>
 
-            <button
-              onClick={finishEngage}
-              style={{
-                padding: "12px 24px",
-                borderRadius: 10,
-                border: `1px solid ${T.green}40`,
-                background: T.greenSoft,
-                color: T.green,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: sans,
-              }}
-            >
-              I&apos;ve set up the Engage bot
-            </button>
+                  <a
+                    href={`https://t.me/${ENGAGE_BOT}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "block",
+                      padding: "10px 20px",
+                      borderRadius: 10,
+                      border: "none",
+                      background: "linear-gradient(135deg, #1a1a1a, #333)",
+                      color: "#fff",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      fontFamily: sans,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                      textDecoration: "none",
+                      textAlign: "center",
+                    }}
+                  >
+                    Open @{ENGAGE_BOT} on Telegram
+                  </a>
+
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: T.muted,
+                      textAlign: "center",
+                    }}
+                  >
+                    Waiting for link... checking automatically
+                  </div>
+
+                  <button
+                    onClick={checkEngageLinked}
+                    disabled={checkingEngage}
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: 10,
+                      border: `1px solid ${T.green}40`,
+                      background: T.greenSoft,
+                      color: T.green,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: checkingEngage ? "wait" : "pointer",
+                      fontFamily: sans,
+                    }}
+                  >
+                    {checkingEngage ? "Checking..." : "I\u2019ve set up the Engage bot"}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           <SkipLink onClick={skipEngage} />
@@ -931,73 +993,127 @@ export default function OnboardingClient() {
           </p>
 
           {/* Trial offer */}
-          <div
-            style={{
-              ...glassCard,
-              border: `1.5px solid ${T.green}40`,
-              padding: "20px 20px",
-              marginBottom: 20,
-              textAlign: "center",
-            }}
-          >
-            <p
+          {trialActivated ? (
+            <div
               style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: T.green,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                margin: "0 0 8px",
+                ...glassCard,
+                border: `1.5px solid ${T.green}40`,
+                background: T.greenSoft,
+                padding: "20px 20px",
+                marginBottom: 20,
+                textAlign: "center",
               }}
             >
-              Unlock Pro
-            </p>
-            <p
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: T.green,
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 18,
+                  fontWeight: 700,
+                  margin: "0 auto 12px",
+                }}
+              >
+                {"\u2713"}
+              </div>
+              <p
+                style={{
+                  fontFamily: serif,
+                  fontSize: 20,
+                  fontWeight: 400,
+                  color: T.ink,
+                  margin: "0 0 6px",
+                  lineHeight: 1.3,
+                }}
+              >
+                Trial activated
+              </p>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: T.sub,
+                  margin: 0,
+                  lineHeight: 1.5,
+                }}
+              >
+                You have 3 days of full Pro access. Unlimited drafts, unlimited
+                accounts.
+              </p>
+            </div>
+          ) : (
+            <div
               style={{
-                fontFamily: serif,
-                fontSize: 20,
-                fontWeight: 400,
-                color: T.ink,
-                margin: "0 0 6px",
-                lineHeight: 1.3,
+                ...glassCard,
+                border: `1.5px solid ${T.green}40`,
+                padding: "20px 20px",
+                marginBottom: 20,
+                textAlign: "center",
               }}
             >
-              Start your 3-day free trial of Pro
-            </p>
-            <p
-              style={{
-                fontSize: 13,
-                color: T.sub,
-                margin: "0 0 16px",
-                lineHeight: 1.5,
-              }}
-            >
-              Unlimited Gmail accounts, unlimited X accounts, unlimited AI
-              drafts. Cancel anytime.
-            </p>
-            <button
-              onClick={handleStartTrial}
-              disabled={startingTrial}
-              style={{
-                width: "100%",
-                padding: "12px 24px",
-                borderRadius: 10,
-                border: "none",
-                background: `linear-gradient(135deg, ${T.green}, #1e7a3a)`,
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: startingTrial ? "wait" : "pointer",
-                fontFamily: sans,
-                boxShadow: "0 4px 16px rgba(42,138,74,0.15)",
-              }}
-            >
-              {startingTrial ? "Redirecting..." : "Start free trial"}
-            </button>
-          </div>
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: T.green,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  margin: "0 0 8px",
+                }}
+              >
+                Unlock Pro
+              </p>
+              <p
+                style={{
+                  fontFamily: serif,
+                  fontSize: 20,
+                  fontWeight: 400,
+                  color: T.ink,
+                  margin: "0 0 6px",
+                  lineHeight: 1.3,
+                }}
+              >
+                Start your 3-day free trial of Pro
+              </p>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: T.sub,
+                  margin: "0 0 16px",
+                  lineHeight: 1.5,
+                }}
+              >
+                Unlimited Gmail accounts, unlimited X accounts, unlimited AI
+                drafts. Cancel anytime.
+              </p>
+              <button
+                onClick={handleStartTrial}
+                disabled={startingTrial}
+                style={{
+                  width: "100%",
+                  padding: "12px 24px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: `linear-gradient(135deg, ${T.green}, #1e7a3a)`,
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: startingTrial ? "wait" : "pointer",
+                  fontFamily: sans,
+                  boxShadow: "0 4px 16px rgba(42,138,74,0.15)",
+                }}
+              >
+                {startingTrial ? "Activating..." : "Start free trial"}
+              </button>
+            </div>
+          )}
 
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/dashboard")}
             style={{
               padding: "12px 44px",
               borderRadius: 12,
@@ -1014,23 +1130,25 @@ export default function OnboardingClient() {
           >
             Go to dashboard
           </button>
-          <div>
-            <button
-              onClick={() => router.push("/")}
-              style={{
-                background: "none",
-                border: "none",
-                color: T.muted,
-                fontSize: 13,
-                cursor: "pointer",
-                fontFamily: sans,
-                textDecoration: "underline",
-                padding: "4px 0",
-              }}
-            >
-              Skip, stay on free plan
-            </button>
-          </div>
+          {!trialActivated && (
+            <div>
+              <button
+                onClick={() => router.push("/dashboard")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: T.muted,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  fontFamily: sans,
+                  textDecoration: "underline",
+                  padding: "4px 0",
+                }}
+              >
+                Skip, stay on free plan
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

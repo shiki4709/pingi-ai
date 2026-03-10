@@ -9,11 +9,14 @@ export async function GET(request: NextRequest) {
 
   const { data } = await supabase
     .from("users")
-    .select("telegram_chat_id")
+    .select("telegram_chat_id, x_bot_chat_id")
     .eq("id", userId)
     .single();
 
   return NextResponse.json({
+    inbox_linked: !!(data?.telegram_chat_id),
+    x_linked: !!(data?.x_bot_chat_id),
+    // Keep backward compat
     linked: !!(data?.telegram_chat_id),
   });
 }

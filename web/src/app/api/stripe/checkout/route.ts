@@ -60,23 +60,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Validate Stripe env vars
+    // Validate Stripe env vars — if missing, activate trial directly
     const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (!stripeKey) {
-      console.error("[stripe/checkout] STRIPE_SECRET_KEY is not set");
-      return NextResponse.json(
-        { error: "Stripe is not configured. Set STRIPE_SECRET_KEY." },
-        { status: 503 }
-      );
-    }
-
     const priceId = process.env.STRIPE_PRO_PRICE_ID;
-    if (!priceId) {
-      console.error("[stripe/checkout] STRIPE_PRO_PRICE_ID is not set");
-      return NextResponse.json(
-        { error: "Stripe Pro price not configured. Set STRIPE_PRO_PRICE_ID." },
-        { status: 503 }
-      );
+    if (!stripeKey || !priceId) {
+      console.log(`[stripe/checkout] Stripe not configured, activating trial for ${email}`);
+
+      const supabase = getSupabase();
+      const trialEnds = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
+      await supabase
+        .from("users")
+        .update({ plan: "trial", trial_ends_at: trialEnds })
+        .eq("id", userId);
+
+      return NextResponse.json({ trial_activated: true });
     }
 
     // Lazy-import stripe to avoid crashing if key is missing

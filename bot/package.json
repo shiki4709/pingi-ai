@@ -24,7 +24,7 @@
   "devDependencies": {
     "@types/node": "^22.13.0",
     "@types/tough-cookie": "^4.0.5",
-    "tsx": "^4.19.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.0"
   }
 }
