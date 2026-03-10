@@ -15,6 +15,7 @@ const T = {
   green: "#2a8a4a",
   greenSoft: "rgba(42,138,74,0.08)",
   tgBlue: "#229ED9",
+  red: "#EA4335",
 };
 
 const serif = "'Instrument Serif', Georgia, serif";
@@ -36,12 +37,21 @@ const glassCard: React.CSSProperties = {
   padding: "20px 20px",
 };
 
+interface Status {
+  inbox_linked: boolean;
+  x_linked: boolean;
+  gmail_connected: boolean;
+}
+
 export default function DashboardClient() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [inboxLinked, setInboxLinked] = useState(false);
-  const [xLinked, setXLinked] = useState(false);
+  const [status, setStatus] = useState<Status>({
+    inbox_linked: false,
+    x_linked: false,
+    gmail_connected: false,
+  });
 
   useEffect(() => {
     getSupabaseBrowser()
@@ -51,12 +61,14 @@ export default function DashboardClient() {
           router.replace("/auth");
         } else {
           setUser(data.user);
-          // Fetch link status
           fetch(`/api/telegram-status?userId=${data.user.id}`)
             .then((r) => r.json())
-            .then((status) => {
-              setInboxLinked(!!status.inbox_linked);
-              setXLinked(!!status.x_linked);
+            .then((s) => {
+              setStatus({
+                inbox_linked: !!s.inbox_linked,
+                x_linked: !!s.x_linked,
+                gmail_connected: !!s.gmail_connected,
+              });
             })
             .catch(() => {});
         }
@@ -66,7 +78,8 @@ export default function DashboardClient() {
 
   if (loading) return null;
 
-  const anyLinked = inboxLinked || xLinked;
+  const inboxReady = status.gmail_connected && status.inbox_linked;
+  const engageReady = status.x_linked;
 
   return (
     <div
@@ -157,9 +170,9 @@ export default function DashboardClient() {
             lineHeight: 1.6,
           }}
         >
-          {anyLinked
-            ? "Your Pingi agents are active. Manage them in Telegram."
-            : "No agents connected yet. Set them up to get started."}
+          {inboxReady || engageReady
+            ? "Your agents are running. Open Telegram to review drafts and engage."
+            : "Connect your agents to get started."}
         </p>
 
         <div
@@ -173,153 +186,228 @@ export default function DashboardClient() {
           <div
             style={{
               ...glassCard,
-              borderColor: inboxLinked ? `${T.green}50` : T.border,
-              background: inboxLinked ? T.greenSoft : T.glass,
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
+              borderColor: inboxReady ? `${T.green}50` : T.border,
+              background: inboxReady ? T.greenSoft : T.glass,
             }}
           >
-            <div
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 14,
-                fontWeight: 700,
-                color: inboxLinked ? T.green : "#EA4335",
-                background: inboxLinked
-                  ? T.greenSoft
-                  : "rgba(234,67,53,0.04)",
-                border: `1px solid ${inboxLinked ? `${T.green}20` : "rgba(234,67,53,0.08)"}`,
-                flexShrink: 0,
-              }}
-            >
-              {inboxLinked ? "\u2713" : "G"}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: T.ink }}>
-                Inbox Agent
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: inboxReady ? 12 : 0 }}>
               <div
                 style={{
-                  fontSize: 13,
-                  color: inboxLinked ? T.green : T.muted,
-                  marginTop: 2,
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: inboxReady ? T.green : T.red,
+                  background: inboxReady
+                    ? T.greenSoft
+                    : "rgba(234,67,53,0.04)",
+                  border: `1px solid ${inboxReady ? `${T.green}20` : "rgba(234,67,53,0.08)"}`,
+                  flexShrink: 0,
                 }}
               >
-                {inboxLinked ? "Connected" : "Not connected"}
+                {inboxReady ? "\u2713" : "G"}
               </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: T.ink }}>
+                  Inbox Agent
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: inboxReady ? T.green : T.muted,
+                    marginTop: 2,
+                  }}
+                >
+                  {inboxReady
+                    ? "Monitoring your inbox"
+                    : !status.gmail_connected
+                      ? "Gmail not connected"
+                      : "Telegram not linked"}
+                </div>
+              </div>
+              {inboxReady ? (
+                <a
+                  href={`https://t.me/${INBOX_BOT}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 10,
+                    background: "rgba(0,0,0,0.04)",
+                    color: T.sub,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    fontFamily: sans,
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Open bot
+                </a>
+              ) : (
+                <button
+                  onClick={() => router.push("/onboarding")}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: "linear-gradient(135deg, #1a1a1a, #333)",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: sans,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Set up
+                </button>
+              )}
             </div>
-            <a
-              href={`https://t.me/${INBOX_BOT}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                padding: "8px 16px",
-                borderRadius: 10,
-                border: "none",
-                background: inboxLinked
-                  ? "rgba(0,0,0,0.04)"
-                  : "linear-gradient(135deg, #1a1a1a, #333)",
-                color: inboxLinked ? T.sub : "#fff",
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: sans,
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {inboxLinked ? "Open bot" : "Set up"}
-            </a>
+
+            {inboxReady && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  borderTop: `1px solid ${T.green}20`,
+                  paddingTop: 12,
+                }}
+              >
+                <StatusPill label="Gmail" connected />
+                <StatusPill label="Telegram" connected />
+              </div>
+            )}
           </div>
 
           {/* Engage Agent card */}
           <div
             style={{
               ...glassCard,
-              borderColor: xLinked ? `${T.green}50` : T.border,
-              background: xLinked ? T.greenSoft : T.glass,
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
+              borderColor: engageReady ? `${T.green}50` : T.border,
+              background: engageReady ? T.greenSoft : T.glass,
             }}
           >
-            <div
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 16,
-                fontWeight: 800,
-                color: xLinked ? T.green : T.ink,
-                background: xLinked ? T.greenSoft : "rgba(0,0,0,0.04)",
-                border: `1px solid ${xLinked ? `${T.green}20` : "rgba(0,0,0,0.06)"}`,
-                flexShrink: 0,
-              }}
-            >
-              {xLinked ? "\u2713" : "X"}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: T.ink }}>
-                Engage Agent
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: engageReady ? 12 : 0 }}>
               <div
                 style={{
-                  fontSize: 13,
-                  color: xLinked ? T.green : T.muted,
-                  marginTop: 2,
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 16,
+                  fontWeight: 800,
+                  color: engageReady ? T.green : T.ink,
+                  background: engageReady ? T.greenSoft : "rgba(0,0,0,0.04)",
+                  border: `1px solid ${engageReady ? `${T.green}20` : "rgba(0,0,0,0.06)"}`,
+                  flexShrink: 0,
                 }}
               >
-                {xLinked ? "Connected" : "Not connected"}
+                {engageReady ? "\u2713" : "X"}
               </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: T.ink }}>
+                  Engage Agent
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: engageReady ? T.green : T.muted,
+                    marginTop: 2,
+                  }}
+                >
+                  {engageReady
+                    ? "Scanning for engagement opportunities"
+                    : "Not connected"}
+                </div>
+              </div>
+              {engageReady ? (
+                <a
+                  href={`https://t.me/${ENGAGE_BOT}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 10,
+                    background: "rgba(0,0,0,0.04)",
+                    color: T.sub,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    fontFamily: sans,
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Open bot
+                </a>
+              ) : (
+                <button
+                  onClick={() => router.push("/onboarding")}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: "linear-gradient(135deg, #1a1a1a, #333)",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: sans,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Set up
+                </button>
+              )}
             </div>
-            <a
-              href={`https://t.me/${ENGAGE_BOT}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                padding: "8px 16px",
-                borderRadius: 10,
-                border: "none",
-                background: xLinked
-                  ? "rgba(0,0,0,0.04)"
-                  : "linear-gradient(135deg, #1a1a1a, #333)",
-                color: xLinked ? T.sub : "#fff",
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: sans,
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {xLinked ? "Open bot" : "Set up"}
-            </a>
+
+            {engageReady && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  borderTop: `1px solid ${T.green}20`,
+                  paddingTop: 12,
+                }}
+              >
+                <StatusPill label="Telegram" connected />
+                <StatusPill label="Scanning every 30 min" connected />
+              </div>
+            )}
           </div>
         </div>
-
-        {!anyLinked && (
-          <div style={{ textAlign: "center", marginTop: 24 }}>
-            <Link
-              href="/onboarding"
-              style={{
-                fontSize: 13,
-                color: T.tgBlue,
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              Go to onboarding setup
-            </Link>
-          </div>
-        )}
       </section>
+    </div>
+  );
+}
+
+function StatusPill({ label, connected }: { label: string; connected: boolean }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        fontSize: 11,
+        fontWeight: 600,
+        color: connected ? T.green : T.muted,
+      }}
+    >
+      <div
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: connected ? T.green : T.muted,
+        }}
+      />
+      {label}
     </div>
   );
 }
