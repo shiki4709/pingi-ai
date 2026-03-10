@@ -18,13 +18,18 @@ import {
   setWatchedAccounts,
   addWatchedAccount,
   removeWatchedAccount,
+  getSearchTopics,
+  setSearchTopics,
+  addSearchTopics,
+  removeSearchTopic,
+  getRecentEngageItems,
   getEngageItem,
   markPosted,
   markSkipped,
   updateDraftComment,
 } from "./store.js";
 import { likeTweet } from "./scraper.js";
-import { rewriteComment } from "./drafter.js";
+import { rewriteComment, chatWithAssistant } from "./drafter.js";
 import { scanForUser } from "./scanner.js";
 
 // ─── Session state ───
@@ -107,7 +112,15 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     if (existing) {
       await sendMessage({
         chat_id: chatId,
-        text: "You're already connected\\. Add accounts to watch with `/watch @paulg @naval @sama`",
+        text: [
+          "You're already connected\\! Here's what you can do:",
+          "",
+          "`/watch @paulg @naval` \\- Watch accounts for new tweets",
+          "`/topics AI agents, fintech, startups` \\- Track topics \\(finds popular tweets about these\\)",
+          "`/scan` \\- Scan now instead of waiting 30 min",
+          "",
+          "Type `/watch` or `/topics` to get started\\.",
+        ].join("\n"),
         parse_mode: "MarkdownV2",
       });
       return;
@@ -242,6 +255,120 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     return;
   }
 
+  // /topics — manage search topics
+  const topicsMatch = text.match(/^\/topics(@\w+)?\s*(.*)/s);
+  if (topicsMatch) {
+    const userId = await getUserIdForChat(chatId);
+    if (!userId) {
+      await sendMessage({ chat_id: chatId, text: "Connect your account first with /start" });
+      return;
+    }
+
+    const body = topicsMatch[2].trim();
+
+    // /topics remove <topic>
+    if (body.startsWith("remove ")) {
+      const topic = body.slice(7).trim();
+      if (!topic) {
+        await sendMessage({
+          chat_id: chatId,
+          text: "Usage: `/topics remove AI agents`",
+          parse_mode: "MarkdownV2",
+        });
+        return;
+      }
+      const ok = await removeSearchTopic(userId, topic);
+      await sendMessage({
+        chat_id: chatId,
+        text: ok
+          ? `Removed "${escMd(topic)}" from your topics\\.`
+          : `"${escMd(topic)}" is not in your topics\\.`,
+        parse_mode: "MarkdownV2",
+      });
+      return;
+    }
+
+    // /topics clear
+    if (body === "clear") {
+      await setSearchTopics(userId, []);
+      await sendMessage({
+        chat_id: chatId,
+        text: "Topics cleared\\.",
+        parse_mode: "MarkdownV2",
+      });
+      return;
+    }
+
+    // /topics (no args) → show current list
+    if (!body) {
+      const topics = await getSearchTopics(userId);
+      if (topics.length === 0) {
+        await sendMessage({
+          chat_id: chatId,
+          text: [
+            "No topics tracked yet\\.",
+            "",
+            "Add topics to search for:",
+            "`/topics AI agents, fintech, startups`",
+            "",
+            "I'll find popular tweets about these every 30 min and draft replies\\.",
+          ].join("\n"),
+          parse_mode: "MarkdownV2",
+        });
+      } else {
+        await sendMessage({
+          chat_id: chatId,
+          text: [
+            `*Tracking ${topics.length} topics:*`,
+            topics.map((t) => `\\- ${escMd(t)}`).join("\n"),
+            "",
+            "`/topics AI agents, DeFi` to add more",
+            "`/topics remove AI agents` to remove one",
+            "`/topics clear` to remove all",
+          ].join("\n"),
+          parse_mode: "MarkdownV2",
+        });
+      }
+      return;
+    }
+
+    // /topics AI agents, fintech, startups — add topics (comma-separated)
+    const newTopics = body
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    if (newTopics.length === 0) {
+      await sendMessage({
+        chat_id: chatId,
+        text: "No valid topics found\\. Use: `/topics AI agents, fintech, startups`",
+        parse_mode: "MarkdownV2",
+      });
+      return;
+    }
+
+    const ok = await addSearchTopics(userId, newTopics);
+    if (!ok) {
+      await sendMessage({
+        chat_id: chatId,
+        text: "Failed to save topics. The database may need a migration. Please contact support.",
+      });
+      return;
+    }
+    const all = await getSearchTopics(userId);
+    await sendMessage({
+      chat_id: chatId,
+      text: [
+        `Added ${newTopics.length} topic${newTopics.length > 1 ? "s" : ""}\\. Now tracking:`,
+        all.map((t) => `\\- ${escMd(t)}`).join("\n"),
+        "",
+        "I'll find popular tweets about these every 30 min\\.",
+      ].join("\n"),
+      parse_mode: "MarkdownV2",
+    });
+    return;
+  }
+
   // /scan — trigger immediate scan
   if (text.match(/^\/scan(@\w+)?$/)) {
     const userId = await getUserIdForChat(chatId);
@@ -251,22 +378,28 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     }
 
     const accounts = await getWatchedAccounts(userId);
-    if (accounts.length === 0) {
+    const topics = await getSearchTopics(userId);
+
+    if (accounts.length === 0 && topics.length === 0) {
       await sendMessage({
         chat_id: chatId,
-        text: "No accounts watched\\. Add some first with `/watch @handle`",
+        text: "Nothing to scan\\. Add accounts with `/watch @handle` or topics with `/topics AI agents`",
         parse_mode: "MarkdownV2",
       });
       return;
     }
 
+    const parts: string[] = [];
+    if (accounts.length > 0) parts.push(`${accounts.length} account${accounts.length > 1 ? "s" : ""}`);
+    if (topics.length > 0) parts.push(`${topics.length} topic${topics.length > 1 ? "s" : ""}`);
+
     await sendMessage({
       chat_id: chatId,
-      text: `Scanning ${accounts.length} account${accounts.length > 1 ? "s" : ""}\\.\\.\\. this may take a moment\\.`,
+      text: `Scanning ${parts.join(" and ")}\\.\\.\\. this may take a moment\\.`,
       parse_mode: "MarkdownV2",
     });
 
-    const itemsSent = await scanForUser(userId, accounts, chatId);
+    const itemsSent = await scanForUser(userId, accounts, chatId, topics);
 
     if (itemsSent === 0) {
       await sendMessage({
@@ -278,12 +411,122 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     return;
   }
 
+  // /unwatch @handle — remove watched account
+  const unwatchMatch = text.match(/^\/unwatch(@\w+)?\s*(.*)/s);
+  if (unwatchMatch) {
+    const userId = await getUserIdForChat(chatId);
+    if (!userId) {
+      await sendMessage({ chat_id: chatId, text: "Connect your account first with /start" });
+      return;
+    }
+
+    const body = unwatchMatch[2].trim();
+    if (!body) {
+      await sendMessage({
+        chat_id: chatId,
+        text: "Usage: `/unwatch @paulg`",
+        parse_mode: "MarkdownV2",
+      });
+      return;
+    }
+
+    const handles = body
+      .split(/[\s,]+/)
+      .map((h) => h.replace(/^@/, "").trim())
+      .filter((h) => h.length > 0);
+
+    for (const h of handles) {
+      await removeWatchedAccount(userId, h);
+    }
+
+    const remaining = await getWatchedAccounts(userId);
+    await sendMessage({
+      chat_id: chatId,
+      text: remaining.length > 0
+        ? `Removed\\. Still watching: ${remaining.map((a) => `@${escMd(a)}`).join(", ")}`
+        : "Removed\\. Watchlist is now empty\\.",
+      parse_mode: "MarkdownV2",
+    });
+    return;
+  }
+
+  // /untopics <topic> — remove search topic
+  const untopicsMatch = text.match(/^\/untopics(@\w+)?\s*(.*)/s);
+  if (untopicsMatch) {
+    const userId = await getUserIdForChat(chatId);
+    if (!userId) {
+      await sendMessage({ chat_id: chatId, text: "Connect your account first with /start" });
+      return;
+    }
+
+    const body = untopicsMatch[2].trim();
+    if (!body) {
+      await sendMessage({
+        chat_id: chatId,
+        text: "Usage: `/untopics AI agents`",
+        parse_mode: "MarkdownV2",
+      });
+      return;
+    }
+
+    // Comma-separated topics to remove
+    const toRemove = body.split(",").map((t) => t.trim()).filter(Boolean);
+    for (const t of toRemove) {
+      await removeSearchTopic(userId, t);
+    }
+
+    const remaining = await getSearchTopics(userId);
+    await sendMessage({
+      chat_id: chatId,
+      text: remaining.length > 0
+        ? `Removed\\. Still tracking: ${remaining.map((t) => escMd(t)).join(", ")}`
+        : "Removed\\. No topics tracked\\.",
+      parse_mode: "MarkdownV2",
+    });
+    return;
+  }
+
   // Unknown command
   if (text.startsWith("/")) {
     await sendMessage({
       chat_id: chatId,
-      text: "Commands: `/start`, `/watch`, `/scan`",
+      text: "Commands: `/start`, `/watch`, `/unwatch`, `/topics`, `/untopics`, `/scan`",
       parse_mode: "MarkdownV2",
+    });
+    return;
+  }
+
+  // ─── Conversational AI fallback (non-command free text) ───
+  const userId = await getUserIdForChat(chatId);
+  if (!userId) {
+    await sendMessage({ chat_id: chatId, text: "Send /start to get connected first." });
+    return;
+  }
+
+  if (!text) return;
+
+  const [accounts, topics, recentItems] = await Promise.all([
+    getWatchedAccounts(userId),
+    getSearchTopics(userId),
+    getRecentEngageItems(userId, 10),
+  ]);
+
+  const reply = await chatWithAssistant(text, {
+    watchedAccounts: accounts,
+    searchTopics: topics,
+    recentItems: recentItems.map((i) => ({
+      authorHandle: i.authorHandle,
+      tweetText: i.tweetText,
+      status: i.status,
+    })),
+  });
+
+  if (reply) {
+    await sendMessage({ chat_id: chatId, text: reply });
+  } else {
+    await sendMessage({
+      chat_id: chatId,
+      text: "Sorry, I couldn't process that. Try a command like /watch or /topics.",
     });
   }
 }
@@ -311,7 +554,15 @@ async function handleEmailInput(
   awaitingEmail.delete(chatId);
   await sendMessage({
     chat_id: chatId,
-    text: "Connected\\! Add accounts to watch with `/watch @paulg @naval @sama`",
+    text: [
+      "Connected\\! Here's what you can do:",
+      "",
+      "`/watch @paulg @naval` \\- Watch accounts for new tweets",
+      "`/topics AI agents, fintech, startups` \\- Track topics \\(finds popular tweets about these\\)",
+      "`/scan` \\- Scan now instead of waiting 30 min",
+      "",
+      "Type `/watch` or `/topics` to get started\\.",
+    ].join("\n"),
     parse_mode: "MarkdownV2",
   });
 }

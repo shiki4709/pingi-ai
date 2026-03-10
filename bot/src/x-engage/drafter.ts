@@ -97,6 +97,58 @@ Output ONLY the reply text. Nothing else.`,
   }
 }
 
+export async function chatWithAssistant(
+  userMessage: string,
+  context: {
+    watchedAccounts: string[];
+    searchTopics: string[];
+    recentItems: { authorHandle: string; tweetText: string; status: string }[];
+  }
+): Promise<string | null> {
+  const anthropic = getClient();
+  if (!anthropic) return null;
+
+  const accountsList = context.watchedAccounts.length > 0
+    ? context.watchedAccounts.map((a) => `@${a}`).join(", ")
+    : "none";
+  const topicsList = context.searchTopics.length > 0
+    ? context.searchTopics.join(", ")
+    : "none";
+  const itemsSummary = context.recentItems.length > 0
+    ? context.recentItems
+        .map((i) => `- @${i.authorHandle}: "${i.tweetText.slice(0, 80)}..." [${i.status}]`)
+        .join("\n")
+    : "No recent items.";
+
+  const posted = context.recentItems.filter((i) => i.status === "posted").length;
+  const skipped = context.recentItems.filter((i) => i.status === "skipped").length;
+  const pending = context.recentItems.filter((i) => i.status === "pending").length;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 300,
+      system: `You are Pingi, an X engagement assistant in a Telegram bot. The user's watched accounts are: ${accountsList}. Their tracked topics are: ${topicsList}. Their recent engagement items (last 10): ${posted} posted, ${skipped} skipped, ${pending} pending.
+
+Recent items:
+${itemsSummary}
+
+Answer their questions about their setup, suggest accounts to watch, or help them optimize their engagement strategy. Keep responses short and conversational (2-4 sentences max). No markdown formatting, no emojis. Plain text only.
+
+If the user wants to add/remove accounts or topics, tell them the exact command to use (e.g. "/watch @naval" or "/topics remove fintech"). Don't try to execute commands yourself.`,
+      messages: [{ role: "user", content: userMessage }],
+    });
+
+    const text = response.content[0].type === "text"
+      ? response.content[0].text.trim()
+      : "";
+    return text || null;
+  } catch (e: any) {
+    console.error("[drafter] Chat failed:", e.message);
+    return null;
+  }
+}
+
 export async function rewriteComment(
   tweetText: string,
   currentDraft: string,

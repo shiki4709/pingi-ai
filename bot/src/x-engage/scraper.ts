@@ -85,6 +85,70 @@ export async function getRecentTweets(
   }
 }
 
+// ─── SocialData API: search tweets by topic/keyword ───
+
+export async function searchTopicTweets(
+  topic: string,
+  maxResults: number = 10
+): Promise<Tweet[]> {
+  const apiKey = config.socialDataApiKey;
+  if (!apiKey) {
+    console.warn("[scraper] SOCIALDATA_API_KEY not set, cannot search topics");
+    return [];
+  }
+
+  const query = `${topic} min_retweets:5`;
+  const url = `${SOCIALDATA_BASE}/twitter/search?query=${encodeURIComponent(query)}&type=Latest`;
+
+  try {
+    console.log(`[scraper] SocialData topic search: "${query}"`);
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(`[scraper] SocialData error: ${res.status} ${body.slice(0, 200)}`);
+      return [];
+    }
+
+    const json = await res.json();
+    const rawTweets: any[] = json.tweets ?? [];
+    console.log(`[scraper] SocialData returned ${rawTweets.length} tweets for topic "${topic}"`);
+
+    const tweets: Tweet[] = [];
+    for (const t of rawTweets) {
+      if (tweets.length >= maxResults) break;
+
+      const isRT = !!(t.retweeted_status || t.full_text?.startsWith("RT @"));
+      if (isRT) continue;
+
+      const views = t.views_count ?? 0;
+      if (views < 1000) continue;
+
+      const handle = t.user?.screen_name ?? "";
+      tweets.push({
+        id: t.id_str ?? String(t.id ?? ""),
+        text: t.full_text ?? t.text ?? "",
+        username: handle,
+        name: t.user?.name ?? handle,
+        likes: t.favorite_count ?? 0,
+        retweets: t.retweet_count ?? 0,
+        replies: t.reply_count ?? 0,
+        views,
+        isRetweet: false,
+        timeParsed: t.tweet_created_at ? new Date(t.tweet_created_at) : null,
+        permanentUrl: `https://x.com/${handle}/status/${t.id_str ?? t.id}`,
+      });
+    }
+
+    return tweets;
+  } catch (e: any) {
+    console.error(`[scraper] SocialData topic search failed for "${topic}":`, e.message);
+    return [];
+  }
+}
+
 // ─── Diagnostic: test SocialData API ───
 
 export async function runDiagnostic(): Promise<void> {

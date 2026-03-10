@@ -163,6 +163,58 @@ export async function removeWatchedAccount(
   return setWatchedAccounts(userId, filtered);
 }
 
+// ─── Search topics ───
+
+export async function getSearchTopics(
+  userId: string
+): Promise<string[]> {
+  const { data } = await getSupabase()
+    .from("user_topics")
+    .select("search_topics")
+    .eq("user_id", userId)
+    .single();
+  return (data?.search_topics as string[]) ?? [];
+}
+
+export async function setSearchTopics(
+  userId: string,
+  topics: string[]
+): Promise<boolean> {
+  const { error } = await getSupabase().from("user_topics").upsert(
+    {
+      user_id: userId,
+      search_topics: topics,
+    },
+    { onConflict: "user_id" }
+  );
+  if (error) {
+    console.error("[x-store] Failed to set search topics:", error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function addSearchTopics(
+  userId: string,
+  newTopics: string[]
+): Promise<boolean> {
+  const current = await getSearchTopics(userId);
+  const normalized = newTopics.map((t) => t.trim().toLowerCase()).filter(Boolean);
+  const merged = [...new Set([...current, ...normalized])];
+  return setSearchTopics(userId, merged);
+}
+
+export async function removeSearchTopic(
+  userId: string,
+  topic: string
+): Promise<boolean> {
+  const current = await getSearchTopics(userId);
+  const normalized = topic.trim().toLowerCase();
+  const filtered = current.filter((t) => t !== normalized);
+  if (filtered.length === current.length) return false;
+  return setSearchTopics(userId, filtered);
+}
+
 // ─── Engagement items ───
 
 export interface EngageItem {
@@ -255,6 +307,31 @@ export async function updateDraftComment(
     .update({ draft_comment: newDraft })
     .eq("id", id);
   return !error;
+}
+
+export async function getRecentEngageItems(
+  userId: string,
+  limit: number = 10
+): Promise<EngageItem[]> {
+  const { data } = await getSupabase()
+    .from("x_engage_items")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (!data) return [];
+  return data.map((d: any) => ({
+    id: d.id,
+    tweetId: d.tweet_id,
+    tweetUrl: d.tweet_url,
+    authorName: d.author_name,
+    authorHandle: d.author_handle,
+    authorFollowers: d.author_followers,
+    tweetText: d.tweet_text,
+    draftComment: d.draft_comment,
+    status: d.status,
+  }));
 }
 
 export async function hasSeenTweet(
@@ -351,16 +428,24 @@ export async function setXCookies(
   return true;
 }
 
-/** Get all user IDs that have watched accounts configured. */
+/** Get all user IDs that have watched accounts or search topics configured. */
 export async function getUsersWithAccounts(): Promise<
-  { userId: string; accounts: string[] }[]
+  { userId: string; accounts: string[]; searchTopics: string[] }[]
 > {
   const { data, error } = await getSupabase()
     .from("user_topics")
-    .select("user_id, topics");
+    .select("user_id, topics, search_topics");
 
   if (error || !data) return [];
   return data
-    .filter((r: any) => Array.isArray(r.topics) && r.topics.length > 0)
-    .map((r: any) => ({ userId: r.user_id, accounts: r.topics as string[] }));
+    .filter((r: any) => {
+      const hasAccounts = Array.isArray(r.topics) && r.topics.length > 0;
+      const hasTopics = Array.isArray(r.search_topics) && r.search_topics.length > 0;
+      return hasAccounts || hasTopics;
+    })
+    .map((r: any) => ({
+      userId: r.user_id,
+      accounts: (r.topics as string[]) ?? [],
+      searchTopics: (r.search_topics as string[]) ?? [],
+    }));
 }
