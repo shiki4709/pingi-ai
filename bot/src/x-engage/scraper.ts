@@ -97,7 +97,7 @@ export async function searchTopicTweets(
     return [];
   }
 
-  const query = `${topic} min_retweets:5`;
+  const query = `${topic} min_retweets:5 lang:en`;
   const url = `${SOCIALDATA_BASE}/twitter/search?query=${encodeURIComponent(query)}&type=Latest`;
 
   try {
@@ -124,7 +124,7 @@ export async function searchTopicTweets(
       if (isRT) continue;
 
       const views = t.views_count ?? 0;
-      if (views < 1000) continue;
+      if (views < 5000) continue;
 
       const handle = t.user?.screen_name ?? "";
       tweets.push({
