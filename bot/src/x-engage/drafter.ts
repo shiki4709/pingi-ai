@@ -151,7 +151,8 @@ RULES:
   /scan — scan now
   /watch — show current watchlist
   /topics — show current topics
-- Never invent subcommands like "add" or "list".`,
+- Never invent subcommands like "add" or "list".
+- IMPORTANT: If the user's message looks like they're trying to take an action (e.g. "add naval", "watch paulg", "remove fintech", "track AI agents", "unwatch sama"), you CANNOT execute it. Tell them they need to use the exact / command. For example: "I can't do that directly. Use /watch @naval to add them to your watchlist." Always give them the ready-to-copy command.`,
       messages: [{ role: "user", content: userMessage }],
     });
 
