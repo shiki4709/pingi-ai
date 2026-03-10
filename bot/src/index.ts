@@ -1,4 +1,4 @@
-console.log("ENV CHECK:", { SUPABASE_URL: process.env.SUPABASE_URL ? "SET" : "MISSING", SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY ? "SET" : "MISSING", TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ? "SET" : "MISSING" });
+console.log("RAILWAY_ENV_CHECK", { SUPABASE_URL: process.env.SUPABASE_URL || "EMPTY" });
 import Fastify from "fastify";
 import { config } from "./config.js";
 import {

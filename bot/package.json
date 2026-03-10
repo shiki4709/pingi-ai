@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "dev:x": "tsx watch src/x-engage/index.ts",
     "build": "tsc",
-    "start": "tsx src/index.ts",
+    "start": "node -e \"console.log(process.env.SUPABASE_URL)\" && tsx src/index.ts",
     "start:x": "tsx src/x-engage/index.ts",
     "typecheck": "tsc --noEmit",
     "webhook:set": "tsx src/set-webhook.ts"
