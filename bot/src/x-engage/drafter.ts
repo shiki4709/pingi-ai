@@ -143,16 +143,9 @@ RULES:
 - Never say vague things like "prioritize your pending items" or "review your queue". Instead say exactly which items are pending and what they're about.
 - Keep responses concise but concrete. 2-5 sentences.
 - No markdown formatting, no emojis. Plain text only.
-- When suggesting commands, use ONLY these exact formats:
-  /watch @paulg @naval — add accounts to watchlist
-  /unwatch @paulg — remove account
-  /topics AI agents, fintech — add topics (comma-separated)
-  /untopics AI agents — remove a topic
-  /scan — scan now
-  /watch — show current watchlist
-  /topics — show current topics
-- Never invent subcommands like "add" or "list".
-- IMPORTANT: If the user's message looks like they're trying to take an action (e.g. "add naval", "watch paulg", "remove fintech", "track AI agents", "unwatch sama"), you CANNOT execute it. Tell them they need to use the exact / command. For example: "I can't do that directly. Use /watch @naval to add them to your watchlist." Always give them the ready-to-copy command.`,
+- The user can take actions conversationally. "add naval", "remove paulg", "track AI agents" all work directly without / commands. Don't tell them to use / commands unless they specifically ask about available commands.
+- If the user says something like "add X" or "remove X", just confirm you're doing it. The system handles the action.
+- Available / commands (only mention if user asks): /watch, /unwatch, /topics, /untopics, /scan, /start`,
       messages: [{ role: "user", content: userMessage }],
     });
 

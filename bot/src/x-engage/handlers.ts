@@ -43,6 +43,13 @@ interface EditSession {
 const editSessions = new Map<number, EditSession>();
 const awaitingEmail = new Set<number>();
 
+interface PendingConfirm {
+  handle: string;
+  name: string;
+  followers: number;
+}
+const awaitingConfirm = new Map<number, PendingConfirm>();
+
 // ─── Helpers ───
 
 function escMd(text: string): string {
@@ -103,6 +110,13 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
   if (session && text && !text.startsWith("/")) {
     console.log(`[x-handlers] Edit session active for chatId=${chatId}, itemId=${session.itemId}, instruction="${text}"`);
     await handleEditReply(session, text);
+    return;
+  }
+
+  // Check if we're awaiting confirmation to add a handle
+  const pending = awaitingConfirm.get(chatId);
+  if (pending && text && !text.startsWith("/")) {
+    await handleConfirmAdd(chatId, text, pending);
     return;
   }
 
@@ -511,18 +525,29 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
 
   if (!text) return;
 
-  // Detect "add [name]" / "watch [name]" / "follow [name]" patterns → search for handle
+  // Detect "add [name]" / "watch [name]" / "follow [name]" patterns → search and confirm
   const addMatch = text.match(/^(?:add|watch|follow|track)\s+(.+)/i);
   if (addMatch) {
     const name = addMatch[1].trim();
 
-    // If it already looks like a @handle, just suggest the command
+    // If it already looks like a @handle, search to confirm it's real
     if (/^@?[a-zA-Z0-9_]+$/.test(name)) {
       const handle = name.replace(/^@/, "");
-      await sendMessage({
-        chat_id: chatId,
-        text: `To add them, use this command:\n/watch @${handle}`,
-      });
+      const users = await searchTwitterUsers(handle, 1);
+      if (users.length > 0 && users[0].username.toLowerCase() === handle.toLowerCase()) {
+        const u = users[0];
+        awaitingConfirm.set(chatId, { handle: u.username, name: u.name, followers: u.followers });
+        await sendMessage({
+          chat_id: chatId,
+          text: `Found @${u.username} (${u.name}) - ${formatFollowers(u.followers)} followers.\n\nAdd to your watchlist? (yes/no)`,
+        });
+      } else {
+        awaitingConfirm.set(chatId, { handle, name: handle, followers: 0 });
+        await sendMessage({
+          chat_id: chatId,
+          text: `Add @${handle} to your watchlist? (yes/no)`,
+        });
+      }
       return;
     }
 
@@ -531,25 +556,67 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     const users = await searchTwitterUsers(name, 5);
 
     if (users.length > 0) {
-      const lines = users.map(
-        (u) => `@${u.username} (${u.name}) - ${formatFollowers(u.followers)} followers`
-      );
-      await sendMessage({
-        chat_id: chatId,
-        text: [
-          `Found these accounts for "${name}":`,
-          "",
-          ...lines,
-          "",
-          `To add one, use: /watch @${users[0].username}`,
-        ].join("\n"),
-      });
+      // Auto-confirm the top result
+      const top = users[0];
+      awaitingConfirm.set(chatId, { handle: top.username, name: top.name, followers: top.followers });
+
+      if (users.length === 1) {
+        await sendMessage({
+          chat_id: chatId,
+          text: `Found @${top.username} (${top.name}) - ${formatFollowers(top.followers)} followers.\n\nAdd to your watchlist? (yes/no)`,
+        });
+      } else {
+        const lines = users.map(
+          (u, i) => `${i === 0 ? ">" : " "} @${u.username} (${u.name}) - ${formatFollowers(u.followers)} followers`
+        );
+        await sendMessage({
+          chat_id: chatId,
+          text: [
+            `Found these accounts for "${name}":`,
+            "",
+            ...lines,
+            "",
+            `Add @${top.username}? (yes/no)`,
+            `Or type another handle from the list.`,
+          ].join("\n"),
+        });
+      }
     } else {
       await sendMessage({
         chat_id: chatId,
-        text: `Couldn't find anyone matching "${name}". Try using their exact X handle: /watch @theirhandle`,
+        text: `Couldn't find anyone matching "${name}". Try their exact X handle, e.g. "add @theirhandle"`,
       });
     }
+    return;
+  }
+
+  // Detect "remove [name]" / "unwatch [name]" / "unfollow [name]" patterns → remove directly
+  const removeMatch = text.match(/^(?:remove|unwatch|unfollow|stop watching|stop tracking)\s+(.+)/i);
+  if (removeMatch) {
+    const name = removeMatch[1].trim().replace(/^@/, "");
+    const accounts = await getWatchedAccounts(userId);
+    const topics = await getSearchTopics(userId);
+
+    // Check if it matches a watched account
+    const accountMatch = accounts.find((a) => a.toLowerCase() === name.toLowerCase());
+    if (accountMatch) {
+      await removeWatchedAccount(userId, accountMatch);
+      await sendMessage({ chat_id: chatId, text: `Removed @${accountMatch} from your watchlist.` });
+      return;
+    }
+
+    // Check if it matches a topic
+    const topicMatch = topics.find((t) => t.toLowerCase() === name.toLowerCase());
+    if (topicMatch) {
+      await removeSearchTopic(userId, topicMatch);
+      await sendMessage({ chat_id: chatId, text: `Removed "${topicMatch}" from your topics.` });
+      return;
+    }
+
+    await sendMessage({
+      chat_id: chatId,
+      text: `"${name}" isn't in your watchlist or topics. Check /watch or /topics to see what you're tracking.`,
+    });
     return;
   }
 
@@ -577,6 +644,64 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
       text: "Sorry, I couldn't process that. Try a command like /watch or /topics.",
     });
   }
+}
+
+// ─── Confirm add flow ───
+
+async function handleConfirmAdd(
+  chatId: number,
+  text: string,
+  pending: PendingConfirm
+): Promise<void> {
+  const lower = text.toLowerCase().trim();
+
+  // User said yes → add the handle
+  if (lower === "yes" || lower === "y" || lower === "yep" || lower === "yeah" || lower === "sure" || lower === "ok") {
+    awaitingConfirm.delete(chatId);
+    const userId = await getUserIdForChat(chatId);
+    if (!userId) {
+      await sendMessage({ chat_id: chatId, text: "Send /start to get connected first." });
+      return;
+    }
+    await addWatchedAccount(userId, pending.handle);
+    await sendMessage({
+      chat_id: chatId,
+      text: `Added @${pending.handle} to your watchlist. I'll check their tweets every 30 min.`,
+    });
+    return;
+  }
+
+  // User said no → cancel
+  if (lower === "no" || lower === "n" || lower === "nah" || lower === "cancel" || lower === "nope") {
+    awaitingConfirm.delete(chatId);
+    await sendMessage({ chat_id: chatId, text: "OK, not added." });
+    return;
+  }
+
+  // User typed a different handle from the list → confirm that one instead
+  const handleMatch = text.match(/^@?([a-zA-Z0-9_]+)$/);
+  if (handleMatch) {
+    const newHandle = handleMatch[1];
+    awaitingConfirm.delete(chatId);
+    const userId = await getUserIdForChat(chatId);
+    if (!userId) {
+      await sendMessage({ chat_id: chatId, text: "Send /start to get connected first." });
+      return;
+    }
+    await addWatchedAccount(userId, newHandle);
+    await sendMessage({
+      chat_id: chatId,
+      text: `Added @${newHandle} to your watchlist. I'll check their tweets every 30 min.`,
+    });
+    return;
+  }
+
+  // Didn't understand
+  awaitingConfirm.delete(chatId);
+  await sendMessage({
+    chat_id: chatId,
+    text: "Cancelled. Try again with a name or handle.",
+  });
 }
 
 // ─── Email linking flow ───
