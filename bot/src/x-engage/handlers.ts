@@ -56,6 +56,14 @@ function escMd(text: string): string {
   return text.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
 }
 
+function userLink(handle: string): string {
+  return `<a href="https://x.com/${handle}">@${handle}</a>`;
+}
+
+function escHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function formatFollowers(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -539,13 +547,15 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
         awaitingConfirm.set(chatId, { handle: u.username, name: u.name, followers: u.followers });
         await sendMessage({
           chat_id: chatId,
-          text: `Found @${u.username} (${u.name}) - ${formatFollowers(u.followers)} followers.\n\nAdd to your watchlist? (yes/no)`,
+          text: `Found ${userLink(u.username)} (${u.name}) - ${formatFollowers(u.followers)} followers.\n\nAdd to your watchlist? (yes/no)`,
+          parse_mode: "HTML",
         });
       } else {
         awaitingConfirm.set(chatId, { handle, name: handle, followers: 0 });
         await sendMessage({
           chat_id: chatId,
-          text: `Add @${handle} to your watchlist? (yes/no)`,
+          text: `Add ${userLink(handle)} to your watchlist? (yes/no)`,
+          parse_mode: "HTML",
         });
       }
       return;
@@ -563,22 +573,24 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
       if (users.length === 1) {
         await sendMessage({
           chat_id: chatId,
-          text: `Found @${top.username} (${top.name}) - ${formatFollowers(top.followers)} followers.\n\nAdd to your watchlist? (yes/no)`,
+          text: `Found ${userLink(top.username)} (${top.name}) - ${formatFollowers(top.followers)} followers.\n\nAdd to your watchlist? (yes/no)`,
+          parse_mode: "HTML",
         });
       } else {
         const lines = users.map(
-          (u, i) => `${i === 0 ? ">" : " "} @${u.username} (${u.name}) - ${formatFollowers(u.followers)} followers`
+          (u, i) => `${i === 0 ? ">" : " "} ${userLink(u.username)} (${u.name}) - ${formatFollowers(u.followers)} followers`
         );
         await sendMessage({
           chat_id: chatId,
           text: [
-            `Found these accounts for "${name}":`,
+            `Found these accounts for "${escHtml(name)}":`,
             "",
             ...lines,
             "",
-            `Add @${top.username}? (yes/no)`,
+            `Add ${userLink(top.username)}? (yes/no)`,
             `Or type another handle from the list.`,
           ].join("\n"),
+          parse_mode: "HTML",
         });
       }
     } else {
