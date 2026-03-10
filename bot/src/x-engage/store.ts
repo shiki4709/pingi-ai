@@ -68,13 +68,24 @@ export async function linkByEmail(
   chatId: number
 ): Promise<{ userId: string } | { error: string }> {
   const normalized = email.trim().toLowerCase();
+  const sb = getSupabase();
   console.log(`[x-store] linkByEmail: email="${normalized}" chatId=${chatId}`);
+  console.log(`[x-store] SUPABASE_URL=${process.env.SUPABASE_URL ?? "(empty)"}`);
 
-  const { data: row, error } = await getSupabase()
+  // Debug: broad query to see what's in the table
+  const { data: allUsers, error: allErr } = await sb
     .from("users")
-    .select("id")
+    .select("id, email")
+    .limit(10);
+  console.log(`[x-store] DEBUG users table sample:`, JSON.stringify(allUsers), "error:", allErr?.message ?? "none");
+
+  const { data: row, error } = await sb
+    .from("users")
+    .select("id, email")
     .eq("email", normalized)
     .single();
+
+  console.log(`[x-store] Query result: data=${JSON.stringify(row)} error=${error ? JSON.stringify({ message: error.message, code: error.code, details: error.details }) : "none"}`);
 
   if (error || !row) {
     console.log(`[x-store] No user found for email "${normalized}"`);
