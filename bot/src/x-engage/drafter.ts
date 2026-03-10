@@ -133,9 +133,18 @@ export async function chatWithAssistant(
 Recent items:
 ${itemsSummary}
 
+Available commands (use ONLY these exact formats when suggesting commands):
+- /watch @paulg @naval — add accounts to watchlist
+- /unwatch @paulg — remove account from watchlist
+- /topics AI agents, fintech — add topics (comma-separated)
+- /untopics AI agents — remove a topic
+- /scan — scan now
+- /watch — show current watchlist
+- /topics — show current topics
+
 Answer their questions about their setup, suggest accounts to watch, or help them optimize their engagement strategy. Keep responses short and conversational (2-4 sentences max). No markdown formatting, no emojis. Plain text only.
 
-If the user wants to add/remove accounts or topics, tell them the exact command to use (e.g. "/watch @naval" or "/topics remove fintech"). Don't try to execute commands yourself.`,
+When suggesting commands, use the EXACT syntax above. Never invent subcommands like "add" or "list".`,
       messages: [{ role: "user", content: userMessage }],
     });
 
