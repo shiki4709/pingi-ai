@@ -22,10 +22,8 @@ import {
   markPosted,
   markSkipped,
   updateDraftComment,
-  setXCookies,
-  getXCookies,
 } from "./store.js";
-import { likeTweet, getScraperForUser, clearUserScraper } from "./scraper.js";
+import { likeTweet } from "./scraper.js";
 import { rewriteComment } from "./drafter.js";
 import { scanForUser } from "./scanner.js";
 
@@ -39,7 +37,6 @@ interface EditSession {
 
 const editSessions = new Map<number, EditSession>();
 const awaitingEmail = new Set<number>();
-const awaitingCookies = new Set<number>();
 
 // ─── Helpers ───
 
@@ -95,12 +92,6 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
   if (session && text && !text.startsWith("/")) {
     console.log(`[x-handlers] Edit session active for chatId=${chatId}, itemId=${session.itemId}, instruction="${text}"`);
     await handleEditReply(session, text);
-    return;
-  }
-
-  // Check if we're awaiting cookies from this chat
-  if (awaitingCookies.has(chatId) && text && !text.startsWith("/")) {
-    await handleCookiesInput(chatId, text);
     return;
   }
 
@@ -251,42 +242,6 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     return;
   }
 
-  // /cookies — set X auth cookies for reading tweets
-  if (text.match(/^\/cookies(@\w+)?$/)) {
-    const userId = await getUserIdForChat(chatId);
-    if (!userId) {
-      await sendMessage({ chat_id: chatId, text: "Connect your account first with /start" });
-      return;
-    }
-
-    const existing = await getXCookies(userId);
-
-    awaitingCookies.add(chatId);
-    await sendMessage({
-      chat_id: chatId,
-      text: [
-        existing ? "Your X cookies are set\\. To update them:" : "*Set up X cookies*",
-        "",
-        "I need your `auth_token` and `ct0` cookies from X\\.com\\. Here's how to get them:",
-        "",
-        "1\\. Open x\\.com in Chrome and log in",
-        "2\\. Press F12 to open DevTools",
-        "3\\. Go to Application tab \\> Cookies \\> https://x\\.com",
-        "4\\. Find `auth_token` and copy its Value",
-        "5\\. Find `ct0` and copy its Value",
-        "",
-        "Paste them in this format:",
-        "`auth_token=abc123 ct0=def456`",
-        "",
-        "Or on two lines:",
-        "`auth_token=abc123`",
-        "`ct0=def456`",
-      ].join("\n"),
-      parse_mode: "MarkdownV2",
-    });
-    return;
-  }
-
   // /scan — trigger immediate scan
   if (text.match(/^\/scan(@\w+)?$/)) {
     const userId = await getUserIdForChat(chatId);
@@ -327,7 +282,7 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
   if (text.startsWith("/")) {
     await sendMessage({
       chat_id: chatId,
-      text: "Commands: `/start`, `/watch`, `/scan`, `/cookies`",
+      text: "Commands: `/start`, `/watch`, `/scan`",
       parse_mode: "MarkdownV2",
     });
   }
@@ -359,75 +314,6 @@ async function handleEmailInput(
     text: "Connected\\! Add accounts to watch with `/watch @paulg @naval @sama`",
     parse_mode: "MarkdownV2",
   });
-}
-
-// ─── Cookie input flow ───
-
-async function handleCookiesInput(
-  chatId: number,
-  text: string
-): Promise<void> {
-  const userId = await getUserIdForChat(chatId);
-  if (!userId) {
-    awaitingCookies.delete(chatId);
-    await sendMessage({ chat_id: chatId, text: "Connect your account first with /start" });
-    return;
-  }
-
-  // Parse auth_token and ct0 from various formats:
-  // "auth_token=abc ct0=def" or "auth_token=abc\nct0=def" or just pasted values
-  let authToken = "";
-  let ct0 = "";
-
-  const authMatch = text.match(/auth_token[=:\s]+([a-f0-9]+)/i);
-  const ct0Match = text.match(/ct0[=:\s]+([a-f0-9]+)/i);
-
-  if (authMatch) authToken = authMatch[1];
-  if (ct0Match) ct0 = ct0Match[1];
-
-  if (!authToken || !ct0) {
-    await sendMessage({
-      chat_id: chatId,
-      text: [
-        "Couldn't find both values. Paste them like this:",
-        "",
-        "auth_token=abc123 ct0=def456",
-      ].join("\n"),
-    });
-    return;
-  }
-
-  // Validate by trying to create a scraper
-  await sendMessage({ chat_id: chatId, text: "Verifying cookies..." });
-
-  const testScraper = await getScraperForUser(authToken, ct0);
-  if (!testScraper) {
-    await sendMessage({
-      chat_id: chatId,
-      text: "Those cookies didn't work. Make sure you copied the full values from Chrome DevTools. Try /cookies again.",
-    });
-    awaitingCookies.delete(chatId);
-    return;
-  }
-
-  // Save to DB
-  const ok = await setXCookies(userId, authToken, ct0);
-  clearUserScraper(userId);
-
-  awaitingCookies.delete(chatId);
-
-  if (ok) {
-    await sendMessage({
-      chat_id: chatId,
-      text: "X cookies saved\\. I'll use your account to read tweets now\\. Run `/scan` to test it\\.",
-      parse_mode: "MarkdownV2",
-    });
-  } else {
-    await sendMessage({
-      chat_id: chatId,
-      text: "Cookies verified but failed to save. Try again.",
-    });
-  }
 }
 
 // ─── Callback query handler ───

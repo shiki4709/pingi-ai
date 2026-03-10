@@ -4,8 +4,7 @@
  * filters to last 6 hours, drafts replies via Claude, and sends to Telegram.
  */
 
-import { getRecentTweets, getScraperForUser, getScraper, runDiagnostic, type Tweet } from "./scraper.js";
-import type { Scraper } from "@the-convocation/twitter-scraper";
+import { getRecentTweets, runDiagnostic } from "./scraper.js";
 import { draftComment } from "./drafter.js";
 import {
   getUsersWithAccounts,
@@ -15,7 +14,6 @@ import {
   countPostedLastHour,
   hasPro,
   isTrialExpired,
-  getXCookies,
 } from "./store.js";
 import { pushItemCard } from "./handlers.js";
 import { sendMessage } from "./telegram.js";
@@ -95,25 +93,6 @@ export async function scanForUser(
     return 0;
   }
 
-  // Load per-user scraper (DB cookies), fall back to global
-  let userScraper: Scraper | null = null;
-  const cookies = await getXCookies(userId);
-  if (cookies) {
-    userScraper = await getScraperForUser(cookies.authToken, cookies.ct0, userId);
-    if (userScraper) {
-      console.log(`[scanner] Using per-user cookies for ${userId.slice(0, 8)}`);
-    } else {
-      console.log(`[scanner] Per-user cookies invalid for ${userId.slice(0, 8)}, trying global`);
-    }
-  }
-  if (!userScraper) {
-    userScraper = await getScraper();
-  }
-  if (!userScraper) {
-    console.log(`[scanner] No scraper available for user ${userId}, skipping`);
-    return 0;
-  }
-
   const cutoff = new Date(Date.now() - MAX_AGE_HOURS * 60 * 60_000);
   let itemsSent = 0;
 
@@ -121,7 +100,7 @@ export async function scanForUser(
     if (postedCount + itemsSent >= MAX_POSTS_PER_HOUR) break;
 
     console.log(`[scanner] Fetching tweets from @${handle} for user ${userId}`);
-    const tweets = await getRecentTweets(handle, TWEETS_PER_ACCOUNT, userScraper);
+    const tweets = await getRecentTweets(handle, TWEETS_PER_ACCOUNT);
     console.log(`[scanner]   Got ${tweets.length} tweets from @${handle}`);
 
     for (const tweet of tweets) {
