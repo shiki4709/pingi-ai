@@ -85,6 +85,65 @@ export async function getRecentTweets(
   }
 }
 
+// ─── SocialData API: search for Twitter users by name ───
+
+export interface TwitterUser {
+  username: string;
+  name: string;
+  followers: number;
+  description: string;
+}
+
+export async function searchTwitterUsers(
+  query: string,
+  maxResults: number = 5
+): Promise<TwitterUser[]> {
+  const apiKey = config.socialDataApiKey;
+  if (!apiKey) return [];
+
+  // Search recent tweets mentioning this name, extract unique users
+  const url = `${SOCIALDATA_BASE}/twitter/search?query=${encodeURIComponent(query)}&type=Latest`;
+
+  try {
+    console.log(`[scraper] User search: "${query}"`);
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+
+    if (!res.ok) return [];
+
+    const json = await res.json();
+    const rawTweets: any[] = json.tweets ?? [];
+
+    // Extract unique users from tweet authors
+    const seen = new Set<string>();
+    const users: TwitterUser[] = [];
+
+    for (const t of rawTweets) {
+      const handle = t.user?.screen_name;
+      if (!handle || seen.has(handle.toLowerCase())) continue;
+      seen.add(handle.toLowerCase());
+
+      users.push({
+        username: handle,
+        name: t.user?.name ?? handle,
+        followers: t.user?.followers_count ?? 0,
+        description: (t.user?.description ?? "").slice(0, 100),
+      });
+
+      if (users.length >= maxResults) break;
+    }
+
+    // Sort by followers descending
+    users.sort((a, b) => b.followers - a.followers);
+    console.log(`[scraper] User search for "${query}": found ${users.length} users`);
+    return users;
+  } catch (e: any) {
+    console.error(`[scraper] User search failed for "${query}":`, e.message);
+    return [];
+  }
+}
+
 // ─── SocialData API: search tweets by topic/keyword ───
 
 export async function searchTopicTweets(

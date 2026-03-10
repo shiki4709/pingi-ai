@@ -28,7 +28,7 @@ import {
   markSkipped,
   updateDraftComment,
 } from "./store.js";
-import { likeTweet } from "./scraper.js";
+import { likeTweet, searchTwitterUsers } from "./scraper.js";
 import { rewriteComment, chatWithAssistant } from "./drafter.js";
 import { scanForUser } from "./scanner.js";
 
@@ -47,6 +47,12 @@ const awaitingEmail = new Set<number>();
 
 function escMd(text: string): string {
   return text.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
+}
+
+function formatFollowers(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
 }
 
 function itemCard(item: {
@@ -504,6 +510,48 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
   }
 
   if (!text) return;
+
+  // Detect "add [name]" / "watch [name]" / "follow [name]" patterns → search for handle
+  const addMatch = text.match(/^(?:add|watch|follow|track)\s+(.+)/i);
+  if (addMatch) {
+    const name = addMatch[1].trim();
+
+    // If it already looks like a @handle, just suggest the command
+    if (/^@?[a-zA-Z0-9_]+$/.test(name)) {
+      const handle = name.replace(/^@/, "");
+      await sendMessage({
+        chat_id: chatId,
+        text: `To add them, use this command:\n/watch @${handle}`,
+      });
+      return;
+    }
+
+    // Search for the user by name
+    await sendMessage({ chat_id: chatId, text: `Searching for "${name}" on X...` });
+    const users = await searchTwitterUsers(name, 5);
+
+    if (users.length > 0) {
+      const lines = users.map(
+        (u) => `@${u.username} (${u.name}) - ${formatFollowers(u.followers)} followers`
+      );
+      await sendMessage({
+        chat_id: chatId,
+        text: [
+          `Found these accounts for "${name}":`,
+          "",
+          ...lines,
+          "",
+          `To add one, use: /watch @${users[0].username}`,
+        ].join("\n"),
+      });
+    } else {
+      await sendMessage({
+        chat_id: chatId,
+        text: `Couldn't find anyone matching "${name}". Try using their exact X handle: /watch @theirhandle`,
+      });
+    }
+    return;
+  }
 
   const [accounts, topics, recentItems] = await Promise.all([
     getWatchedAccounts(userId),
