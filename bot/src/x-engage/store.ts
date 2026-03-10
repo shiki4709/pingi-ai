@@ -3,7 +3,7 @@
  * Manages users, link codes, topics, and engagement items.
  */
 
-import { supabase } from "./supabase.js";
+import { getSupabase } from "./supabase.js";
 
 // ─── User management ───
 
@@ -12,7 +12,7 @@ export async function ensureUser(
   firstName?: string
 ): Promise<string> {
   // Check if user already linked to this X bot chat
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabase()
     .from("users")
     .select("id")
     .eq("x_bot_chat_id", chatId)
@@ -21,7 +21,7 @@ export async function ensureUser(
   if (existing) return existing.id;
 
   // Create new user row (will be linked to web account via /link)
-  const { data: created, error } = await supabase
+  const { data: created, error } = await getSupabase()
     .from("users")
     .insert({
       x_bot_chat_id: chatId,
@@ -42,7 +42,7 @@ export async function ensureUser(
 export async function getUserIdForChat(
   chatId: number
 ): Promise<string | null> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("id")
     .eq("x_bot_chat_id", chatId)
@@ -53,7 +53,7 @@ export async function getUserIdForChat(
 export async function getChatIdForUser(
   userId: string
 ): Promise<number | null> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("x_bot_chat_id")
     .eq("id", userId)
@@ -70,7 +70,7 @@ export async function linkByEmail(
   const normalized = email.trim().toLowerCase();
   console.log(`[x-store] linkByEmail: email="${normalized}" chatId=${chatId}`);
 
-  const { data: row, error } = await supabase
+  const { data: row, error } = await getSupabase()
     .from("users")
     .select("id")
     .eq("email", normalized)
@@ -84,7 +84,7 @@ export async function linkByEmail(
     };
   }
 
-  const { error: updateErr } = await supabase
+  const { error: updateErr } = await getSupabase()
     .from("users")
     .update({ x_bot_chat_id: chatId })
     .eq("id", row.id);
@@ -105,7 +105,7 @@ export async function linkByEmail(
 export async function getWatchedAccounts(
   userId: string
 ): Promise<string[]> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("user_topics")
     .select("topics")
     .eq("user_id", userId)
@@ -117,7 +117,7 @@ export async function setWatchedAccounts(
   userId: string,
   accounts: string[]
 ): Promise<boolean> {
-  const { error } = await supabase.from("user_topics").upsert(
+  const { error } = await getSupabase().from("user_topics").upsert(
     {
       user_id: userId,
       topics: accounts,
@@ -183,7 +183,7 @@ export async function insertEngageItem(
   };
   console.log("[x-store] insertEngageItem row:", JSON.stringify(row, null, 2));
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("x_engage_items")
     .insert(row)
     .select("id")
@@ -199,7 +199,7 @@ export async function insertEngageItem(
 export async function getEngageItem(
   id: string
 ): Promise<EngageItem | null> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("x_engage_items")
     .select("*")
     .eq("id", id)
@@ -220,7 +220,7 @@ export async function getEngageItem(
 }
 
 export async function markPosted(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from("x_engage_items")
     .update({ status: "posted", posted_at: new Date().toISOString() })
     .eq("id", id);
@@ -228,7 +228,7 @@ export async function markPosted(id: string): Promise<boolean> {
 }
 
 export async function markSkipped(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from("x_engage_items")
     .update({ status: "skipped" })
     .eq("id", id);
@@ -239,7 +239,7 @@ export async function updateDraftComment(
   id: string,
   newDraft: string
 ): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from("x_engage_items")
     .update({ draft_comment: newDraft })
     .eq("id", id);
@@ -250,7 +250,7 @@ export async function hasSeenTweet(
   userId: string,
   tweetId: string
 ): Promise<boolean> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("x_engage_items")
     .select("id")
     .eq("user_id", userId)
@@ -263,7 +263,7 @@ export async function countPostedLastHour(
   userId: string
 ): Promise<number> {
   const oneHourAgo = new Date(Date.now() - 60 * 60_000).toISOString();
-  const { count } = await supabase
+  const { count } = await getSupabase()
     .from("x_engage_items")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
@@ -277,7 +277,7 @@ export async function countPostedLastHour(
 const ADMIN_EMAILS = ["shiki4709@gmail.com"];
 
 export async function hasPro(userId: string): Promise<boolean> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("plan, trial_ends_at, email")
     .eq("id", userId)
@@ -293,7 +293,7 @@ export async function hasPro(userId: string): Promise<boolean> {
 }
 
 export async function isTrialExpired(userId: string): Promise<boolean> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("plan, trial_ends_at")
     .eq("id", userId)
@@ -308,7 +308,7 @@ export async function isTrialExpired(userId: string): Promise<boolean> {
 export async function getUsersWithAccounts(): Promise<
   { userId: string; accounts: string[] }[]
 > {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("user_topics")
     .select("user_id, topics");
 

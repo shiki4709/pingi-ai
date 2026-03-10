@@ -1,4 +1,4 @@
-import { supabase } from "../supabase.js";
+import { getSupabase } from "../supabase.js";
 import { fetchGmailForUser } from "../connectors/gmail.js";
 import { fetchTwitterForUser } from "../connectors/twitter.js";
 import { getChatIdForUser } from "../store.js";
@@ -37,7 +37,7 @@ export function createPollWorker(opts: PollWorkerOptions = {}) {
 
     try {
       // Fetch all connected Gmail accounts
-      const { data: accounts, error } = await supabase
+      const { data: accounts, error } = await getSupabase()
         .from("connected_accounts")
         .select("user_id, access_token, refresh_token, platform_username")
         .eq("platform", "gmail");
@@ -95,7 +95,7 @@ export function createPollWorker(opts: PollWorkerOptions = {}) {
       // We check all users who have a connected Twitter account and fetch mentions for each.
       if (process.env.TWITTER_BEARER_TOKEN && process.env.TWITTER_USER_ID) {
         // Find users who have connected a Twitter account
-        const { data: twitterAccounts, error: twError } = await supabase
+        const { data: twitterAccounts, error: twError } = await getSupabase()
           .from("connected_accounts")
           .select("user_id, platform_username")
           .eq("platform", "twitter");

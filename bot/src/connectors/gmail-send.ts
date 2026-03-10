@@ -4,7 +4,7 @@
  */
 
 import { google } from "googleapis";
-import { supabase } from "../supabase.js";
+import { getSupabase } from "../supabase.js";
 
 interface SendReplyParams {
   /** reply_items.id (UUID) */
@@ -27,7 +27,7 @@ export async function sendGmailReply(params: SendReplyParams): Promise<SendResul
   const { itemId, draftText } = params;
 
   // 1. Get the reply_item row (need external_id, user_id, author_handle)
-  const { data: row, error: rowErr } = await supabase
+  const { data: row, error: rowErr } = await getSupabase()
     .from("reply_items")
     .select("external_id, user_id, author_handle, context_text")
     .eq("id", itemId)
@@ -43,7 +43,7 @@ export async function sendGmailReply(params: SendReplyParams): Promise<SendResul
   }
 
   // 2. Get the user's Gmail connected account
-  const { data: account, error: accErr } = await supabase
+  const { data: account, error: accErr } = await getSupabase()
     .from("connected_accounts")
     .select("access_token, refresh_token, platform_username")
     .eq("user_id", row.user_id)
@@ -75,7 +75,7 @@ export async function sendGmailReply(params: SendReplyParams): Promise<SendResul
   try {
     const { credentials } = await auth.refreshAccessToken();
     if (credentials.access_token && credentials.access_token !== account.access_token) {
-      await supabase
+      await getSupabase()
         .from("connected_accounts")
         .update({
           access_token: credentials.access_token,

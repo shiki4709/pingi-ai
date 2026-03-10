@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { supabase } from "../supabase.js";
+import { getSupabase } from "../supabase.js";
 import { shouldReply, extractDomain, extractLocalPart, GENERIC_LOCAL_PARTS, type EmailHeaders, type FilterContext } from "./email-filter.js";
 import { classifyAndDraft } from "../services/drafter.js";
 import { getSignOff, canGenerateDraft } from "../store.js";
@@ -207,7 +207,7 @@ export async function fetchGmailForUser(
   try {
     const { credentials } = await auth.refreshAccessToken();
     if (credentials.access_token && credentials.access_token !== account.access_token) {
-      await supabase
+      await getSupabase()
         .from("connected_accounts")
         .update({
           access_token: credentials.access_token,
@@ -304,7 +304,7 @@ export async function fetchGmailForUser(
   const existingExternalIds = new Set<string>();
   for (let i = 0; i < externalKeys.length; i += 50) {
     const chunk = externalKeys.slice(i, i + 50);
-    const { data: existing } = await supabase
+    const { data: existing } = await getSupabase()
       .from("reply_items")
       .select("external_id")
       .eq("user_id", account.user_id)
@@ -489,7 +489,7 @@ export async function fetchGmailForUser(
       const priorityScore = urgency === "red" ? 8 : urgency === "amber" ? 5 : 3;
 
       const externalId = `gmail-${msgId}`;
-      const { data: inserted, error } = await supabase
+      const { data: inserted, error } = await getSupabase()
         .from("reply_items")
         .insert({
           external_id: externalId,

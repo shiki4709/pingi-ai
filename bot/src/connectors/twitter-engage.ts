@@ -16,7 +16,7 @@
 import { Scraper, SearchMode } from "@the-convocation/twitter-scraper";
 import type { Tweet } from "@the-convocation/twitter-scraper";
 import Anthropic from "@anthropic-ai/sdk";
-import { supabase } from "../supabase.js";
+import { getSupabase } from "../supabase.js";
 import { sendMessage, inlineButtons } from "../telegram.js";
 import { getChatIdForUser } from "../store.js";
 
@@ -179,7 +179,7 @@ export interface UserTopic {
 }
 
 export async function getTopicsForUser(userId: string): Promise<UserTopic[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("user_topics")
     .select("*")
     .eq("user_id", userId)
@@ -211,7 +211,7 @@ export async function addTopicForUser(
   if (currentTopics.includes(normalized)) return true;
 
   const updated = [...currentTopics, normalized];
-  const { error } = await supabase.from("user_topics").upsert(
+  const { error } = await getSupabase().from("user_topics").upsert(
     { user_id: userId, topics: updated },
     { onConflict: "user_id" }
   );
@@ -232,7 +232,7 @@ export async function removeTopicForUser(
   const filtered = currentTopics.filter((t) => t !== normalized);
   if (filtered.length === currentTopics.length) return false;
 
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from("user_topics")
     .update({ topics: filtered })
     .eq("user_id", userId);
@@ -339,7 +339,7 @@ async function searchAndDraftForTopic(
 
     // Check if we've already drafted for this tweet
     const externalId = `engage-${tweet.id}`;
-    const { data: existing } = await supabase
+    const { data: existing } = await getSupabase()
       .from("reply_items")
       .select("id")
       .eq("external_id", externalId)
@@ -354,7 +354,7 @@ async function searchAndDraftForTopic(
 
     // Store in reply_items for tracking
     const tweetUrl = tweet.permanentUrl ?? `https://x.com/${tweet.username}/status/${tweet.id}`;
-    const { data: inserted, error: insertErr } = await supabase
+    const { data: inserted, error: insertErr } = await getSupabase()
       .from("reply_items")
       .insert({
         external_id: externalId,
@@ -416,7 +416,7 @@ export async function runEngagementScan(): Promise<void> {
   console.log("[engage] Starting engagement scan");
 
   // Get all users who have topics configured (jsonb array column)
-  const { data: topicRows, error } = await supabase
+  const { data: topicRows, error } = await getSupabase()
     .from("user_topics")
     .select("user_id, topics");
 

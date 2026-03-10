@@ -8,7 +8,7 @@
  *   TWITTER_USER_ID       — Numeric Twitter user ID to monitor
  */
 
-import { supabase } from "../supabase.js";
+import { getSupabase } from "../supabase.js";
 import { classifyAndDraft } from "../services/drafter.js";
 import type { ContextCategory } from "../types.js";
 
@@ -158,7 +158,7 @@ export async function fetchTwitterForUser(
 
   for (let i = 0; i < externalKeys.length; i += 50) {
     const chunk = externalKeys.slice(i, i + 50);
-    const { data: existing } = await supabase
+    const { data: existing } = await getSupabase()
       .from("reply_items")
       .select("external_id")
       .eq("user_id", userId)
@@ -198,7 +198,7 @@ export async function fetchTwitterForUser(
         urgency === "red" ? 8 : urgency === "amber" ? 5 : 3;
 
       const externalId = `twitter-${tweet.id}`;
-      const { data: inserted, error } = await supabase
+      const { data: inserted, error } = await getSupabase()
         .from("reply_items")
         .insert({
           external_id: externalId,

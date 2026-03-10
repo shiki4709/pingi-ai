@@ -3,7 +3,7 @@
  * Replaces mock-data.ts for production use.
  */
 
-import { supabase } from "./supabase.js";
+import { getSupabase } from "./supabase.js";
 import type {
   TrackedItem,
   Platform,
@@ -40,7 +40,7 @@ function rowToItem(row: Record<string, any>): TrackedItem {
 export async function getItemById(
   id: string
 ): Promise<TrackedItem | undefined> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("reply_items")
     .select("*")
     .eq("id", id)
@@ -51,7 +51,7 @@ export async function getItemById(
 export async function getPendingItemsForUser(
   userId: string
 ): Promise<TrackedItem[]> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("reply_items")
     .select("*")
     .eq("user_id", userId)
@@ -71,7 +71,7 @@ export async function markSent(
     sent_at: new Date().toISOString(),
   };
   if (finalDraft) update.final_draft = finalDraft;
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from("reply_items")
     .update(update)
     .eq("id", id);
@@ -79,7 +79,7 @@ export async function markSent(
 }
 
 export async function markSkipped(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from("reply_items")
     .update({ status: "skipped" })
     .eq("id", id);
@@ -90,7 +90,7 @@ export async function updateDraft(
   id: string,
   newDraft: string
 ): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from("reply_items")
     .update({ draft_text: newDraft })
     .eq("id", id);
@@ -108,7 +108,7 @@ export async function ensureUser(
   firstName?: string
 ): Promise<string> {
   // Try to find existing user
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabase()
     .from("users")
     .select("id")
     .eq("telegram_chat_id", chatId)
@@ -117,7 +117,7 @@ export async function ensureUser(
   if (existing) return existing.id;
 
   // Create new user
-  const { data: created, error } = await supabase
+  const { data: created, error } = await getSupabase()
     .from("users")
     .insert({
       telegram_chat_id: chatId,
@@ -136,7 +136,7 @@ export async function ensureUser(
 // ─── Sign-off ───
 
 export async function getSignOff(userId: string): Promise<string | null> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("sign_off, name")
     .eq("id", userId)
@@ -151,7 +151,7 @@ export async function setSignOff(
   chatId: number,
   signOff: string
 ): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from("users")
     .update({ sign_off: signOff })
     .eq("telegram_chat_id", chatId);
@@ -159,7 +159,7 @@ export async function setSignOff(
 }
 
 export async function getSignOffForChat(chatId: number): Promise<string | null> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("sign_off, name")
     .eq("telegram_chat_id", chatId)
@@ -176,7 +176,7 @@ export async function getSignOffForChat(chatId: number): Promise<string | null> 
 export async function getChatIdForUser(
   userId: string
 ): Promise<number | null> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("telegram_chat_id")
     .eq("id", userId)
@@ -191,7 +191,7 @@ export async function getChatIdForUser(
 export async function getUserIdForChat(
   chatId: number
 ): Promise<string | null> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("id")
     .eq("telegram_chat_id", chatId)
@@ -211,7 +211,7 @@ const FREE_DRAFT_LIMIT = 5;
  * OR email is in the admin list.
  */
 export async function hasPro(userId: string): Promise<boolean> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("plan, trial_ends_at, email")
     .eq("id", userId)
@@ -230,7 +230,7 @@ export async function hasPro(userId: string): Promise<boolean> {
  * Check if user's trial has expired (plan='trial' but past trial_ends_at).
  */
 export async function isTrialExpired(userId: string): Promise<boolean> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("plan, trial_ends_at")
     .eq("id", userId)
@@ -251,7 +251,7 @@ export async function getDraftUsageThisMonth(
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-  const { count } = await supabase
+  const { count } = await getSupabase()
     .from("reply_items")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
@@ -294,7 +294,7 @@ export async function linkByEmail(
   const normalized = email.trim().toLowerCase();
   console.log(`[store] linkByEmail: email="${normalized}" chatId=${chatId}`);
 
-  const { data: row, error } = await supabase
+  const { data: row, error } = await getSupabase()
     .from("users")
     .select("id")
     .eq("email", normalized)
@@ -308,7 +308,7 @@ export async function linkByEmail(
     };
   }
 
-  const { error: updateErr } = await supabase
+  const { error: updateErr } = await getSupabase()
     .from("users")
     .update({ telegram_chat_id: chatId })
     .eq("id", row.id);
@@ -333,7 +333,7 @@ export async function getItemsSince(
   days: number
 ): Promise<TrackedItem[]> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("reply_items")
     .select("*")
     .eq("user_id", userId)
@@ -346,7 +346,7 @@ export async function getItemsSince(
  * Return all known Telegram chat IDs (for broadcasting reports).
  */
 export async function getAllChatIds(): Promise<number[]> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from("users")
     .select("telegram_chat_id");
   return (data ?? [])
