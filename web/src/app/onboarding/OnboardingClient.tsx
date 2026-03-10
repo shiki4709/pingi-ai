@@ -233,6 +233,30 @@ export default function OnboardingClient() {
     }
   }, []);
 
+  // On load, check existing connections and skip already-completed steps
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const data = await fetchLinkStatus();
+      if (!data) return;
+
+      if (data.gmail_connected) setGmailConnected(true);
+      if (data.inbox_linked) {
+        setInboxLinked(true);
+        setInboxDone(true);
+      }
+      if (data.x_linked) {
+        setEngageLinked(true);
+        setEngageDone(true);
+      }
+
+      // If everything is already connected, go straight to dashboard
+      if (data.gmail_connected && data.inbox_linked && data.x_linked) {
+        router.replace("/dashboard");
+      }
+    })();
+  }, [user, fetchLinkStatus, router]);
+
   // Fetch link status from API
   const fetchLinkStatus = useCallback(async () => {
     if (!user) return null;

@@ -13,9 +13,18 @@ export async function GET(request: NextRequest) {
     .eq("id", userId)
     .single();
 
+  // Check if Gmail is connected
+  const { data: gmailAccount } = await supabase
+    .from("connected_accounts")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("platform", "gmail")
+    .single();
+
   return NextResponse.json({
     inbox_linked: !!(data?.telegram_chat_id),
     x_linked: !!(data?.x_bot_chat_id),
+    gmail_connected: !!gmailAccount,
     // Keep backward compat
     linked: !!(data?.telegram_chat_id),
   });
