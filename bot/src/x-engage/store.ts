@@ -304,6 +304,42 @@ export async function isTrialExpired(userId: string): Promise<boolean> {
   return new Date(data.trial_ends_at) <= new Date();
 }
 
+// ─── X cookies (per-user auth) ───
+
+export interface UserXCookies {
+  authToken: string;
+  ct0: string;
+}
+
+export async function getXCookies(
+  userId: string
+): Promise<UserXCookies | null> {
+  const { data } = await getSupabase()
+    .from("users")
+    .select("x_auth_token, x_ct0")
+    .eq("id", userId)
+    .single();
+
+  if (!data?.x_auth_token || !data?.x_ct0) return null;
+  return { authToken: data.x_auth_token, ct0: data.x_ct0 };
+}
+
+export async function setXCookies(
+  userId: string,
+  authToken: string,
+  ct0: string
+): Promise<boolean> {
+  const { error } = await getSupabase()
+    .from("users")
+    .update({ x_auth_token: authToken, x_ct0: ct0 })
+    .eq("id", userId);
+  if (error) {
+    console.error("[x-store] Failed to save X cookies:", error.message);
+    return false;
+  }
+  return true;
+}
+
 /** Get all user IDs that have watched accounts configured. */
 export async function getUsersWithAccounts(): Promise<
   { userId: string; accounts: string[] }[]

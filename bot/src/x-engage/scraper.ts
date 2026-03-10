@@ -24,8 +24,12 @@ const COOKIE_FILE = resolve(process.cwd(), ".x-cookies.json");
 const BEARER =
   "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA";
 
+// Global (fallback) scraper
 let scraper: Scraper | null = null;
 let loginPromise: Promise<void> | null = null;
+
+// Per-user scraper cache: userId → Scraper
+const userScrapers = new Map<string, Scraper>();
 
 // Raw cookie values for GraphQL posting
 let rawAuthToken = "";
@@ -308,6 +312,48 @@ export async function getScraper(): Promise<Scraper | null> {
   return scraper;
 }
 
+// ─── Per-user scraper (uses cookies stored in DB) ───
+
+export async function getScraperForUser(
+  authToken: string,
+  ct0: string,
+  userId?: string
+): Promise<Scraper | null> {
+  // Check cache
+  if (userId && userScrapers.has(userId)) {
+    return userScrapers.get(userId)!;
+  }
+
+  const s = new Scraper();
+  try {
+    const cookieObjects = buildCookieObjects(authToken, ct0);
+    await s.setCookies(cookieObjects);
+
+    // Quick verification
+    const ok = await s.isLoggedIn();
+    if (!ok) {
+      // Try profile fallback
+      const verified = await verifyWithProfile(s, `user-cookies${userId ? ` (${userId.slice(0, 8)})` : ""}`);
+      if (!verified) {
+        console.log(`[scraper] Per-user cookies invalid${userId ? ` for ${userId.slice(0, 8)}` : ""}`);
+        return null;
+      }
+    }
+
+    console.log(`[scraper] Per-user scraper authenticated${userId ? ` for ${userId.slice(0, 8)}` : ""}`);
+    if (userId) userScrapers.set(userId, s);
+    return s;
+  } catch (e: any) {
+    console.error(`[scraper] Per-user auth failed:`, e.message);
+    return null;
+  }
+}
+
+/** Clear cached scraper for a user (e.g., when cookies are updated). */
+export function clearUserScraper(userId: string): void {
+  userScrapers.delete(userId);
+}
+
 // ─── Diagnostic: test which methods work ───
 
 export async function runDiagnostic(): Promise<void> {
@@ -371,9 +417,10 @@ export async function runDiagnostic(): Promise<void> {
 
 export async function getRecentTweets(
   handle: string,
-  maxResults: number = 10
+  maxResults: number = 10,
+  scraperOverride?: Scraper | null
 ): Promise<Tweet[]> {
-  const s = await getScraper();
+  const s = scraperOverride ?? await getScraper();
   if (!s) return [];
 
   const tweets: Tweet[] = [];
