@@ -89,6 +89,99 @@ function SkipLink({ onClick }: { onClick: () => void }) {
   );
 }
 
+function DoneRedirect({
+  user,
+  router,
+  handleStartTrial,
+}: {
+  user: User | null;
+  router: ReturnType<typeof useRouter>;
+  handleStartTrial: () => Promise<void>;
+}) {
+  const [activating, setActivating] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await handleStartTrial();
+      } catch {
+        // ignore — trial may already be active
+      }
+      if (!cancelled) {
+        setActivating(false);
+        // Short delay so user sees the success state
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 1500);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 440 }}>
+      <div
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: "50%",
+          background: T.green,
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 22,
+          fontWeight: 700,
+          margin: "0 auto 16px",
+        }}
+      >
+        {"\u2713"}
+      </div>
+      <h2
+        style={{
+          fontFamily: serif,
+          fontSize: 26,
+          fontWeight: 400,
+          color: T.ink,
+          margin: "0 0 8px",
+        }}
+      >
+        You&apos;re all set
+      </h2>
+      <p
+        style={{
+          fontSize: 14,
+          color: T.sub,
+          margin: "0 0 24px",
+          lineHeight: 1.6,
+        }}
+      >
+        {activating
+          ? "Activating your free trial..."
+          : "Trial activated. Taking you to your dashboard..."}
+      </p>
+      <button
+        onClick={() => router.push("/dashboard")}
+        style={{
+          padding: "12px 44px",
+          borderRadius: 12,
+          border: "none",
+          background: "linear-gradient(135deg, #1a1a1a, #333)",
+          color: "#fff",
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: "pointer",
+          fontFamily: sans,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+        }}
+      >
+        Go to dashboard
+      </button>
+    </div>
+  );
+}
+
 export default function OnboardingClient() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -759,6 +852,61 @@ export default function OnboardingClient() {
       {/* ─── Engage Setup Phase ─── */}
       {phase === "engage-setup" && (
         <div style={{ textAlign: "center", maxWidth: 440 }}>
+          {/* Step indicator */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 0,
+              marginBottom: 28,
+            }}
+          >
+            {["Link Telegram", "Add accounts"].map((label, i) => (
+              <div
+                key={label}
+                style={{ display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <StepDot
+                  done={i === 0 ? engageLinked : false}
+                  active={i === 0 ? !engageLinked : engageLinked}
+                  number={i + 1}
+                />
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight:
+                      (i === 0 && !engageLinked) || (i === 1 && engageLinked)
+                        ? 600
+                        : 400,
+                    color:
+                      i === 0 && engageLinked
+                        ? T.green
+                        : (i === 0 && !engageLinked) || (i === 1 && engageLinked)
+                          ? T.ink
+                          : T.muted,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {label}
+                </span>
+                {i < 1 && (
+                  <div
+                    style={{
+                      width: 28,
+                      height: 1.5,
+                      background: engageLinked
+                        ? `${T.green}50`
+                        : "rgba(0,0,0,0.06)",
+                      margin: "0 6px",
+                      borderRadius: 1,
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
           <p
             style={{
               fontSize: 11,
@@ -780,10 +928,12 @@ export default function OnboardingClient() {
               margin: "0 0 4px",
             }}
           >
-            Set up X engagement
+            {engageLinked ? "Add accounts to watch" : "Link Telegram"}
           </h2>
           <p style={{ fontSize: 14, color: T.muted, margin: "0 0 28px" }}>
-            Three steps, all inside Telegram
+            {engageLinked
+              ? "Tell the bot which X accounts to monitor"
+              : "Connect the Engage Agent to your Telegram"}
           </p>
 
           <div
@@ -795,14 +945,16 @@ export default function OnboardingClient() {
               gap: 12,
             }}
           >
+            {/* Step 1: Link Telegram */}
             <div
               style={{
                 ...glassCard,
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
                 borderColor: engageLinked ? `${T.green}50` : T.border,
                 background: engageLinked ? T.greenSoft : T.glass,
+                display: "flex",
+                alignItems: engageLinked ? "center" : "stretch",
+                flexDirection: engageLinked ? "row" : "column",
+                gap: engageLinked ? 14 : 12,
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -825,14 +977,14 @@ export default function OnboardingClient() {
                 >
                   {engageLinked ? "\u2713" : "TG"}
                 </div>
-                <div style={{ flex: 1, textAlign: "left" }}>
+                <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
-                    {engageLinked ? "Telegram linked" : "Link @" + ENGAGE_BOT}
+                    {engageLinked ? "Telegram linked" : "Telegram"}
                   </div>
                   <div style={{ fontSize: 12, color: engageLinked ? T.green : T.muted }}>
                     {engageLinked
                       ? "Engage Agent is connected"
-                      : "Follow the steps below"}
+                      : "Get tweet drafts and post with one tap"}
                   </div>
                 </div>
               </div>
@@ -843,14 +995,13 @@ export default function OnboardingClient() {
                     style={{
                       background: "rgba(0,0,0,0.025)",
                       borderRadius: 10,
-                      padding: "14px 14px",
+                      padding: "12px 14px",
                       fontSize: 13,
                       color: T.sub,
-                      lineHeight: 1.8,
-                      textAlign: "left",
+                      lineHeight: 1.6,
                     }}
                   >
-                    <strong style={{ color: T.ink }}>Step 1.</strong> Open{" "}
+                    1. Open{" "}
                     <a
                       href={`https://t.me/${ENGAGE_BOT}`}
                       target="_blank"
@@ -861,28 +1012,13 @@ export default function OnboardingClient() {
                     </a>{" "}
                     on Telegram
                     <br />
-                    <strong style={{ color: T.ink }}>Step 2.</strong> Send{" "}
-                    <span style={{ fontWeight: 600, color: T.ink }}>/start</span>{" "}
-                    and enter your email:{" "}
-                    <code
-                      style={{
-                        background: "rgba(0,0,0,0.05)",
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: T.ink,
-                        userSelect: "all",
-                      }}
-                    >
-                      {userEmail}
-                    </code>
+                    2. Send{" "}
+                    <span style={{ fontWeight: 600, color: T.ink }}>/start</span>
                     <br />
-                    <strong style={{ color: T.ink }}>Step 3.</strong> Use{" "}
+                    3. Enter your email:{" "}
                     <span style={{ fontWeight: 600, color: T.ink }}>
-                      /watch @handle
-                    </span>{" "}
-                    to add accounts you want to engage with
+                      {userEmail}
+                    </span>
                   </div>
 
                   <a
@@ -933,7 +1069,122 @@ export default function OnboardingClient() {
                       fontFamily: sans,
                     }}
                   >
-                    {checkingEngage ? "Checking..." : "I\u2019ve set up the Engage bot"}
+                    {checkingEngage ? "Checking..." : "I\u2019ve linked Telegram"}
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Step 2: Add accounts (shown after telegram linked) */}
+            <div
+              style={{
+                ...glassCard,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                opacity: engageLinked ? 1 : 0.5,
+                pointerEvents: engageLinked ? "auto" : "none",
+                transition: "opacity 0.3s",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: T.ink,
+                    background: "rgba(0,0,0,0.04)",
+                    border: "1px solid rgba(0,0,0,0.06)",
+                  }}
+                >
+                  X
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
+                    Add accounts to watch
+                  </div>
+                  <div style={{ fontSize: 12, color: T.muted }}>
+                    Tell the bot which X accounts to monitor
+                  </div>
+                </div>
+              </div>
+
+              {engageLinked && (
+                <>
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,0.025)",
+                      borderRadius: 10,
+                      padding: "12px 14px",
+                      fontSize: 13,
+                      color: T.sub,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    In the @{ENGAGE_BOT} chat, type:
+                    <br />
+                    <br />
+                    <code
+                      style={{
+                        background: "rgba(0,0,0,0.05)",
+                        padding: "4px 8px",
+                        borderRadius: 4,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: T.ink,
+                        userSelect: "all",
+                      }}
+                    >
+                      /watch @paulg @naval @sama
+                    </code>
+                    <br />
+                    <br />
+                    Or just type a name like{" "}
+                    <span style={{ fontWeight: 600, color: T.ink }}>
+                      &quot;add Sam Altman&quot;
+                    </span>{" "}
+                    and the bot will find the right handle.
+                    <br />
+                    <br />
+                    You can also track topics:
+                    <br />
+                    <code
+                      style={{
+                        background: "rgba(0,0,0,0.05)",
+                        padding: "4px 8px",
+                        borderRadius: 4,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: T.ink,
+                        userSelect: "all",
+                      }}
+                    >
+                      /topics AI agents, fintech
+                    </code>
+                  </div>
+
+                  <button
+                    onClick={() => setPhase("done")}
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: 10,
+                      border: "none",
+                      background: "linear-gradient(135deg, #1a1a1a, #333)",
+                      color: "#fff",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      fontFamily: sans,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    Continue
                   </button>
                 </>
               )}
@@ -944,213 +1195,8 @@ export default function OnboardingClient() {
         </div>
       )}
 
-      {/* ─── Done Phase ─── */}
-      {phase === "done" && (
-        <div style={{ textAlign: "center", maxWidth: 440 }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: "50%",
-              background: T.green,
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 22,
-              fontWeight: 700,
-              margin: "0 auto 16px",
-            }}
-          >
-            {"\u2713"}
-          </div>
-          <h2
-            style={{
-              fontFamily: serif,
-              fontSize: 26,
-              fontWeight: 400,
-              color: T.ink,
-              margin: "0 0 8px",
-            }}
-          >
-            {inboxDone || engageDone ? "You\u2019re all set" : "Setup complete"}
-          </h2>
-          <p
-            style={{
-              fontSize: 14,
-              color: T.sub,
-              margin: "0 0 24px",
-              lineHeight: 1.6,
-            }}
-          >
-            {inboxDone && engageDone
-              ? "Both agents are active. Pingi will monitor your inbox and help you engage on X through Telegram."
-              : inboxDone
-                ? "Inbox Agent is active. Pingi will send you email notifications in Telegram."
-                : engageDone
-                  ? "Engage Agent is active. Pingi will draft replies for your watched X accounts."
-                  : "You can set up agents anytime from your Telegram bots."}
-          </p>
-
-          {/* Trial offer */}
-          {trialActivated ? (
-            <div
-              style={{
-                ...glassCard,
-                border: `1.5px solid ${T.green}40`,
-                background: T.greenSoft,
-                padding: "20px 20px",
-                marginBottom: 20,
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  background: T.green,
-                  color: "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  margin: "0 auto 12px",
-                }}
-              >
-                {"\u2713"}
-              </div>
-              <p
-                style={{
-                  fontFamily: serif,
-                  fontSize: 20,
-                  fontWeight: 400,
-                  color: T.ink,
-                  margin: "0 0 6px",
-                  lineHeight: 1.3,
-                }}
-              >
-                Trial activated
-              </p>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: T.sub,
-                  margin: 0,
-                  lineHeight: 1.5,
-                }}
-              >
-                You have 3 days of full Pro access. Unlimited drafts, unlimited
-                accounts.
-              </p>
-            </div>
-          ) : (
-            <div
-              style={{
-                ...glassCard,
-                border: `1.5px solid ${T.green}40`,
-                padding: "20px 20px",
-                marginBottom: 20,
-                textAlign: "center",
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: T.green,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  margin: "0 0 8px",
-                }}
-              >
-                Unlock Pro
-              </p>
-              <p
-                style={{
-                  fontFamily: serif,
-                  fontSize: 20,
-                  fontWeight: 400,
-                  color: T.ink,
-                  margin: "0 0 6px",
-                  lineHeight: 1.3,
-                }}
-              >
-                Start your 3-day free trial of Pro
-              </p>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: T.sub,
-                  margin: "0 0 16px",
-                  lineHeight: 1.5,
-                }}
-              >
-                Unlimited Gmail accounts, unlimited X accounts, unlimited AI
-                drafts. Cancel anytime.
-              </p>
-              <button
-                onClick={handleStartTrial}
-                disabled={startingTrial}
-                style={{
-                  width: "100%",
-                  padding: "12px 24px",
-                  borderRadius: 10,
-                  border: "none",
-                  background: `linear-gradient(135deg, ${T.green}, #1e7a3a)`,
-                  color: "#fff",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: startingTrial ? "wait" : "pointer",
-                  fontFamily: sans,
-                  boxShadow: "0 4px 16px rgba(42,138,74,0.15)",
-                }}
-              >
-                {startingTrial ? "Activating..." : "Start free trial"}
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={() => router.push("/dashboard")}
-            style={{
-              padding: "12px 44px",
-              borderRadius: 12,
-              border: "none",
-              background: "linear-gradient(135deg, #1a1a1a, #333)",
-              color: "#fff",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: sans,
-              boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
-              marginBottom: 8,
-            }}
-          >
-            Go to dashboard
-          </button>
-          {!trialActivated && (
-            <div>
-              <button
-                onClick={() => router.push("/dashboard")}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: T.muted,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  fontFamily: sans,
-                  textDecoration: "underline",
-                  padding: "4px 0",
-                }}
-              >
-                Skip, stay on free plan
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* ─── Done Phase: auto-activate trial and redirect to dashboard ─── */}
+      {phase === "done" && <DoneRedirect user={user} router={router} handleStartTrial={handleStartTrial} />}
     </div>
   );
 }
