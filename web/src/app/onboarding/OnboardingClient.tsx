@@ -53,8 +53,6 @@ export default function OnboardingClient() {
   const [inboxLinked, setInboxLinked] = useState(false);
   const [engageLinked, setEngageLinked] = useState(false);
 
-  // Trial
-  const [trialActivating, setTrialActivating] = useState(false);
 
   // Auth check
   useEffect(() => {
@@ -149,22 +147,6 @@ export default function OnboardingClient() {
   const handleConnectGmail = () => {
     if (!user) return;
     window.location.href = `/api/auth/gmail?user_id=${user.id}`;
-  };
-
-  const handleStartTrial = async () => {
-    if (!user) return;
-    setTrialActivating(true);
-    try {
-      await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, email: user.email }),
-      });
-    } catch {
-      // ignore
-    }
-    setTrialActivating(false);
-    router.push("/dashboard");
   };
 
   const toggleAgent = (agent: Agent) => {
@@ -487,57 +469,39 @@ export default function OnboardingClient() {
             style={{
               fontSize: 15,
               color: T.sub,
-              margin: "0 0 32px",
+              margin: "0 0 8px",
               lineHeight: 1.6,
             }}
           >
-            Pingi is active. You&apos;ll start getting notifications in
-            Telegram.
+            Your 3-day free trial is active. Full access to all features.
           </p>
-
-          <div
+          <p
             style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-              alignItems: "center",
+              fontSize: 13,
+              color: T.muted,
+              margin: "0 0 32px",
             }}
           >
-            <button
-              onClick={() => router.push("/dashboard")}
-              style={{
-                padding: "14px 48px",
-                borderRadius: 12,
-                border: "none",
-                background: "linear-gradient(135deg, #1a1a1a, #333)",
-                color: "#fff",
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: sans,
-                boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-              }}
-            >
-              Go to dashboard
-            </button>
-            <button
-              onClick={handleStartTrial}
-              disabled={trialActivating}
-              style={{
-                padding: "12px 36px",
-                borderRadius: 12,
-                border: `1px solid ${T.green}40`,
-                background: T.greenSoft,
-                color: T.green,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: trialActivating ? "wait" : "pointer",
-                fontFamily: sans,
-              }}
-            >
-              {trialActivating ? "Activating..." : "Start free trial"}
-            </button>
-          </div>
+            Trial ends {new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+          </p>
+
+          <button
+            onClick={() => router.push("/dashboard")}
+            style={{
+              padding: "14px 48px",
+              borderRadius: 12,
+              border: "none",
+              background: "linear-gradient(135deg, #1a1a1a, #333)",
+              color: "#fff",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: sans,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+            }}
+          >
+            Go to dashboard
+          </button>
         </div>
       )}
     </div>
