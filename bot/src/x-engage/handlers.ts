@@ -27,6 +27,8 @@ import {
   markPosted,
   markSkipped,
   updateDraftComment,
+  hasPro,
+  isTrialExpired,
 } from "./store.js";
 import { likeTweet, searchTwitterUsers } from "./scraper.js";
 import { rewriteComment, chatWithAssistant } from "./drafter.js";
@@ -784,6 +786,21 @@ export async function handleCallbackQuery(
       console.log(`[x-handlers] POST: item already ${item.status}`);
       await answerCallbackQuery(cb.id, `Already ${item.status}`);
       return;
+    }
+
+    // Paywall: block posting if trial expired and not pro
+    const postUserId = await getUserIdForChat(chatId);
+    if (postUserId) {
+      const pro = await hasPro(postUserId);
+      const expired = await isTrialExpired(postUserId);
+      if (!pro && expired) {
+        await answerCallbackQuery(cb.id, "Trial expired");
+        await sendMessage({
+          chat_id: chatId,
+          text: "Your free trial has ended. Upgrade to Pro to post drafts:\nhttps://pingi-ai.vercel.app/pricing",
+        });
+        return;
+      }
     }
 
     await answerCallbackQuery(cb.id);

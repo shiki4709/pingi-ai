@@ -16,6 +16,8 @@ import {
   linkByEmail,
   canGenerateDraft,
   getUserIdForChat,
+  hasPro,
+  isTrialExpired,
 } from "./store.js";
 import { rewriteDraft } from "./services/drafter.js";
 import { sendGmailReply } from "./connectors/gmail-send.js";
@@ -404,6 +406,23 @@ export async function handleCallbackQuery(
   switch (action) {
     case "send": {
       endEditSession(chatId);
+
+      // Paywall: block sending if trial expired and not pro
+      const sendUserId = await getUserIdForChat(chatId);
+      if (sendUserId) {
+        const pro = await hasPro(sendUserId);
+        const expired = await isTrialExpired(sendUserId);
+        if (!pro && expired) {
+          await answerCallbackQuery(query.id, "Trial expired");
+          await sendMessage({
+            chat_id: chatId,
+            text: "Your free trial has ended\\. Upgrade to Pro to send drafts:\nhttps://pingi\\-ai\\.vercel\\.app/pricing",
+            parse_mode: "MarkdownV2",
+          });
+          break;
+        }
+      }
+
       const draft = item.draftText ?? "";
 
       // Send via Gmail if this is a Gmail item

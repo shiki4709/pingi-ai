@@ -70,26 +70,73 @@ export default function OnboardingClient() {
   const [gmailConnected, setGmailConnected] = useState(false);
   const [inboxLinked, setInboxLinked] = useState(false);
   const [engageLinked, setEngageLinked] = useState(false);
+  const [userPlan, setUserPlan] = useState<string | null>(null);
 
   // Stripe
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
 
-  // Auth check
+  // Auth check + initial status load (single useEffect to avoid flicker)
   useEffect(() => {
-    getSupabaseBrowser()
-      .auth.getUser()
-      .then(({ data }) => {
-        if (!data.user) {
-          router.replace("/auth");
-        } else {
-          setUser(data.user);
-        }
+    (async () => {
+      const { data: authData } = await getSupabaseBrowser().auth.getUser();
+      if (!authData.user) {
+        router.replace("/auth");
         setLoading(false);
-      });
-  }, [router]);
+        return;
+      }
+      setUser(authData.user);
 
-  // Fetch connection status
+      // Immediately fetch connection status before showing any UI
+      try {
+        const [statusRes, statsRes] = await Promise.all([
+          fetch(`/api/telegram-status?userId=${authData.user.id}`),
+          fetch(`/api/dashboard-stats?userId=${authData.user.id}`),
+        ]);
+        const status = await statusRes.json();
+        const stats = await statsRes.json();
+
+        // Set connection state from DB
+        if (status.gmail_connected) setGmailConnected(true);
+        if (status.inbox_linked) setInboxLinked(true);
+        if (status.x_linked) setEngageLinked(true);
+        if (stats.plan) setUserPlan(stats.plan);
+
+        // Pre-select agents based on existing connections
+        const autoSelected = new Set<Agent>();
+        if (status.gmail_connected || status.inbox_linked) autoSelected.add("inbox");
+        if (status.x_linked) autoSelected.add("engage");
+
+        // Merge with sessionStorage (for returning from redirects)
+        const stored = loadSelection();
+        if (stored.size > 0) {
+          stored.forEach((a) => autoSelected.add(a));
+        }
+        if (autoSelected.size > 0) setSelected(autoSelected);
+
+        // If any agent is fully set up, redirect to dashboard
+        const inboxReady = status.gmail_connected && status.inbox_linked;
+        const engageReady = status.x_linked;
+        if (inboxReady || engageReady) {
+          router.replace("/dashboard");
+          return; // Don't set loading=false, keep showing nothing during redirect
+        }
+
+        // If partially set up, skip to screen 2
+        const params = new URLSearchParams(window.location.search);
+        const isReturning = params.get("gmail") || params.get("subscribed") || params.get("subscribe");
+        if (!isReturning && autoSelected.size > 0) {
+          setScreen(2);
+        }
+      } catch {
+        // Status check failed, just show onboarding normally
+      }
+
+      setLoading(false);
+    })();
+  }, [router]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch connection status (for polling)
   const fetchStatus = useCallback(async () => {
     if (!user) return null;
     try {
@@ -99,24 +146,6 @@ export default function OnboardingClient() {
       return null;
     }
   }, [user]);
-
-  // On load: if any agent is fully set up, go to dashboard
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const data = await fetchStatus();
-      if (!data) return;
-      if (data.gmail_connected) setGmailConnected(true);
-      if (data.inbox_linked) setInboxLinked(true);
-      if (data.x_linked) setEngageLinked(true);
-
-      const inboxReady = data.gmail_connected && data.inbox_linked;
-      const engageReady = data.x_linked;
-      if (inboxReady || engageReady) {
-        router.replace("/dashboard");
-      }
-    })();
-  }, [user, fetchStatus, router]);
 
   // Handle return from redirects (Gmail OAuth, Stripe checkout)
   useEffect(() => {
@@ -171,16 +200,17 @@ export default function OnboardingClient() {
     return () => clearInterval(interval);
   }, [screen, user, selected, inboxLinked, engageLinked, fetchStatus]);
 
-  // Auto-advance from screen 2 → 3 when setup steps done
+  // Auto-advance from screen 2 → 3 (or 4 if already subscribed) when setup steps done
   useEffect(() => {
     if (screen !== 2) return;
     const inboxDone =
       !selected.has("inbox") || (gmailConnected && inboxLinked);
     const engageDone = !selected.has("engage") || engageLinked;
     if (inboxDone && engageDone) {
-      setTimeout(() => setScreen(3), 800);
+      const alreadyPaid = userPlan === "pro" || userPlan === "trial";
+      setTimeout(() => setScreen(alreadyPaid ? 4 : 3), 800);
     }
-  }, [screen, selected, gmailConnected, inboxLinked, engageLinked]);
+  }, [screen, selected, gmailConnected, inboxLinked, engageLinked, userPlan]);
 
   const handleConnectGmail = () => {
     if (!user) return;
@@ -534,7 +564,10 @@ export default function OnboardingClient() {
           >
             {hasProgress && (
               <button
-                onClick={() => setScreen(3)}
+                onClick={() => {
+                  const alreadyPaid = userPlan === "pro" || userPlan === "trial";
+                  setScreen(alreadyPaid ? 4 : 3);
+                }}
                 style={{
                   padding: "12px 40px",
                   borderRadius: 12,
@@ -553,7 +586,10 @@ export default function OnboardingClient() {
               </button>
             )}
             <button
-              onClick={() => setScreen(3)}
+              onClick={() => {
+                const alreadyPaid = userPlan === "pro" || userPlan === "trial";
+                setScreen(alreadyPaid ? 4 : 3);
+              }}
               style={{
                 background: "none",
                 border: "none",
