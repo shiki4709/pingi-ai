@@ -233,6 +233,17 @@ export default function OnboardingClient() {
     }
   }, []);
 
+  // Fetch link status from API
+  const fetchLinkStatus = useCallback(async () => {
+    if (!user) return null;
+    try {
+      const res = await fetch(`/api/telegram-status?userId=${user.id}`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }, [user]);
+
   // On load, check existing connections and skip already-completed steps
   useEffect(() => {
     if (!user) return;
@@ -256,17 +267,6 @@ export default function OnboardingClient() {
       }
     })();
   }, [user, fetchLinkStatus, router]);
-
-  // Fetch link status from API
-  const fetchLinkStatus = useCallback(async () => {
-    if (!user) return null;
-    try {
-      const res = await fetch(`/api/telegram-status?userId=${user.id}`);
-      return await res.json();
-    } catch {
-      return null;
-    }
-  }, [user]);
 
   // Manual "I've linked Telegram" button for inbox
   const checkInboxLinked = useCallback(async () => {
