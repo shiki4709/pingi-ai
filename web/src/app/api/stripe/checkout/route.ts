@@ -52,12 +52,7 @@ export async function POST(request: NextRequest) {
         { onConflict: "user_id" }
       );
 
-      const origin =
-        request.headers.get("origin") || "http://localhost:3000";
-      return NextResponse.json({
-        upgraded: true,
-        url: `${origin}/pricing?upgraded=true`,
-      });
+      return NextResponse.json({ upgraded: true });
     }
 
     // Validate Stripe env vars — if missing, activate trial directly
@@ -94,8 +89,8 @@ export async function POST(request: NextRequest) {
       subscription_data: {
         trial_period_days: 3,
       },
-      success_url: `${origin}/pricing?success=true`,
-      cancel_url: `${origin}/pricing?canceled=true`,
+      success_url: `${origin}/onboarding?subscribed=true`,
+      cancel_url: `${origin}/onboarding?subscribe=canceled`,
     });
 
     console.log(`[stripe/checkout] Session created: id=${session.id} url=${session.url?.slice(0, 60)}...`);

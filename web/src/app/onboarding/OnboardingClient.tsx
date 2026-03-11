@@ -39,9 +39,10 @@ const bgGradient = `radial-gradient(ellipse at 20% 0%, rgba(232,228,221,0.8) 0%,
                     radial-gradient(ellipse at 50% 50%, rgba(242,240,236,1) 0%, rgba(234,230,223,1) 100%)`;
 
 type Agent = "inbox" | "engage";
-type Screen = 1 | 2 | 3;
+// 1=choose, 2=setup, 3=subscribe, 4=done
+type Screen = 1 | 2 | 3 | 4;
 
-/** Persist selected agents across Gmail OAuth redirect */
+/** Persist selected agents across redirects (Gmail OAuth, Stripe checkout) */
 function saveSelection(agents: Set<Agent>) {
   try {
     sessionStorage.setItem(
@@ -69,6 +70,10 @@ export default function OnboardingClient() {
   const [gmailConnected, setGmailConnected] = useState(false);
   const [inboxLinked, setInboxLinked] = useState(false);
   const [engageLinked, setEngageLinked] = useState(false);
+
+  // Stripe
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribeError, setSubscribeError] = useState<string | null>(null);
 
   // Auth check
   useEffect(() => {
@@ -113,20 +118,37 @@ export default function OnboardingClient() {
     })();
   }, [user, fetchStatus, router]);
 
-  // Restore selection + handle Gmail callback
+  // Handle return from redirects (Gmail OAuth, Stripe checkout)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    // Gmail OAuth return
     if (params.get("gmail") === "connected") {
       setGmailConnected(true);
-      // Restore full selection from sessionStorage (survives OAuth redirect)
       const restored = loadSelection();
       if (restored.size > 0) {
         setSelected(restored);
       } else {
-        // Fallback: at minimum they were setting up inbox
         setSelected(new Set<Agent>(["inbox"]));
       }
       setScreen(2);
+      window.history.replaceState({}, "", "/onboarding");
+    }
+
+    // Stripe checkout return — success
+    if (params.get("subscribed") === "true") {
+      const restored = loadSelection();
+      if (restored.size > 0) setSelected(restored);
+      setScreen(4);
+      window.history.replaceState({}, "", "/onboarding");
+    }
+
+    // Stripe checkout return — canceled
+    if (params.get("subscribe") === "canceled") {
+      const restored = loadSelection();
+      if (restored.size > 0) setSelected(restored);
+      setScreen(3);
+      setSubscribeError("Checkout was canceled. You can try again.");
       window.history.replaceState({}, "", "/onboarding");
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -142,20 +164,14 @@ export default function OnboardingClient() {
     const interval = setInterval(async () => {
       const data = await fetchStatus();
       if (!data) return;
-
-      if (needInbox && data.inbox_linked) {
-        setInboxLinked(true);
-      }
-      if (needEngage && data.x_linked) {
-        setEngageLinked(true);
-      }
+      if (needInbox && data.inbox_linked) setInboxLinked(true);
+      if (needEngage && data.x_linked) setEngageLinked(true);
     }, 3000);
 
     return () => clearInterval(interval);
   }, [screen, user, selected, inboxLinked, engageLinked, fetchStatus]);
 
-  // Auto-advance to screen 3 when all key steps are done
-  // (Gmail + Telegram for inbox, Telegram for engage)
+  // Auto-advance from screen 2 → 3 when setup steps done
   useEffect(() => {
     if (screen !== 2) return;
     const inboxDone =
@@ -168,9 +184,41 @@ export default function OnboardingClient() {
 
   const handleConnectGmail = () => {
     if (!user) return;
-    // Save selection before OAuth redirect so we can restore it
     saveSelection(selected);
     window.location.href = `/api/auth/gmail?user_id=${user.id}`;
+  };
+
+  const handleSubscribe = async () => {
+    if (!user) return;
+    setSubscribing(true);
+    setSubscribeError(null);
+
+    // Save selection before potential redirect
+    saveSelection(selected);
+
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      });
+      const data = await res.json();
+
+      if (data.url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+        return;
+      }
+      if (data.upgraded || data.trial_activated) {
+        // Admin bypass or Stripe not configured — skip to done
+        setScreen(4);
+        return;
+      }
+      setSubscribeError(data.error ?? "Something went wrong");
+    } catch {
+      setSubscribeError("Network error. Please try again.");
+    }
+    setSubscribing(false);
   };
 
   const toggleAgent = (agent: Agent) => {
@@ -188,6 +236,9 @@ export default function OnboardingClient() {
   const hasProgress =
     (selected.has("inbox") && gmailConnected) ||
     (selected.has("engage") && engageLinked);
+
+  // Progress dots: 4 screens but show 3 dots (merge 3+4 into one dot)
+  const dotProgress = screen >= 3 ? 3 : screen;
 
   return (
     <div
@@ -224,7 +275,8 @@ export default function OnboardingClient() {
               width: 8,
               height: 8,
               borderRadius: "50%",
-              background: s <= screen ? T.ink : "rgba(0,0,0,0.12)",
+              background:
+                s <= dotProgress ? T.ink : "rgba(0,0,0,0.12)",
               transition: "background 0.3s",
             }}
           />
@@ -320,7 +372,9 @@ export default function OnboardingClient() {
               cursor: selected.size > 0 ? "pointer" : "default",
               fontFamily: sans,
               boxShadow:
-                selected.size > 0 ? "0 4px 20px rgba(0,0,0,0.15)" : "none",
+                selected.size > 0
+                  ? "0 4px 20px rgba(0,0,0,0.15)"
+                  : "none",
               transition: "all 0.2s",
             }}
           >
@@ -355,7 +409,13 @@ export default function OnboardingClient() {
             </p>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
             {/* Inbox section */}
             {selected.has("inbox") && (
               <>
@@ -417,7 +477,9 @@ export default function OnboardingClient() {
                 <SectionLabel
                   label="Engage Agent"
                   style={
-                    selected.has("inbox") ? { marginTop: 8 } : undefined
+                    selected.has("inbox")
+                      ? { marginTop: 8 }
+                      : undefined
                   }
                 />
                 <SetupStep
@@ -477,7 +539,8 @@ export default function OnboardingClient() {
                   padding: "12px 40px",
                   borderRadius: 12,
                   border: "none",
-                  background: "linear-gradient(135deg, #1a1a1a, #333)",
+                  background:
+                    "linear-gradient(135deg, #1a1a1a, #333)",
                   color: "#fff",
                   fontSize: 14,
                   fontWeight: 600,
@@ -508,8 +571,132 @@ export default function OnboardingClient() {
         </div>
       )}
 
-      {/* ─── Screen 3: Done ─── */}
+      {/* ─── Screen 3: Start subscription ─── */}
       {screen === 3 && (
+        <div
+          style={{
+            textAlign: "center",
+            maxWidth: 420,
+            animation: "fadeIn 0.3s ease",
+          }}
+        >
+          <h1
+            style={{
+              fontFamily: serif,
+              fontSize: 28,
+              fontWeight: 400,
+              color: T.ink,
+              margin: "0 0 6px",
+            }}
+          >
+            Start your free trial
+          </h1>
+          <p
+            style={{
+              fontSize: 14,
+              color: T.sub,
+              margin: "0 0 28px",
+              lineHeight: 1.6,
+            }}
+          >
+            3 days free, then $19/mo. Cancel anytime.
+          </p>
+
+          <div
+            style={{
+              ...glassCard,
+              padding: "28px 24px",
+              textAlign: "left",
+              marginBottom: 24,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: T.ink,
+                marginBottom: 16,
+              }}
+            >
+              What you get
+            </div>
+            {[
+              "AI-drafted replies to emails and tweets",
+              "Smart urgency detection and prioritization",
+              "Review and send from Telegram with one tap",
+              "Unlimited agents and connected accounts",
+              "3-day free trial, no charge today",
+            ].map((item) => (
+              <div
+                key={item}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  marginBottom: 10,
+                  fontSize: 13,
+                  color: T.sub,
+                  lineHeight: 1.5,
+                }}
+              >
+                <span
+                  style={{
+                    color: T.green,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    lineHeight: "20px",
+                    flexShrink: 0,
+                  }}
+                >
+                  {"\u2713"}
+                </span>
+                {item}
+              </div>
+            ))}
+          </div>
+
+          {subscribeError && (
+            <p
+              style={{
+                fontSize: 13,
+                color: T.muted,
+                margin: "0 0 16px",
+              }}
+            >
+              {subscribeError}
+            </p>
+          )}
+
+          <button
+            onClick={handleSubscribe}
+            disabled={subscribing}
+            style={{
+              width: "100%",
+              padding: "14px 0",
+              borderRadius: 12,
+              border: "none",
+              background: "linear-gradient(135deg, #1a1a1a, #333)",
+              color: "#fff",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: subscribing ? "wait" : "pointer",
+              fontFamily: sans,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+              marginBottom: 12,
+            }}
+          >
+            {subscribing ? "Redirecting..." : "Start free trial"}
+          </button>
+
+          <p style={{ fontSize: 11, color: T.muted, margin: 0 }}>
+            You won&apos;t be charged during the trial. Cancel in one
+            click.
+          </p>
+        </div>
+      )}
+
+      {/* ─── Screen 4: Done ─── */}
+      {screen === 4 && (
         <div
           style={{
             textAlign: "center",
@@ -554,7 +741,7 @@ export default function OnboardingClient() {
               lineHeight: 1.6,
             }}
           >
-            Your 3-day free trial is active. Full access to all features.
+            Your free trial is active. Full access to all features.
           </p>
           <p
             style={{
@@ -563,14 +750,7 @@ export default function OnboardingClient() {
               margin: "0 0 32px",
             }}
           >
-            Trial ends{" "}
-            {new Date(
-              Date.now() + 3 * 24 * 60 * 60 * 1000
-            ).toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
+            You&apos;ll start getting notifications in Telegram.
           </p>
 
           <button
@@ -751,7 +931,6 @@ function SetupStep({
         background: done ? T.greenSoft : T.glass,
       }}
     >
-      {/* Status icon */}
       <div
         style={{
           width: 32,
@@ -783,7 +962,6 @@ function SetupStep({
           />
         )}
       </div>
-      {/* Label */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -804,7 +982,6 @@ function SetupStep({
           {detail}
         </div>
       </div>
-      {/* Action */}
       {action && <div style={{ flexShrink: 0 }}>{action}</div>}
     </div>
   );
