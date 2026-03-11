@@ -16,6 +16,7 @@ const T = {
   greenSoft: "rgba(42,138,74,0.08)",
   tgBlue: "#229ED9",
   red: "#EA4335",
+  amber: "#D97706",
 };
 
 const serif = "'Instrument Serif', Georgia, serif";
@@ -37,49 +38,72 @@ const glassCard: React.CSSProperties = {
   padding: "20px 20px",
 };
 
-interface Status {
+interface ActivityItem {
+  id: string;
+  type: "inbox" | "engage";
+  author: string;
+  subject: string;
+  status: string;
+  urgency?: string;
+  time: string;
+}
+
+interface DashboardData {
   inbox_linked: boolean;
   x_linked: boolean;
   gmail_connected: boolean;
+  gmail_email: string | null;
+  name: string | null;
+  plan: string;
+  trial_ends_at: string | null;
+  pending_count: number;
+  inbox_pending: number;
+  engage_pending: number;
+  actioned_this_week: number;
+  reviewed_this_week: number;
+  response_rate: number | null;
+  watched_accounts: string[];
+  search_topics: string[];
+  engage_posted_week: number;
+  recent_inbox: ActivityItem[];
+  recent_engage: ActivityItem[];
 }
 
 export default function DashboardClient() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<Status>({
-    inbox_linked: false,
-    x_linked: false,
-    gmail_connected: false,
-  });
+  const [data, setData] = useState<DashboardData | null>(null);
 
   useEffect(() => {
     getSupabaseBrowser()
       .auth.getUser()
-      .then(({ data }) => {
-        if (!data.user) {
+      .then(({ data: authData }) => {
+        if (!authData.user) {
           router.replace("/auth");
-        } else {
-          setUser(data.user);
-          fetch(`/api/telegram-status?userId=${data.user.id}`)
-            .then((r) => r.json())
-            .then((s) => {
-              setStatus({
-                inbox_linked: !!s.inbox_linked,
-                x_linked: !!s.x_linked,
-                gmail_connected: !!s.gmail_connected,
-              });
-            })
-            .catch(() => {});
+          return;
         }
+        setUser(authData.user);
+        fetch(`/api/dashboard-stats?userId=${authData.user.id}`)
+          .then((r) => r.json())
+          .then((d) => setData(d))
+          .catch(() => {});
         setLoading(false);
       });
   }, [router]);
 
-  if (loading) return null;
+  if (loading || !data) return null;
 
-  const inboxReady = status.gmail_connected && status.inbox_linked;
-  const engageReady = status.x_linked;
+  const inboxReady = data.gmail_connected && data.inbox_linked;
+  const engageReady = data.x_linked;
+  const hasAnyAgent = inboxReady || engageReady;
+
+  const greeting = getGreeting(data.name || user?.user_metadata?.full_name || null);
+
+  // Merge and sort recent activity
+  const recentActivity = [...data.recent_inbox, ...data.recent_engage]
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .slice(0, 8);
 
   return (
     <div
@@ -141,7 +165,7 @@ export default function DashboardClient() {
           </span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 13, color: T.muted }}>{user?.email}</span>
+          <PlanBadge plan={data.plan} trialEndsAt={data.trial_ends_at} />
           <button
             onClick={async () => {
               await getSupabaseBrowser().auth.signOut();
@@ -167,34 +191,65 @@ export default function DashboardClient() {
       {/* Content */}
       <section
         style={{
-          maxWidth: 540,
+          maxWidth: 640,
           margin: "0 auto",
-          padding: "40px 32px 80px",
+          padding: "24px 32px 80px",
         }}
       >
+        {/* Greeting */}
         <h1
           style={{
             fontFamily: serif,
             fontSize: "clamp(26px, 3.5vw, 34px)",
             fontWeight: 400,
             color: T.ink,
-            margin: "0 0 8px",
+            margin: "0 0 4px",
           }}
         >
-          Dashboard
+          {greeting}
         </h1>
         <p
           style={{
-            fontSize: 15,
+            fontSize: 14,
             color: T.sub,
-            margin: "0 0 32px",
+            margin: "0 0 28px",
             lineHeight: 1.6,
           }}
         >
-          {inboxReady || engageReady
-            ? "Your agents are running. Open Telegram to review drafts and engage."
+          {hasAnyAgent
+            ? data.pending_count > 0
+              ? `You have ${data.pending_count} item${data.pending_count !== 1 ? "s" : ""} waiting for review.`
+              : "All caught up. Your agents are running."
             : "Connect your agents to get started."}
         </p>
+
+        {/* Stats row */}
+        {hasAnyAgent && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: 12,
+              marginBottom: 24,
+            }}
+          >
+            <StatCard
+              label="Pending"
+              value={data.pending_count}
+              color={data.pending_count > 0 ? T.amber : T.green}
+            />
+            <StatCard
+              label="Actioned this week"
+              value={data.actioned_this_week}
+              color={T.ink}
+            />
+            <StatCard
+              label="Action rate"
+              value={data.response_rate !== null ? `${data.response_rate}%` : "--"}
+              color={T.ink}
+            />
+          </div>
+        )}
 
         <div
           style={{
@@ -211,7 +266,14 @@ export default function DashboardClient() {
               background: inboxReady ? T.greenSoft : T.glass,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: inboxReady ? 12 : 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                marginBottom: inboxReady ? 12 : 0,
+              }}
+            >
               <div
                 style={{
                   width: 42,
@@ -244,8 +306,10 @@ export default function DashboardClient() {
                   }}
                 >
                   {inboxReady
-                    ? "Monitoring your inbox"
-                    : !status.gmail_connected
+                    ? data.inbox_pending > 0
+                      ? `${data.inbox_pending} email${data.inbox_pending !== 1 ? "s" : ""} pending review`
+                      : "Monitoring your inbox"
+                    : !data.gmail_connected
                       ? "Gmail not connected"
                       : "Telegram not linked"}
                 </div>
@@ -299,7 +363,10 @@ export default function DashboardClient() {
                   paddingTop: 12,
                 }}
               >
-                <StatusPill label="Gmail" connected />
+                <StatusPill
+                  label={data.gmail_email ?? "Gmail"}
+                  connected
+                />
                 <StatusPill label="Telegram" connected />
               </div>
             )}
@@ -313,7 +380,14 @@ export default function DashboardClient() {
               background: engageReady ? T.greenSoft : T.glass,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: engageReady ? 12 : 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                marginBottom: engageReady ? 12 : 0,
+              }}
+            >
               <div
                 style={{
                   width: 42,
@@ -325,7 +399,9 @@ export default function DashboardClient() {
                   fontSize: 16,
                   fontWeight: 800,
                   color: engageReady ? T.green : T.ink,
-                  background: engageReady ? T.greenSoft : "rgba(0,0,0,0.04)",
+                  background: engageReady
+                    ? T.greenSoft
+                    : "rgba(0,0,0,0.04)",
                   border: `1px solid ${engageReady ? `${T.green}20` : "rgba(0,0,0,0.06)"}`,
                   flexShrink: 0,
                 }}
@@ -344,7 +420,9 @@ export default function DashboardClient() {
                   }}
                 >
                   {engageReady
-                    ? "Scanning for engagement opportunities"
+                    ? data.engage_pending > 0
+                      ? `${data.engage_pending} tweet${data.engage_pending !== 1 ? "s" : ""} pending review`
+                      : "Scanning for opportunities"
                     : "Not connected"}
                 </div>
               </div>
@@ -392,23 +470,180 @@ export default function DashboardClient() {
               <div
                 style={{
                   display: "flex",
-                  gap: 12,
+                  flexDirection: "column",
+                  gap: 10,
                   borderTop: `1px solid ${T.green}20`,
                   paddingTop: 12,
                 }}
               >
-                <StatusPill label="Telegram" connected />
-                <StatusPill label="Scanning every 30 min" connected />
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <StatusPill label="Telegram" connected />
+                  <StatusPill
+                    label={`${data.watched_accounts.length} account${data.watched_accounts.length !== 1 ? "s" : ""} watched`}
+                    connected
+                  />
+                  {data.search_topics.length > 0 && (
+                    <StatusPill
+                      label={`${data.search_topics.length} topic${data.search_topics.length !== 1 ? "s" : ""} tracked`}
+                      connected
+                    />
+                  )}
+                </div>
+                {data.watched_accounts.length > 0 && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: T.sub,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {data.watched_accounts
+                      .slice(0, 5)
+                      .map((a) => `@${a}`)
+                      .join(", ")}
+                    {data.watched_accounts.length > 5 &&
+                      ` +${data.watched_accounts.length - 5} more`}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
+
+        {/* Recent Activity */}
+        {recentActivity.length > 0 && (
+          <div style={{ marginTop: 28 }}>
+            <h2
+              style={{
+                fontFamily: serif,
+                fontSize: 20,
+                fontWeight: 400,
+                color: T.ink,
+                margin: "0 0 14px",
+              }}
+            >
+              Recent activity
+            </h2>
+            <div
+              style={{
+                ...glassCard,
+                padding: 0,
+                overflow: "hidden",
+              }}
+            >
+              {recentActivity.map((item, i) => (
+                <div
+                  key={item.id}
+                  style={{
+                    padding: "14px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    borderTop: i > 0 ? `1px solid ${T.border}` : "none",
+                  }}
+                >
+                  {/* Type indicator */}
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 7,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      color:
+                        item.type === "inbox" ? T.red : T.ink,
+                      background:
+                        item.type === "inbox"
+                          ? "rgba(234,67,53,0.06)"
+                          : "rgba(0,0,0,0.04)",
+                      border: `1px solid ${item.type === "inbox" ? "rgba(234,67,53,0.1)" : "rgba(0,0,0,0.06)"}`,
+                    }}
+                  >
+                    {item.type === "inbox" ? "G" : "X"}
+                  </div>
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: T.ink,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.author}
+                      {item.subject && (
+                        <span style={{ color: T.muted, fontWeight: 400 }}>
+                          {" "}
+                          &middot; {item.subject}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
+                      {timeAgo(item.time)}
+                    </div>
+                  </div>
+                  {/* Status */}
+                  <ActivityStatus status={item.status} urgency={item.urgency} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
 }
 
-function StatusPill({ label, connected }: { label: string; connected: boolean }) {
+function StatCard({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  color: string;
+}) {
+  return (
+    <div
+      style={{
+        ...glassCard,
+        padding: "16px 16px",
+        textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 28,
+          fontWeight: 700,
+          fontFamily: "'Instrument Serif', Georgia, serif",
+          color,
+          lineHeight: 1,
+          marginBottom: 4,
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: 11, color: "#9a9a9a", fontWeight: 500 }}>
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({
+  label,
+  connected,
+}: {
+  label: string;
+  connected: boolean;
+}) {
   return (
     <div
       style={{
@@ -431,4 +666,146 @@ function StatusPill({ label, connected }: { label: string; connected: boolean })
       {label}
     </div>
   );
+}
+
+function PlanBadge({
+  plan,
+  trialEndsAt,
+}: {
+  plan: string;
+  trialEndsAt: string | null;
+}) {
+  if (plan === "pro") {
+    return (
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: T.green,
+          background: T.greenSoft,
+          padding: "3px 8px",
+          borderRadius: 6,
+          border: `1px solid ${T.green}20`,
+        }}
+      >
+        Pro
+      </span>
+    );
+  }
+  if (plan === "trial" && trialEndsAt) {
+    const daysLeft = Math.max(
+      0,
+      Math.ceil(
+        (new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      )
+    );
+    return (
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: daysLeft <= 1 ? T.red : T.amber,
+          background:
+            daysLeft <= 1 ? "rgba(234,67,53,0.06)" : "rgba(217,119,6,0.06)",
+          padding: "3px 8px",
+          borderRadius: 6,
+          border: `1px solid ${daysLeft <= 1 ? "rgba(234,67,53,0.15)" : "rgba(217,119,6,0.15)"}`,
+        }}
+      >
+        Trial {daysLeft > 0 ? `(${daysLeft}d left)` : "(expired)"}
+      </span>
+    );
+  }
+  return (
+    <span style={{ fontSize: 11, color: T.muted }}>Free</span>
+  );
+}
+
+function ActivityStatus({
+  status,
+  urgency,
+}: {
+  status: string;
+  urgency?: string;
+}) {
+  if (status === "sent" || status === "posted") {
+    return (
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: T.green,
+          background: T.greenSoft,
+          padding: "3px 8px",
+          borderRadius: 6,
+        }}
+      >
+        {status === "sent" ? "Sent" : "Posted"}
+      </span>
+    );
+  }
+  if (status === "skipped") {
+    return (
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: T.muted,
+          background: "rgba(0,0,0,0.04)",
+          padding: "3px 8px",
+          borderRadius: 6,
+        }}
+      >
+        Skipped
+      </span>
+    );
+  }
+  // Pending
+  const urgencyColor =
+    urgency === "red" ? T.red : urgency === "amber" ? T.amber : T.muted;
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        fontWeight: 600,
+        color: urgencyColor,
+        background:
+          urgency === "red"
+            ? "rgba(234,67,53,0.06)"
+            : urgency === "amber"
+              ? "rgba(217,119,6,0.06)"
+              : "rgba(0,0,0,0.04)",
+        padding: "3px 8px",
+        borderRadius: 6,
+      }}
+    >
+      Pending
+    </span>
+  );
+}
+
+function getGreeting(name: string | null): string {
+  const hour = new Date().getHours();
+  const firstName = name?.split(" ")[0] ?? null;
+  const timeGreet =
+    hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  return firstName ? `${timeGreet}, ${firstName}` : timeGreet;
+}
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }
