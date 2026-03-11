@@ -41,6 +41,23 @@ const bgGradient = `radial-gradient(ellipse at 20% 0%, rgba(232,228,221,0.8) 0%,
 type Agent = "inbox" | "engage";
 type Screen = 1 | 2 | 3;
 
+/** Persist selected agents across Gmail OAuth redirect */
+function saveSelection(agents: Set<Agent>) {
+  try {
+    sessionStorage.setItem(
+      "pingi_onboarding_agents",
+      JSON.stringify(Array.from(agents))
+    );
+  } catch {}
+}
+function loadSelection(): Set<Agent> {
+  try {
+    const raw = sessionStorage.getItem("pingi_onboarding_agents");
+    if (raw) return new Set(JSON.parse(raw) as Agent[]);
+  } catch {}
+  return new Set();
+}
+
 export default function OnboardingClient() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -52,7 +69,6 @@ export default function OnboardingClient() {
   const [gmailConnected, setGmailConnected] = useState(false);
   const [inboxLinked, setInboxLinked] = useState(false);
   const [engageLinked, setEngageLinked] = useState(false);
-
 
   // Auth check
   useEffect(() => {
@@ -79,7 +95,7 @@ export default function OnboardingClient() {
     }
   }, [user]);
 
-  // On load: check if already fully connected → dashboard
+  // On load: if any agent is fully set up, go to dashboard
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -88,23 +104,27 @@ export default function OnboardingClient() {
       if (data.gmail_connected) setGmailConnected(true);
       if (data.inbox_linked) setInboxLinked(true);
       if (data.x_linked) setEngageLinked(true);
-      if (data.gmail_connected && data.inbox_linked && data.x_linked) {
+
+      const inboxReady = data.gmail_connected && data.inbox_linked;
+      const engageReady = data.x_linked;
+      if (inboxReady || engageReady) {
         router.replace("/dashboard");
       }
     })();
   }, [user, fetchStatus, router]);
 
-  // Check for Gmail callback
+  // Restore selection + handle Gmail callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("gmail") === "connected") {
       setGmailConnected(true);
-      if (!selected.has("inbox")) {
-        setSelected((prev) => {
-          const next = new Set(prev);
-          next.add("inbox");
-          return next;
-        });
+      // Restore full selection from sessionStorage (survives OAuth redirect)
+      const restored = loadSelection();
+      if (restored.size > 0) {
+        setSelected(restored);
+      } else {
+        // Fallback: at minimum they were setting up inbox
+        setSelected(new Set<Agent>(["inbox"]));
       }
       setScreen(2);
       window.history.replaceState({}, "", "/onboarding");
@@ -134,10 +154,12 @@ export default function OnboardingClient() {
     return () => clearInterval(interval);
   }, [screen, user, selected, inboxLinked, engageLinked, fetchStatus]);
 
-  // Auto-advance to screen 3 when all setup steps are done
+  // Auto-advance to screen 3 when all key steps are done
+  // (Gmail + Telegram for inbox, Telegram for engage)
   useEffect(() => {
     if (screen !== 2) return;
-    const inboxDone = !selected.has("inbox") || (gmailConnected && inboxLinked);
+    const inboxDone =
+      !selected.has("inbox") || (gmailConnected && inboxLinked);
     const engageDone = !selected.has("engage") || engageLinked;
     if (inboxDone && engageDone) {
       setTimeout(() => setScreen(3), 800);
@@ -146,6 +168,8 @@ export default function OnboardingClient() {
 
   const handleConnectGmail = () => {
     if (!user) return;
+    // Save selection before OAuth redirect so we can restore it
+    saveSelection(selected);
     window.location.href = `/api/auth/gmail?user_id=${user.id}`;
   };
 
@@ -160,6 +184,11 @@ export default function OnboardingClient() {
 
   if (loading) return null;
 
+  // Can continue from screen 2 if at least one key step is done
+  const hasProgress =
+    (selected.has("inbox") && gmailConnected) ||
+    (selected.has("engage") && engageLinked);
+
   return (
     <div
       style={{
@@ -173,6 +202,11 @@ export default function OnboardingClient() {
         background: bgGradient,
       }}
     >
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+
       {/* Progress dots */}
       <div
         style={{
@@ -288,7 +322,13 @@ export default function OnboardingClient() {
 
       {/* ─── Screen 2: Setup checklist ─── */}
       {screen === 2 && (
-        <div style={{ maxWidth: 460, width: "100%" }}>
+        <div
+          style={{
+            maxWidth: 460,
+            width: "100%",
+            animation: "fadeIn 0.3s ease",
+          }}
+        >
           <div style={{ textAlign: "center", marginBottom: 32 }}>
             <h1
               style={{
@@ -307,9 +347,10 @@ export default function OnboardingClient() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {/* Inbox steps */}
+            {/* Inbox section */}
             {selected.has("inbox") && (
               <>
+                <SectionLabel label="Inbox Agent" />
                 <SetupStep
                   done={gmailConnected}
                   label="Connect Gmail"
@@ -361,9 +402,15 @@ export default function OnboardingClient() {
               </>
             )}
 
-            {/* Engage steps */}
+            {/* Engage section */}
             {selected.has("engage") && (
               <>
+                <SectionLabel
+                  label="Engage Agent"
+                  style={
+                    selected.has("inbox") ? { marginTop: 8 } : undefined
+                  }
+                />
                 <SetupStep
                   done={engageLinked}
                   waiting={!engageLinked}
@@ -391,12 +438,12 @@ export default function OnboardingClient() {
                   }
                 />
                 <SetupStep
-                  done={engageLinked}
+                  done={false}
                   disabled={!engageLinked}
                   label="Add accounts or topics to track"
                   detail={
                     engageLinked
-                      ? 'Use /watch or /topics in the bot, or just type "add Sam Altman"'
+                      ? 'In the bot, type /watch @paulg or "add Sam Altman"'
                       : "Link Telegram first"
                   }
                 />
@@ -411,9 +458,28 @@ export default function OnboardingClient() {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 8,
+              gap: 10,
             }}
           >
+            {hasProgress && (
+              <button
+                onClick={() => setScreen(3)}
+                style={{
+                  padding: "12px 40px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: "linear-gradient(135deg, #1a1a1a, #333)",
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: sans,
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                }}
+              >
+                Continue
+              </button>
+            )}
             <button
               onClick={() => setScreen(3)}
               style={{
@@ -435,7 +501,13 @@ export default function OnboardingClient() {
 
       {/* ─── Screen 3: Done ─── */}
       {screen === 3 && (
-        <div style={{ textAlign: "center", maxWidth: 400 }}>
+        <div
+          style={{
+            textAlign: "center",
+            maxWidth: 400,
+            animation: "fadeIn 0.3s ease",
+          }}
+        >
           <div
             style={{
               width: 56,
@@ -482,7 +554,14 @@ export default function OnboardingClient() {
               margin: "0 0 32px",
             }}
           >
-            Trial ends {new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            Trial ends{" "}
+            {new Date(
+              Date.now() + 3 * 24 * 60 * 60 * 1000
+            ).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
           </p>
 
           <button
@@ -522,6 +601,29 @@ const actionBtnStyle: React.CSSProperties = {
   fontFamily: "'DM Sans', sans-serif",
   whiteSpace: "nowrap",
 };
+
+function SectionLabel({
+  label,
+  style,
+}: {
+  label: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        fontSize: 11,
+        fontWeight: 700,
+        color: T.muted,
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+        ...style,
+      }}
+    >
+      {label}
+    </div>
+  );
+}
 
 function AgentCard({
   selected,
@@ -650,11 +752,7 @@ function SetupStep({
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
-          background: done
-            ? T.green
-            : waiting
-              ? "rgba(0,0,0,0.04)"
-              : "rgba(0,0,0,0.04)",
+          background: done ? T.green : "rgba(0,0,0,0.04)",
           color: done ? "#fff" : T.muted,
           fontSize: 13,
           fontWeight: 700,
@@ -714,8 +812,6 @@ function Spinner() {
         borderRadius: "50%",
         animation: "spin 0.8s linear infinite",
       }}
-    >
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-    </div>
+    />
   );
 }
