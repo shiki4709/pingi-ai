@@ -7,12 +7,19 @@ import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 const T = {
-  ink: "#1a1a1a",
-  sub: "#6b6b6b",
-  muted: "#9a9a9a",
-  glass: "rgba(255,255,255,0.55)",
-  border: "rgba(255,255,255,0.45)",
+  bg: "#0A0F1C",
+  bgEnd: "#1A0B2E",
+  heading: "#F1F5F9",
+  body: "#B0BEC5",
+  muted: "#8899A6",
+  glass: "rgba(255,255,255,0.06)",
+  border: "rgba(255,255,255,0.12)",
+  purple: "#7C3AED",
+  blue: "#4F46E5",
 };
+
+const serif = "'Instrument Serif', Georgia, serif";
+const sans = "'DM Sans', sans-serif";
 
 export default function AuthClient() {
   const router = useRouter();
@@ -38,9 +45,8 @@ export default function AuthClient() {
         alignItems: "center",
         justifyContent: "center",
         padding: 32,
-        background: `radial-gradient(ellipse at 20% 0%, rgba(232,228,221,0.8) 0%, transparent 50%),
-                     radial-gradient(ellipse at 80% 100%, rgba(226,220,210,0.6) 0%, transparent 50%),
-                     radial-gradient(ellipse at 50% 50%, rgba(242,240,236,1) 0%, rgba(234,230,223,1) 100%)`,
+        background: `linear-gradient(180deg, ${T.bg} 0%, ${T.bgEnd} 50%, ${T.bg} 100%)`,
+        fontFamily: sans,
       }}
     >
       {/* Logo */}
@@ -55,10 +61,10 @@ export default function AuthClient() {
           fontSize: 18,
           fontWeight: 800,
           marginBottom: 16,
-          fontFamily: "'Instrument Serif', Georgia, serif",
+          fontFamily: serif,
           color: "#fff",
-          background: "linear-gradient(135deg, #1a1a1a 0%, #3a3a3a 100%)",
-          boxShadow: "0 6px 24px rgba(0,0,0,0.1)",
+          background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
+          boxShadow: `0 6px 24px ${T.purple}30`,
         }}
       >
         P
@@ -66,10 +72,10 @@ export default function AuthClient() {
 
       <h2
         style={{
-          fontFamily: "'Instrument Serif', Georgia, serif",
+          fontFamily: serif,
           fontSize: 26,
           fontWeight: 400,
-          color: T.ink,
+          color: T.heading,
           margin: "0 0 4px",
         }}
       >
@@ -85,11 +91,10 @@ export default function AuthClient() {
           width: "100%",
           maxWidth: 400,
           background: T.glass,
-          backdropFilter: "blur(24px) saturate(1.4)",
-          WebkitBackdropFilter: "blur(24px) saturate(1.4)",
+          backdropFilter: "blur(20px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
           border: `1px solid ${T.border}`,
-          boxShadow:
-            "0 2px 16px rgba(0,0,0,0.04), 0 0.5px 0 rgba(255,255,255,0.6) inset",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
           borderRadius: 20,
           padding: "28px 24px",
         }}
@@ -101,18 +106,25 @@ export default function AuthClient() {
             variables: {
               default: {
                 colors: {
-                  brand: "#1a1a1a",
-                  brandAccent: "#333",
-                  inputBackground: "rgba(255,255,255,0.6)",
-                  inputBorder: "rgba(0,0,0,0.08)",
-                  inputText: "#1a1a1a",
-                  inputPlaceholder: "#9a9a9a",
+                  brand: T.purple,
+                  brandAccent: "#6D28D9",
+                  inputBackground: "rgba(255,255,255,0.06)",
+                  inputBorder: T.border,
+                  inputText: T.heading,
+                  inputPlaceholder: T.muted,
+                  messageText: T.body,
+                  anchorTextColor: T.muted,
+                  defaultButtonBackground: T.glass,
+                  defaultButtonBackgroundHover: "rgba(255,255,255,0.1)",
+                  defaultButtonBorder: T.border,
+                  defaultButtonText: T.body,
+                  inputLabelText: T.body,
                 },
                 fonts: {
-                  bodyFontFamily: "'DM Sans', sans-serif",
-                  inputFontFamily: "'DM Sans', sans-serif",
-                  buttonFontFamily: "'DM Sans', sans-serif",
-                  labelFontFamily: "'DM Sans', sans-serif",
+                  bodyFontFamily: sans,
+                  inputFontFamily: sans,
+                  buttonFontFamily: sans,
+                  labelFontFamily: sans,
                 },
                 radii: {
                   borderRadiusButton: "10px",

@@ -94,6 +94,10 @@ export async function GET(request: NextRequest) {
   ]);
 
   const user = userRes.data;
+  if (userRes.error) {
+    console.error("[dashboard-stats] User query failed:", userRes.error.message);
+  }
+  console.log(`[dashboard-stats] userId=${userId} telegram_chat_id=${user?.telegram_chat_id ?? "null"} x_bot_chat_id=${user?.x_bot_chat_id ?? "null"} gmail=${!!gmailRes.data}`);
   const inboxLinked = !!user?.telegram_chat_id;
   const xLinked = !!user?.x_bot_chat_id;
   const gmailConnected = !!gmailRes.data;

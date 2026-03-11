@@ -6,21 +6,22 @@ import Link from "next/link";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 const T = {
-  ink: "#1a1a1a",
-  sub: "#6b6b6b",
-  muted: "#9a9a9a",
-  glass: "rgba(255,255,255,0.55)",
-  border: "rgba(255,255,255,0.45)",
-  green: "#2a8a4a",
-  greenSoft: "rgba(42,138,74,0.08)",
+  bg: "#0A0F1C",
+  bgEnd: "#1A0B2E",
+  heading: "#F1F5F9",
+  body: "#B0BEC5",
+  muted: "#8899A6",
+  glass: "rgba(255,255,255,0.06)",
+  border: "rgba(255,255,255,0.12)",
+  borderLight: "rgba(255,255,255,0.08)",
+  blue: "#4F46E5",
+  purple: "#7C3AED",
+  green: "#34D399",
+  greenDim: "rgba(52,211,153,0.15)",
 };
 
 const serif = "'Instrument Serif', Georgia, serif";
 const sans = "'DM Sans', sans-serif";
-
-const background = `radial-gradient(ellipse at 20% 0%, rgba(232,228,221,0.8) 0%, transparent 50%),
-  radial-gradient(ellipse at 80% 100%, rgba(226,220,210,0.6) 0%, transparent 50%),
-  radial-gradient(ellipse at 50% 50%, rgba(242,240,236,1) 0%, rgba(234,230,223,1) 100%)`;
 
 function GlassCard({
   children,
@@ -33,11 +34,10 @@ function GlassCard({
     <div
       style={{
         background: T.glass,
-        backdropFilter: "blur(24px) saturate(1.4)",
-        WebkitBackdropFilter: "blur(24px) saturate(1.4)",
+        backdropFilter: "blur(20px) saturate(1.8)",
+        WebkitBackdropFilter: "blur(20px) saturate(1.8)",
         border: `1px solid ${T.border}`,
-        boxShadow:
-          "0 2px 16px rgba(0,0,0,0.04), 0 0.5px 0 rgba(255,255,255,0.6) inset",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
         borderRadius: 20,
         padding: "32px 28px",
         ...style,
@@ -49,13 +49,12 @@ function GlassCard({
 }
 
 const FEATURES = [
-  "Unlimited Gmail accounts",
-  "Unlimited X accounts to watch",
-  "Unlimited AI-drafted replies",
-  "Inbox Agent + Engage Agent",
+  "X Engage + Inbox Agent",
+  "Unlimited accounts to track",
+  "AI-drafted replies",
   "Smart email filtering",
-  "Weekly engagement reports",
-  "Priority support",
+  "Telegram delivery",
+  "Cancel anytime",
 ];
 
 export default function PricingClient() {
@@ -81,7 +80,6 @@ export default function PricingClient() {
 
   async function handleStartTrial() {
     if (!userId || !userEmail) {
-      // Not logged in — send to auth first
       window.location.href = "/auth";
       return;
     }
@@ -125,7 +123,8 @@ export default function PricingClient() {
       style={{
         minHeight: "100vh",
         fontFamily: sans,
-        background,
+        background: `linear-gradient(180deg, ${T.bg} 0%, ${T.bgEnd} 50%, ${T.bg} 100%)`,
+        color: T.body,
       }}
     >
       {/* ─── Nav ─── */}
@@ -140,7 +139,7 @@ export default function PricingClient() {
         }}
       >
         <Link
-          href="/dashboard"
+          href="/"
           style={{
             display: "flex",
             alignItems: "center",
@@ -150,18 +149,17 @@ export default function PricingClient() {
         >
           <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
+              width: 32,
+              height: 32,
+              borderRadius: 9,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: 800,
-              fontFamily: serif,
               color: "#fff",
-              background: "linear-gradient(135deg, #1a1a1a 0%, #3a3a3a 100%)",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+              background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
+              boxShadow: `0 4px 16px ${T.purple}30`,
             }}
           >
             P
@@ -169,9 +167,8 @@ export default function PricingClient() {
           <span
             style={{
               fontFamily: serif,
-              fontSize: 20,
-              fontWeight: 400,
-              color: T.ink,
+              fontSize: 19,
+              color: T.heading,
             }}
           >
             Pingi
@@ -181,13 +178,13 @@ export default function PricingClient() {
           href="/auth"
           style={{
             fontSize: 14,
-            fontWeight: 600,
-            color: T.ink,
+            fontWeight: 500,
+            color: T.body,
             textDecoration: "none",
             padding: "8px 20px",
-            borderRadius: 10,
-            border: "1px solid rgba(0,0,0,0.08)",
-            background: "rgba(255,255,255,0.5)",
+            borderRadius: 8,
+            border: `1px solid ${T.borderLight}`,
+            background: "rgba(255,255,255,0.04)",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
           }}
@@ -210,8 +207,8 @@ export default function PricingClient() {
             style={{
               marginBottom: 24,
               padding: "16px 24px",
-              border: `1px solid ${T.green}40`,
-              background: T.greenSoft,
+              border: `1px solid rgba(52,211,153,0.3)`,
+              background: T.greenDim,
               textAlign: "center",
             }}
           >
@@ -225,8 +222,8 @@ export default function PricingClient() {
             style={{
               marginBottom: 24,
               padding: "16px 24px",
-              border: `1px solid ${T.green}40`,
-              background: T.greenSoft,
+              border: `1px solid rgba(52,211,153,0.3)`,
+              background: T.greenDim,
               textAlign: "center",
             }}
           >
@@ -239,7 +236,7 @@ export default function PricingClient() {
           <GlassCard
             style={{ marginBottom: 24, padding: "16px 24px", textAlign: "center" }}
           >
-            <p style={{ fontSize: 14, fontWeight: 500, color: T.sub, margin: 0 }}>
+            <p style={{ fontSize: 14, fontWeight: 500, color: T.body, margin: 0 }}>
               Checkout was canceled. You can try again anytime.
             </p>
           </GlassCard>
@@ -252,7 +249,7 @@ export default function PricingClient() {
               fontFamily: serif,
               fontSize: "clamp(32px, 4vw, 44px)",
               fontWeight: 400,
-              color: T.ink,
+              color: T.heading,
               margin: "0 0 12px",
               letterSpacing: "-0.02em",
               lineHeight: 1.1,
@@ -263,7 +260,7 @@ export default function PricingClient() {
           <p
             style={{
               fontSize: 16,
-              color: T.sub,
+              color: T.body,
               margin: 0,
               lineHeight: 1.6,
             }}
@@ -275,7 +272,7 @@ export default function PricingClient() {
         {/* Single Pro card */}
         <GlassCard
           style={{
-            border: `1.5px solid ${T.green}40`,
+            border: `1px solid rgba(124,58,237,0.2)`,
             position: "relative",
           }}
         >
@@ -284,11 +281,11 @@ export default function PricingClient() {
               position: "absolute",
               top: -12,
               right: 20,
-              background: T.green,
+              background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
               color: "#fff",
               fontSize: 11,
               fontWeight: 700,
-              padding: "4px 12px",
+              padding: "4px 14px",
               borderRadius: 8,
               letterSpacing: "0.05em",
               textTransform: "uppercase",
@@ -301,7 +298,7 @@ export default function PricingClient() {
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: T.green,
+              color: "#A78BFA",
               textTransform: "uppercase",
               letterSpacing: "0.1em",
               margin: "0 0 4px",
@@ -311,15 +308,14 @@ export default function PricingClient() {
           </p>
           <div
             style={{
-              fontFamily: serif,
-              fontSize: 40,
-              fontWeight: 400,
-              color: T.ink,
+              fontSize: 46,
+              fontWeight: 700,
+              color: T.heading,
               margin: "0 0 24px",
             }}
           >
             $19
-            <span style={{ fontSize: 16, color: T.muted, fontFamily: sans }}>
+            <span style={{ fontSize: 16, color: T.muted, fontWeight: 400 }}>
               {" "}/ month
             </span>
           </div>
@@ -339,7 +335,7 @@ export default function PricingClient() {
                 key={f}
                 style={{
                   fontSize: 14,
-                  color: T.sub,
+                  color: T.body,
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
@@ -347,7 +343,7 @@ export default function PricingClient() {
                 }}
               >
                 <span
-                  style={{ color: T.green, fontSize: 14, fontWeight: 700, flexShrink: 0 }}
+                  style={{ color: T.green, fontSize: 13, fontWeight: 700, flexShrink: 0 }}
                 >
                   &#10003;
                 </span>
@@ -365,23 +361,23 @@ export default function PricingClient() {
               padding: "14px 24px",
               borderRadius: 12,
               border: "none",
-              background: `linear-gradient(135deg, ${T.green}, #1e7a3a)`,
+              background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
               color: "#fff",
               fontSize: 15,
               fontWeight: 600,
               cursor: loading ? "wait" : "pointer",
               fontFamily: sans,
-              boxShadow: "0 4px 16px rgba(42,138,74,0.15)",
+              boxShadow: `0 4px 24px ${T.purple}35`,
             }}
           >
-            {loading ? "Redirecting..." : "Start 3-day free trial"}
+            {loading ? "Redirecting..." : "Start free trial"}
           </button>
 
           {error && (
             <p
               style={{
                 fontSize: 13,
-                color: "#c0392b",
+                color: "#EF4444",
                 margin: "12px 0 0",
                 textAlign: "center",
               }}
@@ -400,18 +396,17 @@ export default function PricingClient() {
             lineHeight: 1.5,
           }}
         >
-          No charge for 3 days. Cancel anytime.
+          3 days free. Cancel anytime.
           <br />
-          Includes both Inbox and Engage agents.
+          Includes both X Engage and Inbox agents.
         </p>
       </section>
 
       {/* ─── Footer ─── */}
       <footer
         style={{
-          borderTop: "1px solid rgba(0,0,0,0.06)",
+          borderTop: `1px solid ${T.borderLight}`,
           padding: "32px",
-          textAlign: "center",
         }}
       >
         <div
@@ -428,34 +423,31 @@ export default function PricingClient() {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div
               style={{
-                width: 24,
-                height: 24,
-                borderRadius: 7,
+                width: 22,
+                height: 22,
+                borderRadius: 6,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: 800,
-                fontFamily: serif,
                 color: "#fff",
-                background: "#1a1a1a",
+                background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
               }}
             >
               P
             </div>
             <span style={{ fontSize: 13, color: T.muted }}>Pingi AI</span>
           </div>
-          <div
-            style={{ display: "flex", gap: 24, fontSize: 13, color: T.muted }}
-          >
+          <nav style={{ display: "flex", gap: 24, fontSize: 13 }}>
             <Link href="/auth" style={{ color: T.muted, textDecoration: "none" }}>
               Sign up
             </Link>
             <Link href="/" style={{ color: T.muted, textDecoration: "none" }}>
               Home
             </Link>
-          </div>
-          <p style={{ fontSize: 12, color: T.muted, margin: 0 }}>
+          </nav>
+          <p style={{ fontSize: 12, color: "#6B7B8D", margin: 0 }}>
             {new Date().getFullYear()} Pingi AI
           </p>
         </div>

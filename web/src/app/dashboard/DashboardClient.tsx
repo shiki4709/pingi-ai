@@ -78,20 +78,24 @@ export default function DashboardClient() {
   const [data, setData] = useState<DashboardData | null>(null);
 
   useEffect(() => {
-    getSupabaseBrowser()
-      .auth.getUser()
-      .then(({ data: authData }) => {
-        if (!authData.user) {
-          router.replace("/auth");
-          return;
-        }
-        setUser(authData.user);
-        fetch(`/api/dashboard-stats?userId=${authData.user.id}`)
-          .then((r) => r.json())
-          .then((d) => setData(d))
-          .catch(() => {});
+    (async () => {
+      const { data: authData } = await getSupabaseBrowser().auth.getUser();
+      if (!authData.user) {
+        router.replace("/auth");
         setLoading(false);
-      });
+        return;
+      }
+      setUser(authData.user);
+      try {
+        const res = await fetch(`/api/dashboard-stats?userId=${authData.user.id}`);
+        const d = await res.json();
+        if (!d.error) setData(d);
+        else console.error("[dashboard] API error:", d.error);
+      } catch (e) {
+        console.error("[dashboard] Fetch failed:", e);
+      }
+      setLoading(false);
+    })();
   }, [router]);
 
   if (loading || !data) return null;
