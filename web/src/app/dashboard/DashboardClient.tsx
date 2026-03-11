@@ -7,16 +7,24 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import type { User } from "@supabase/supabase-js";
 
 const T = {
-  ink: "#1a1a1a",
-  sub: "#6b6b6b",
-  muted: "#9a9a9a",
-  glass: "rgba(255,255,255,0.55)",
-  border: "rgba(255,255,255,0.45)",
-  green: "#2a8a4a",
-  greenSoft: "rgba(42,138,74,0.08)",
-  tgBlue: "#229ED9",
-  red: "#EA4335",
-  amber: "#D97706",
+  bg: "#0A0F1C",
+  bgEnd: "#1A0B2E",
+  heading: "#F1F5F9",
+  body: "#B0BEC5",
+  muted: "#8899A6",
+  dim: "#6B7B8D",
+  glass: "rgba(255,255,255,0.06)",
+  border: "rgba(255,255,255,0.12)",
+  borderLight: "rgba(255,255,255,0.08)",
+  blue: "#4F46E5",
+  purple: "#7C3AED",
+  green: "#34D399",
+  greenDim: "rgba(52,211,153,0.15)",
+  red: "#EF4444",
+  redDim: "rgba(239,68,68,0.12)",
+  amber: "#F59E0B",
+  amberDim: "rgba(245,158,11,0.12)",
+  tgBlue: "#38BDF8",
 };
 
 const serif = "'Instrument Serif', Georgia, serif";
@@ -29,11 +37,11 @@ const ENGAGE_BOT =
 
 const glassCard: React.CSSProperties = {
   background: T.glass,
-  backdropFilter: "blur(24px) saturate(1.4)",
-  WebkitBackdropFilter: "blur(24px) saturate(1.4)",
+  backdropFilter: "blur(20px) saturate(1.8)",
+  WebkitBackdropFilter: "blur(20px) saturate(1.8)",
   border: `1px solid ${T.border}`,
   boxShadow:
-    "0 2px 16px rgba(0,0,0,0.04), 0 0.5px 0 rgba(255,255,255,0.6) inset",
+    "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
   borderRadius: 16,
 };
 
@@ -76,44 +84,31 @@ export default function DashboardClient() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>("");
 
   useEffect(() => {
     (async () => {
-      const { data: authData, error: authError } = await getSupabaseBrowser().auth.getUser();
+      const { data: authData, error: authError } =
+        await getSupabaseBrowser().auth.getUser();
       if (authError || !authData.user) {
-        setDebugInfo(`Auth failed: ${authError?.message ?? "no user"}`);
         router.replace("/auth");
         setLoading(false);
         return;
       }
       setUser(authData.user);
-      setDebugInfo(`userId=${authData.user.id}`);
       try {
-        const res = await fetch(`/api/dashboard-stats?userId=${authData.user.id}`);
+        const res = await fetch(
+          `/api/dashboard-stats?userId=${authData.user.id}`
+        );
         const d = await res.json();
-        setDebugInfo(prev => `${prev} | status=${res.status} inbox_linked=${d.inbox_linked} x_linked=${d.x_linked} gmail=${d.gmail_connected}`);
         if (!d.error) setData(d);
-        else setDebugInfo(prev => `${prev} | API ERROR: ${d.error}`);
       } catch (e) {
-        setDebugInfo(prev => `${prev} | FETCH ERROR: ${e instanceof Error ? e.message : String(e)}`);
+        console.error("[dashboard] Fetch failed:", e);
       }
       setLoading(false);
     })();
   }, [router]);
 
-  if (loading || !data) {
-    return debugInfo ? (
-      <div style={{
-        position: "fixed", bottom: 12, left: 12, right: 12,
-        background: "rgba(0,0,0,0.85)", color: "#EF4444",
-        fontSize: 11, fontFamily: "monospace", padding: "8px 12px",
-        borderRadius: 8, zIndex: 999, wordBreak: "break-all",
-      }}>
-        Dashboard loading... {debugInfo}
-      </div>
-    ) : null;
-  }
+  if (loading || !data) return null;
 
   const inboxReady = data.gmail_connected && data.inbox_linked;
   const engageReady = data.x_linked;
@@ -126,7 +121,7 @@ export default function DashboardClient() {
   // Merge and sort recent activity, group by day
   const recentActivity = [...data.recent_inbox, ...data.recent_engage]
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-    .slice(0, 10);
+    .slice(0, 15);
 
   const grouped = groupByDay(recentActivity);
 
@@ -135,9 +130,8 @@ export default function DashboardClient() {
       style={{
         minHeight: "100vh",
         fontFamily: sans,
-        background: `radial-gradient(ellipse at 20% 0%, rgba(232,228,221,0.8) 0%, transparent 50%),
-                     radial-gradient(ellipse at 80% 100%, rgba(226,220,210,0.6) 0%, transparent 50%),
-                     radial-gradient(ellipse at 50% 50%, rgba(242,240,236,1) 0%, rgba(234,230,223,1) 100%)`,
+        color: T.body,
+        background: `linear-gradient(180deg, ${T.bg} 0%, ${T.bgEnd} 50%, ${T.bg} 100%)`,
       }}
     >
       <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
@@ -149,7 +143,7 @@ export default function DashboardClient() {
           alignItems: "center",
           justifyContent: "space-between",
           padding: "20px 32px",
-          maxWidth: 720,
+          maxWidth: 760,
           margin: "0 auto",
         }}
       >
@@ -170,18 +164,16 @@ export default function DashboardClient() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: 800,
-              fontFamily: serif,
               color: "#fff",
-              background: "linear-gradient(135deg, #1a1a1a 0%, #3a3a3a 100%)",
+              background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
+              boxShadow: `0 4px 16px ${T.purple}30`,
             }}
           >
             P
           </div>
-          <span
-            style={{ fontFamily: serif, fontSize: 18, color: T.ink }}
-          >
+          <span style={{ fontFamily: serif, fontSize: 19, color: T.heading }}>
             Pingi
           </span>
         </Link>
@@ -193,10 +185,10 @@ export default function DashboardClient() {
               router.replace("/auth");
             }}
             style={{
-              padding: "5px 10px",
+              padding: "5px 12px",
               borderRadius: 7,
-              border: `1px solid ${T.border}`,
-              background: "transparent",
+              border: `1px solid ${T.borderLight}`,
+              background: "rgba(255,255,255,0.04)",
               color: T.muted,
               fontSize: 12,
               cursor: "pointer",
@@ -210,7 +202,7 @@ export default function DashboardClient() {
 
       {/* Content */}
       <section
-        style={{ maxWidth: 720, margin: "0 auto", padding: "16px 32px 80px" }}
+        style={{ maxWidth: 760, margin: "0 auto", padding: "16px 32px 80px" }}
       >
         {/* Greeting */}
         <h1
@@ -218,7 +210,7 @@ export default function DashboardClient() {
             fontFamily: serif,
             fontSize: "clamp(24px, 3.5vw, 32px)",
             fontWeight: 400,
-            color: T.ink,
+            color: T.heading,
             margin: "0 0 4px",
           }}
         >
@@ -227,7 +219,7 @@ export default function DashboardClient() {
         <p
           style={{
             fontSize: 14,
-            color: T.sub,
+            color: T.body,
             margin: "0 0 24px",
             lineHeight: 1.6,
           }}
@@ -257,12 +249,12 @@ export default function DashboardClient() {
             <HeroStat
               value={data.actioned_today}
               label="Actioned today"
-              color={T.ink}
+              color={T.heading}
             />
             <HeroStat
               value={data.actioned_this_week}
               label="This week"
-              color={T.ink}
+              color={T.heading}
             />
             <HeroStat
               value={
@@ -272,7 +264,7 @@ export default function DashboardClient() {
               color={
                 data.response_rate !== null && data.response_rate >= 80
                   ? T.green
-                  : T.ink
+                  : T.heading
               }
             />
           </div>
@@ -282,62 +274,308 @@ export default function DashboardClient() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: inboxReady && engageReady ? "1fr 1fr" : "1fr",
+            gridTemplateColumns: "1fr 1fr",
             gap: 12,
             marginBottom: 24,
           }}
         >
           {/* Inbox Agent */}
-          <AgentCard
-            ready={inboxReady}
-            icon="G"
-            iconColor={inboxReady ? T.green : T.red}
-            iconBg={
-              inboxReady ? T.greenSoft : "rgba(234,67,53,0.04)"
-            }
-            title="Inbox Agent"
-            status={
-              inboxReady
-                ? data.inbox_pending > 0
-                  ? `${data.inbox_pending} pending`
-                  : "Monitoring"
-                : !data.gmail_connected
-                  ? "Gmail not connected"
-                  : "Telegram not linked"
-            }
-            lastActivity={data.last_inbox_activity}
-            detail={
-              inboxReady && data.gmail_email
-                ? data.gmail_email
-                : undefined
-            }
-            botUrl={`https://t.me/${INBOX_BOT}`}
-            onSetup={() => router.push("/onboarding")}
-          />
+          <div
+            style={{
+              ...glassCard,
+              padding: "20px 18px",
+              borderColor: inboxReady
+                ? "rgba(52,211,153,0.2)"
+                : T.border,
+              background: inboxReady ? T.greenDim : T.glass,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: inboxReady ? T.green : T.red,
+                  background: inboxReady
+                    ? T.greenDim
+                    : T.redDim,
+                  flexShrink: 0,
+                }}
+              >
+                {inboxReady ? "\u2713" : "G"}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: T.heading,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  Inbox Agent
+                  {inboxReady && (
+                    <div
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: T.green,
+                        animation: "pulse 2s ease-in-out infinite",
+                      }}
+                    />
+                  )}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: inboxReady ? T.green : T.muted,
+                    marginTop: 1,
+                  }}
+                >
+                  {inboxReady
+                    ? data.inbox_pending > 0
+                      ? `${data.inbox_pending} pending`
+                      : "Monitoring"
+                    : !data.gmail_connected
+                      ? "Gmail not connected"
+                      : "Telegram not linked"}
+                </div>
+              </div>
+            </div>
+
+            {inboxReady && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderTop: `1px solid rgba(52,211,153,0.1)`,
+                  paddingTop: 10,
+                  fontSize: 11,
+                  color: T.muted,
+                }}
+              >
+                <span>{data.gmail_email ?? "Active"}</span>
+                {data.last_inbox_activity && (
+                  <span>Last: {timeAgo(data.last_inbox_activity)}</span>
+                )}
+              </div>
+            )}
+
+            {inboxReady ? (
+              <a
+                href={`https://t.me/${INBOX_BOT}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "block",
+                  padding: "9px 0",
+                  borderRadius: 10,
+                  background: "rgba(255,255,255,0.06)",
+                  border: `1px solid ${T.borderLight}`,
+                  color: T.body,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontFamily: sans,
+                  textDecoration: "none",
+                  textAlign: "center",
+                }}
+              >
+                Open in Telegram
+              </a>
+            ) : (
+              <button
+                onClick={() => router.push("/onboarding")}
+                style={{
+                  padding: "9px 0",
+                  borderRadius: 10,
+                  border: "none",
+                  background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: sans,
+                }}
+              >
+                Set up
+              </button>
+            )}
+          </div>
 
           {/* Engage Agent */}
-          <AgentCard
-            ready={engageReady}
-            icon="X"
-            iconColor={engageReady ? T.green : T.ink}
-            iconBg={engageReady ? T.greenSoft : "rgba(0,0,0,0.04)"}
-            title="Engage Agent"
-            status={
-              engageReady
-                ? data.engage_pending > 0
-                  ? `${data.engage_pending} pending`
-                  : "Scanning"
-                : "Not connected"
-            }
-            lastActivity={data.last_engage_activity}
-            detail={
-              engageReady && data.watched_accounts.length > 0
-                ? `${data.watched_accounts.length} account${data.watched_accounts.length !== 1 ? "s" : ""}${data.search_topics.length > 0 ? `, ${data.search_topics.length} topic${data.search_topics.length !== 1 ? "s" : ""}` : ""}`
-                : undefined
-            }
-            botUrl={`https://t.me/${ENGAGE_BOT}`}
-            onSetup={() => router.push("/onboarding")}
-          />
+          <div
+            style={{
+              ...glassCard,
+              padding: "20px 18px",
+              borderColor: engageReady
+                ? "rgba(52,211,153,0.2)"
+                : T.border,
+              background: engageReady ? T.greenDim : T.glass,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: engageReady ? T.green : T.heading,
+                  background: engageReady
+                    ? T.greenDim
+                    : "rgba(255,255,255,0.06)",
+                  flexShrink: 0,
+                }}
+              >
+                {engageReady ? "\u2713" : "X"}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: T.heading,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  Engage Agent
+                  {engageReady && (
+                    <div
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: T.green,
+                        animation: "pulse 2s ease-in-out infinite",
+                      }}
+                    />
+                  )}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: engageReady ? T.green : T.muted,
+                    marginTop: 1,
+                  }}
+                >
+                  {engageReady
+                    ? data.engage_pending > 0
+                      ? `${data.engage_pending} pending`
+                      : "Scanning"
+                    : "Not connected"}
+                </div>
+              </div>
+            </div>
+
+            {/* Watched accounts + topics */}
+            {engageReady && (
+              <div
+                style={{
+                  borderTop: `1px solid rgba(52,211,153,0.1)`,
+                  paddingTop: 10,
+                  fontSize: 11,
+                  color: T.muted,
+                }}
+              >
+                {data.watched_accounts.length > 0 && (
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ color: T.dim, fontWeight: 600 }}>Tracking: </span>
+                    {data.watched_accounts.map((a, i) => (
+                      <span key={a}>
+                        <span style={{ color: T.body }}>@{a}</span>
+                        {i < data.watched_accounts.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {data.search_topics.length > 0 && (
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ color: T.dim, fontWeight: 600 }}>Topics: </span>
+                    {data.search_topics.map((t, i) => (
+                      <span key={t}>
+                        <span style={{ color: T.body }}>{t}</span>
+                        {i < data.search_topics.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>
+                    {data.engage_posted_week > 0
+                      ? `${data.engage_posted_week} posted this week`
+                      : data.watched_accounts.length > 0
+                        ? `${data.watched_accounts.length} account${data.watched_accounts.length !== 1 ? "s" : ""}`
+                        : "Active"}
+                  </span>
+                  {data.last_engage_activity && (
+                    <span>Last: {timeAgo(data.last_engage_activity)}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {engageReady ? (
+              <a
+                href={`https://t.me/${ENGAGE_BOT}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "block",
+                  padding: "9px 0",
+                  borderRadius: 10,
+                  background: "rgba(255,255,255,0.06)",
+                  border: `1px solid ${T.borderLight}`,
+                  color: T.body,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontFamily: sans,
+                  textDecoration: "none",
+                  textAlign: "center",
+                }}
+              >
+                Open in Telegram
+              </a>
+            ) : (
+              <button
+                onClick={() => router.push("/onboarding")}
+                style={{
+                  padding: "9px 0",
+                  borderRadius: 10,
+                  border: "none",
+                  background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: sans,
+                }}
+              >
+                Set up
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ─── Recent Activity ─── */}
@@ -348,7 +586,7 @@ export default function DashboardClient() {
                 fontFamily: serif,
                 fontSize: 18,
                 fontWeight: 400,
-                color: T.ink,
+                color: T.heading,
                 margin: "0 0 12px",
               }}
             >
@@ -373,7 +611,7 @@ export default function DashboardClient() {
                       textTransform: "uppercase",
                       letterSpacing: "0.08em",
                       borderTop:
-                        gi > 0 ? `1px solid ${T.border}` : "none",
+                        gi > 0 ? `1px solid ${T.borderLight}` : "none",
                     }}
                   >
                     {group.label}
@@ -400,11 +638,13 @@ export default function DashboardClient() {
                           fontWeight: 700,
                           flexShrink: 0,
                           color:
-                            item.type === "inbox" ? T.red : T.ink,
+                            item.type === "inbox"
+                              ? "#EA4335"
+                              : T.heading,
                           background:
                             item.type === "inbox"
-                              ? "rgba(234,67,53,0.06)"
-                              : "rgba(0,0,0,0.04)",
+                              ? "rgba(234,67,53,0.1)"
+                              : "rgba(255,255,255,0.06)",
                         }}
                       >
                         {item.type === "inbox" ? "G" : "X"}
@@ -414,7 +654,7 @@ export default function DashboardClient() {
                           style={{
                             fontSize: 13,
                             fontWeight: 500,
-                            color: T.ink,
+                            color: T.heading,
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
@@ -468,7 +708,7 @@ export default function DashboardClient() {
             <p
               style={{
                 fontSize: 14,
-                color: T.sub,
+                color: T.body,
                 margin: "0 0 4px",
               }}
             >
@@ -481,18 +721,6 @@ export default function DashboardClient() {
           </div>
         )}
       </section>
-
-      {/* Debug info — temporary */}
-      {debugInfo && (
-        <div style={{
-          position: "fixed", bottom: 12, left: 12, right: 12,
-          background: "rgba(0,0,0,0.85)", color: "#34D399",
-          fontSize: 11, fontFamily: "monospace", padding: "8px 12px",
-          borderRadius: 8, zIndex: 999, wordBreak: "break-all",
-        }}>
-          {debugInfo}
-        </div>
-      )}
     </div>
   );
 }
@@ -529,159 +757,6 @@ function HeroStat({
   );
 }
 
-function AgentCard({
-  ready,
-  icon,
-  iconColor,
-  iconBg,
-  title,
-  status,
-  lastActivity,
-  detail,
-  botUrl,
-  onSetup,
-}: {
-  ready: boolean;
-  icon: string;
-  iconColor: string;
-  iconBg: string;
-  title: string;
-  status: string;
-  lastActivity: string | null;
-  detail?: string;
-  botUrl: string;
-  onSetup: () => void;
-}) {
-  return (
-    <div
-      style={{
-        ...glassCard,
-        padding: "18px 18px",
-        borderColor: ready ? `${T.green}50` : T.border,
-        background: ready ? T.greenSoft : T.glass,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-    >
-      {/* Header row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: icon === "X" ? 14 : 12,
-            fontWeight: icon === "X" ? 800 : 700,
-            color: iconColor,
-            background: iconBg,
-            flexShrink: 0,
-          }}
-        >
-          {ready ? "\u2713" : icon}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: T.ink,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            {title}
-            {ready && (
-              <div
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: T.green,
-                  animation: "pulse 2s ease-in-out infinite",
-                }}
-              />
-            )}
-          </div>
-          <div
-            style={{
-              fontSize: 12,
-              color: ready ? T.green : T.muted,
-              marginTop: 1,
-            }}
-          >
-            {status}
-          </div>
-        </div>
-      </div>
-
-      {/* Detail line + last activity */}
-      {ready && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderTop: `1px solid ${T.green}15`,
-            paddingTop: 10,
-            fontSize: 11,
-            color: T.muted,
-          }}
-        >
-          <span>{detail ?? "Active"}</span>
-          {lastActivity && (
-            <span>Last: {timeAgo(lastActivity)}</span>
-          )}
-        </div>
-      )}
-
-      {/* Action */}
-      {ready ? (
-        <a
-          href={botUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "block",
-            padding: "9px 0",
-            borderRadius: 10,
-            background: "rgba(0,0,0,0.04)",
-            color: T.sub,
-            fontSize: 12,
-            fontWeight: 600,
-            fontFamily: sans,
-            textDecoration: "none",
-            textAlign: "center",
-          }}
-        >
-          Open in Telegram
-        </a>
-      ) : (
-        <button
-          onClick={onSetup}
-          style={{
-            padding: "9px 0",
-            borderRadius: 10,
-            border: "none",
-            background: "linear-gradient(135deg, #1a1a1a, #333)",
-            color: "#fff",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: sans,
-          }}
-        >
-          Set up
-        </button>
-      )}
-    </div>
-  );
-}
-
 function StatusBadge({
   status,
   urgency,
@@ -701,14 +776,14 @@ function StatusBadge({
           ? T.amber
           : T.muted;
   const bg = isSent
-    ? T.greenSoft
+    ? T.greenDim
     : isSkipped
-      ? "rgba(0,0,0,0.04)"
+      ? "rgba(255,255,255,0.06)"
       : urgency === "red"
-        ? "rgba(234,67,53,0.06)"
+        ? T.redDim
         : urgency === "amber"
-          ? "rgba(217,119,6,0.06)"
-          : "rgba(0,0,0,0.04)";
+          ? T.amberDim
+          : "rgba(255,255,255,0.06)";
 
   return (
     <span
@@ -747,7 +822,7 @@ function PlanBadge({
           fontSize: 11,
           fontWeight: 600,
           color: T.green,
-          background: T.greenSoft,
+          background: T.greenDim,
           padding: "3px 8px",
           borderRadius: 6,
         }}
@@ -769,10 +844,7 @@ function PlanBadge({
           fontSize: 11,
           fontWeight: 600,
           color: daysLeft <= 1 ? T.red : T.amber,
-          background:
-            daysLeft <= 1
-              ? "rgba(234,67,53,0.06)"
-              : "rgba(217,119,6,0.06)",
+          background: daysLeft <= 1 ? T.redDim : T.amberDim,
           padding: "3px 8px",
           borderRadius: 6,
         }}
