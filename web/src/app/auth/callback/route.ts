@@ -39,12 +39,31 @@ export async function GET(request: NextRequest) {
       const email = user.email?.toLowerCase() ?? "";
       const isAdmin = ADMIN_EMAILS.includes(email);
 
-      // Check if user row already exists
-      const { data: existing } = await serviceClient
+      // Check if user row already exists (by auth ID first, then email fallback)
+      let { data: existing } = await serviceClient
         .from("users")
         .select("id, plan")
         .eq("id", user.id)
         .single();
+
+      // Fallback: if auth UUID changed (e.g., re-created OAuth), find by email
+      // and migrate the row to the new auth ID
+      if (!existing && email) {
+        const { data: byEmail } = await serviceClient
+          .from("users")
+          .select("id, plan")
+          .eq("email", email)
+          .single();
+
+        if (byEmail && byEmail.id !== user.id) {
+          console.log(`[auth/callback] Migrating user ${byEmail.id} → ${user.id} for ${email}`);
+          await serviceClient
+            .from("users")
+            .update({ id: user.id })
+            .eq("id", byEmail.id);
+          existing = { ...byEmail, id: user.id };
+        }
+      }
 
       if (!existing) {
         // New user — create row with trial (or pro for admin)
