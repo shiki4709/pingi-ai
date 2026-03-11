@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Pingi AI",
-  description: "Show up early in the right conversations on X. AI-drafted replies, human-in-the-loop control.",
+  description: "Agentic AI for social media engagement. Catch the right posts early, reply fast, and grow your visibility without living on X.",
 };
 
 export default function RootLayout({

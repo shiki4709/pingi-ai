@@ -4,9 +4,9 @@ test.describe("Smoke tests", () => {
   test("landing page loads with hero text", async ({ page }) => {
     await page.goto("/");
     await expect(
-      page.getByText("Show up early")
+      page.getByText("Catch the right posts")
     ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Sound like yourself")).toBeVisible();
+    await expect(page.getByText("Reply fast")).toBeVisible();
   });
 
   test("auth page loads with Google sign-in", async ({ page }) => {

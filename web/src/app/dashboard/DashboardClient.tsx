@@ -7,23 +7,22 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import type { User } from "@supabase/supabase-js";
 
 const T = {
-  bg: "#0A0F1C",
-  bgEnd: "#1A0B2E",
-  heading: "#F1F5F9",
-  body: "#B0BEC5",
-  muted: "#8899A6",
-  dim: "#6B7B8D",
-  glass: "rgba(255,255,255,0.06)",
-  border: "rgba(255,255,255,0.12)",
-  borderLight: "rgba(255,255,255,0.08)",
-  blue: "#4F46E5",
-  purple: "#7C3AED",
-  green: "#34D399",
-  greenDim: "rgba(52,211,153,0.15)",
-  red: "#EF4444",
-  redDim: "rgba(239,68,68,0.12)",
-  amber: "#F59E0B",
-  amberDim: "rgba(245,158,11,0.12)",
+  bg: "#FAFAF7",
+  surface: "#F3F2EE",
+  surfaceAlt: "#ECEAE4",
+  ink: "#1A1917",
+  body: "#4A4A46",
+  muted: "#8C8C86",
+  dim: "#B5B5AE",
+  accent: "#C2410C",
+  border: "#E5E4DF",
+  borderLight: "#EDECE8",
+  green: "#16A34A",
+  greenSoft: "#F0FDF4",
+  red: "#DC2626",
+  redSoft: "#FEF2F2",
+  amber: "#D97706",
+  amberSoft: "#FFFBEB",
   tgBlue: "#38BDF8",
 };
 
@@ -35,13 +34,9 @@ const INBOX_BOT =
 const ENGAGE_BOT =
   process.env.NEXT_PUBLIC_TELEGRAM_X_BOT_USERNAME ?? "pingi_x_bot";
 
-const glassCard: React.CSSProperties = {
-  background: T.glass,
-  backdropFilter: "blur(20px) saturate(1.8)",
-  WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+const cardStyle: React.CSSProperties = {
+  background: "#fff",
   border: `1px solid ${T.border}`,
-  boxShadow:
-    "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
   borderRadius: 16,
 };
 
@@ -70,9 +65,20 @@ interface DashboardData {
   actioned_today: number;
   reviewed_this_week: number;
   response_rate: number | null;
+  // Per-agent inbox stats
+  inbox_sent_week: number;
+  inbox_reviewed_week: number;
+  inbox_sent_today: number;
+  inbox_rate: number | null;
+  // Per-agent engage stats
+  engage_posted_week: number;
+  engage_skipped_week: number;
+  engage_reviewed_week: number;
+  engage_posted_today: number;
+  engage_rate: number | null;
+  // Agent details
   watched_accounts: string[];
   search_topics: string[];
-  engage_posted_week: number;
   last_inbox_activity: string | null;
   last_engage_activity: string | null;
   recent_inbox: ActivityItem[];
@@ -108,7 +114,26 @@ export default function DashboardClient() {
     })();
   }, [router]);
 
-  if (loading || !data) return null;
+  if (loading || !data) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: T.bg,
+          color: T.muted,
+          fontFamily: sans,
+          fontSize: 14,
+        }}
+      >
+        <span className="sr-only">Loading dashboard</span>
+      </div>
+    );
+  }
 
   const inboxReady = data.gmail_connected && data.inbox_linked;
   const engageReady = data.x_linked;
@@ -131,13 +156,37 @@ export default function DashboardClient() {
         minHeight: "100vh",
         fontFamily: sans,
         color: T.body,
-        background: `linear-gradient(180deg, ${T.bg} 0%, ${T.bgEnd} 50%, ${T.bg} 100%)`,
+        background: T.bg,
       }}
     >
-      <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+      <style>{`
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @media (prefers-reduced-motion: reduce) {
+          * { animation: none !important; transition: none !important; }
+        }
+        .sr-only {
+          position: absolute; width: 1px; height: 1px;
+          padding: 0; margin: -1px; overflow: hidden;
+          clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+        .skip-link {
+          position: absolute; top: -40px; left: 16px; z-index: 100;
+          padding: 8px 16px; background: ${T.ink}; color: #fff;
+          border-radius: 8px; font-size: 13px; text-decoration: none;
+          font-family: ${sans};
+        }
+        .skip-link:focus { top: 16px; }
+        *:focus-visible {
+          outline: 2px solid ${T.accent};
+          outline-offset: 2px;
+        }
+      `}</style>
+
+      <a href="#main-content" className="skip-link">Skip to content</a>
 
       {/* Nav */}
       <nav
+        aria-label="Dashboard navigation"
         style={{
           display: "flex",
           alignItems: "center",
@@ -157,6 +206,7 @@ export default function DashboardClient() {
           }}
         >
           <div
+            aria-hidden="true"
             style={{
               width: 32,
               height: 32,
@@ -167,13 +217,12 @@ export default function DashboardClient() {
               fontSize: 15,
               fontWeight: 800,
               color: "#fff",
-              background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
-              boxShadow: `0 4px 16px ${T.purple}30`,
+              background: T.ink,
             }}
           >
             P
           </div>
-          <span style={{ fontFamily: serif, fontSize: 19, color: T.heading }}>
+          <span style={{ fontFamily: serif, fontSize: 19, color: T.ink }}>
             Pingi
           </span>
         </Link>
@@ -187,8 +236,8 @@ export default function DashboardClient() {
             style={{
               padding: "5px 12px",
               borderRadius: 7,
-              border: `1px solid ${T.borderLight}`,
-              background: "rgba(255,255,255,0.04)",
+              border: `1px solid ${T.border}`,
+              background: "#fff",
               color: T.muted,
               fontSize: 12,
               cursor: "pointer",
@@ -201,7 +250,8 @@ export default function DashboardClient() {
       </nav>
 
       {/* Content */}
-      <section
+      <main
+        id="main-content"
         style={{ maxWidth: 760, margin: "0 auto", padding: "16px 32px 80px" }}
       >
         {/* Greeting */}
@@ -210,7 +260,7 @@ export default function DashboardClient() {
             fontFamily: serif,
             fontSize: "clamp(24px, 3.5vw, 32px)",
             fontWeight: 400,
-            color: T.heading,
+            color: T.ink,
             margin: "0 0 4px",
           }}
         >
@@ -231,47 +281,149 @@ export default function DashboardClient() {
             : "Connect your agents to get started."}
         </p>
 
-        {/* ─── Hero Stats Row ─── */}
+        {/* ─── Per-Agent Metrics ─── */}
         {hasAnyAgent && (
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 10,
+              gridTemplateColumns: "1fr 1fr",
+              gap: 12,
               marginBottom: 20,
             }}
           >
-            <HeroStat
-              value={data.pending_count}
-              label="Pending"
-              color={data.pending_count > 0 ? T.amber : T.green}
-            />
-            <HeroStat
-              value={data.actioned_today}
-              label="Actioned today"
-              color={T.heading}
-            />
-            <HeroStat
-              value={data.actioned_this_week}
-              label="This week"
-              color={T.heading}
-            />
-            <HeroStat
-              value={
-                data.response_rate !== null ? `${data.response_rate}%` : "--"
-              }
-              label="Action rate"
-              color={
-                data.response_rate !== null && data.response_rate >= 80
-                  ? T.green
-                  : T.heading
-              }
-            />
+            {/* Inbox Metrics */}
+            <section
+              aria-label="Inbox Agent metrics"
+              style={{
+                ...cardStyle,
+                padding: "16px 18px",
+                opacity: inboxReady ? 1 : 0.5,
+              }}
+            >
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 14,
+              }}>
+                <div
+                  aria-hidden="true"
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: "#EA4335",
+                    background: "rgba(234,67,53,0.08)",
+                  }}
+                >
+                  G
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: T.ink }}>
+                  Inbox Agent
+                </span>
+              </div>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
+              }}>
+                <MiniStat
+                  value={data.inbox_pending}
+                  label="Pending"
+                  color={data.inbox_pending > 0 ? T.amber : T.green}
+                />
+                <MiniStat
+                  value={data.inbox_sent_today}
+                  label="Sent today"
+                  color={T.ink}
+                />
+                <MiniStat
+                  value={data.inbox_sent_week}
+                  label="Sent this week"
+                  color={T.ink}
+                />
+                <MiniStat
+                  value={data.inbox_rate !== null ? `${data.inbox_rate}%` : "--"}
+                  label="Send rate"
+                  color={data.inbox_rate !== null && data.inbox_rate >= 80 ? T.green : T.ink}
+                />
+              </div>
+            </section>
+
+            {/* Engage Metrics */}
+            <section
+              aria-label="Engage Agent metrics"
+              style={{
+                ...cardStyle,
+                padding: "16px 18px",
+                opacity: engageReady ? 1 : 0.5,
+              }}
+            >
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 14,
+              }}>
+                <div
+                  aria-hidden="true"
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: T.ink,
+                    background: T.surface,
+                  }}
+                >
+                  X
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: T.ink }}>
+                  Engage Agent
+                </span>
+              </div>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
+              }}>
+                <MiniStat
+                  value={data.engage_pending}
+                  label="Pending"
+                  color={data.engage_pending > 0 ? T.amber : T.green}
+                />
+                <MiniStat
+                  value={data.engage_posted_today}
+                  label="Posted today"
+                  color={T.ink}
+                />
+                <MiniStat
+                  value={data.engage_posted_week}
+                  label="Posted this week"
+                  color={T.ink}
+                />
+                <MiniStat
+                  value={data.engage_rate !== null ? `${data.engage_rate}%` : "--"}
+                  label="Post rate"
+                  color={data.engage_rate !== null && data.engage_rate >= 80 ? T.green : T.ink}
+                />
+              </div>
+            </section>
           </div>
         )}
 
         {/* ─── Agent Cards ─── */}
-        <div
+        <section
+          aria-label="Connected agents"
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -282,12 +434,12 @@ export default function DashboardClient() {
           {/* Inbox Agent */}
           <div
             style={{
-              ...glassCard,
+              ...cardStyle,
               padding: "20px 18px",
               borderColor: inboxReady
-                ? "rgba(52,211,153,0.2)"
+                ? "rgba(22,163,74,0.2)"
                 : T.border,
-              background: inboxReady ? T.greenDim : T.glass,
+              background: inboxReady ? T.greenSoft : "#fff",
               display: "flex",
               flexDirection: "column",
               gap: 12,
@@ -295,6 +447,7 @@ export default function DashboardClient() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div
+                aria-hidden="true"
                 style={{
                   width: 36,
                   height: 36,
@@ -304,10 +457,10 @@ export default function DashboardClient() {
                   justifyContent: "center",
                   fontSize: 12,
                   fontWeight: 700,
-                  color: inboxReady ? T.green : T.red,
+                  color: inboxReady ? T.green : "#EA4335",
                   background: inboxReady
-                    ? T.greenDim
-                    : T.redDim,
+                    ? T.greenSoft
+                    : "rgba(234,67,53,0.08)",
                   flexShrink: 0,
                 }}
               >
@@ -318,7 +471,7 @@ export default function DashboardClient() {
                   style={{
                     fontSize: 14,
                     fontWeight: 600,
-                    color: T.heading,
+                    color: T.ink,
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
@@ -327,6 +480,7 @@ export default function DashboardClient() {
                   Inbox Agent
                   {inboxReady && (
                     <div
+                      aria-hidden="true"
                       style={{
                         width: 6,
                         height: 6,
@@ -361,7 +515,7 @@ export default function DashboardClient() {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  borderTop: `1px solid rgba(52,211,153,0.1)`,
+                  borderTop: `1px solid rgba(22,163,74,0.1)`,
                   paddingTop: 10,
                   fontSize: 11,
                   color: T.muted,
@@ -383,7 +537,7 @@ export default function DashboardClient() {
                   display: "block",
                   padding: "9px 0",
                   borderRadius: 10,
-                  background: "rgba(255,255,255,0.06)",
+                  background: T.surface,
                   border: `1px solid ${T.borderLight}`,
                   color: T.body,
                   fontSize: 12,
@@ -397,12 +551,12 @@ export default function DashboardClient() {
               </a>
             ) : (
               <button
-                onClick={() => router.push("/onboarding")}
+                onClick={() => router.push("/onboarding?setup=inbox")}
                 style={{
                   padding: "9px 0",
                   borderRadius: 10,
                   border: "none",
-                  background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
+                  background: T.ink,
                   color: "#fff",
                   fontSize: 12,
                   fontWeight: 600,
@@ -418,12 +572,12 @@ export default function DashboardClient() {
           {/* Engage Agent */}
           <div
             style={{
-              ...glassCard,
+              ...cardStyle,
               padding: "20px 18px",
               borderColor: engageReady
-                ? "rgba(52,211,153,0.2)"
+                ? "rgba(22,163,74,0.2)"
                 : T.border,
-              background: engageReady ? T.greenDim : T.glass,
+              background: engageReady ? T.greenSoft : "#fff",
               display: "flex",
               flexDirection: "column",
               gap: 12,
@@ -431,6 +585,7 @@ export default function DashboardClient() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div
+                aria-hidden="true"
                 style={{
                   width: 36,
                   height: 36,
@@ -440,10 +595,10 @@ export default function DashboardClient() {
                   justifyContent: "center",
                   fontSize: 14,
                   fontWeight: 800,
-                  color: engageReady ? T.green : T.heading,
+                  color: engageReady ? T.green : T.ink,
                   background: engageReady
-                    ? T.greenDim
-                    : "rgba(255,255,255,0.06)",
+                    ? T.greenSoft
+                    : T.surface,
                   flexShrink: 0,
                 }}
               >
@@ -454,7 +609,7 @@ export default function DashboardClient() {
                   style={{
                     fontSize: 14,
                     fontWeight: 600,
-                    color: T.heading,
+                    color: T.ink,
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
@@ -463,6 +618,7 @@ export default function DashboardClient() {
                   Engage Agent
                   {engageReady && (
                     <div
+                      aria-hidden="true"
                       style={{
                         width: 6,
                         height: 6,
@@ -493,7 +649,7 @@ export default function DashboardClient() {
             {engageReady && (
               <div
                 style={{
-                  borderTop: `1px solid rgba(52,211,153,0.1)`,
+                  borderTop: `1px solid rgba(22,163,74,0.1)`,
                   paddingTop: 10,
                   fontSize: 11,
                   color: T.muted,
@@ -545,7 +701,7 @@ export default function DashboardClient() {
                   display: "block",
                   padding: "9px 0",
                   borderRadius: 10,
-                  background: "rgba(255,255,255,0.06)",
+                  background: T.surface,
                   border: `1px solid ${T.borderLight}`,
                   color: T.body,
                   fontSize: 12,
@@ -559,12 +715,12 @@ export default function DashboardClient() {
               </a>
             ) : (
               <button
-                onClick={() => router.push("/onboarding")}
+                onClick={() => router.push("/onboarding?setup=engage")}
                 style={{
                   padding: "9px 0",
                   borderRadius: 10,
                   border: "none",
-                  background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
+                  background: T.ink,
                   color: "#fff",
                   fontSize: 12,
                   fontWeight: 600,
@@ -576,31 +732,33 @@ export default function DashboardClient() {
               </button>
             )}
           </div>
-        </div>
+        </section>
 
         {/* ─── Recent Activity ─── */}
         {recentActivity.length > 0 && (
-          <div>
+          <section aria-label="Recent activity">
             <h2
               style={{
                 fontFamily: serif,
                 fontSize: 18,
                 fontWeight: 400,
-                color: T.heading,
+                color: T.ink,
                 margin: "0 0 12px",
               }}
             >
               Recent activity
             </h2>
             <div
+              role="list"
+              aria-label="Activity feed"
               style={{
-                ...glassCard,
+                ...cardStyle,
                 padding: 0,
                 overflow: "hidden",
               }}
             >
               {grouped.map((group, gi) => (
-                <div key={group.label}>
+                <div key={group.label} role="group" aria-label={group.label}>
                   {/* Day header */}
                   <div
                     style={{
@@ -619,6 +777,7 @@ export default function DashboardClient() {
                   {group.items.map((item) => (
                     <div
                       key={item.id}
+                      role="listitem"
                       style={{
                         padding: "10px 20px",
                         display: "flex",
@@ -627,6 +786,7 @@ export default function DashboardClient() {
                       }}
                     >
                       <div
+                        aria-hidden="true"
                         style={{
                           width: 24,
                           height: 24,
@@ -640,21 +800,24 @@ export default function DashboardClient() {
                           color:
                             item.type === "inbox"
                               ? "#EA4335"
-                              : T.heading,
+                              : T.ink,
                           background:
                             item.type === "inbox"
-                              ? "rgba(234,67,53,0.1)"
-                              : "rgba(255,255,255,0.06)",
+                              ? "rgba(234,67,53,0.08)"
+                              : T.surface,
                         }}
                       >
                         {item.type === "inbox" ? "G" : "X"}
                       </div>
+                      <span className="sr-only">
+                        {item.type === "inbox" ? "Gmail" : "X"} from {item.author}, {item.status}
+                      </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div
                           style={{
                             fontSize: 13,
                             fontWeight: 500,
-                            color: T.heading,
+                            color: T.ink,
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
@@ -693,14 +856,14 @@ export default function DashboardClient() {
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         {/* Empty state */}
         {hasAnyAgent && recentActivity.length === 0 && (
           <div
             style={{
-              ...glassCard,
+              ...cardStyle,
               padding: "40px 24px",
               textAlign: "center",
             }}
@@ -720,14 +883,14 @@ export default function DashboardClient() {
             </p>
           </div>
         )}
-      </section>
+      </main>
     </div>
   );
 }
 
 /* ─── Subcomponents ─── */
 
-function HeroStat({
+function MiniStat({
   value,
   label,
   color,
@@ -737,20 +900,30 @@ function HeroStat({
   color: string;
 }) {
   return (
-    <div style={{ ...glassCard, padding: "14px 12px", textAlign: "center" }}>
+    <div
+      role="group"
+      aria-label={`${label}: ${value}`}
+      style={{
+        padding: "10px 8px",
+        borderRadius: 10,
+        background: T.surface,
+        textAlign: "center",
+      }}
+    >
       <div
+        aria-hidden="true"
         style={{
-          fontSize: 26,
+          fontSize: 20,
           fontWeight: 700,
           fontFamily: serif,
           color,
           lineHeight: 1,
-          marginBottom: 3,
+          marginBottom: 2,
         }}
       >
         {value}
       </div>
-      <div style={{ fontSize: 10, color: T.muted, fontWeight: 600 }}>
+      <div aria-hidden="true" style={{ fontSize: 9, color: T.muted, fontWeight: 600 }}>
         {label}
       </div>
     </div>
@@ -776,17 +949,27 @@ function StatusBadge({
           ? T.amber
           : T.muted;
   const bg = isSent
-    ? T.greenDim
+    ? T.greenSoft
     : isSkipped
-      ? "rgba(255,255,255,0.06)"
+      ? T.surface
       : urgency === "red"
-        ? T.redDim
+        ? T.redSoft
         : urgency === "amber"
-          ? T.amberDim
-          : "rgba(255,255,255,0.06)";
+          ? T.amberSoft
+          : T.surface;
+
+  const label = isSent
+    ? status === "sent"
+      ? "Sent"
+      : "Posted"
+    : isSkipped
+      ? "Skip"
+      : "Pending";
 
   return (
     <span
+      role="status"
+      aria-label={`Status: ${label}`}
       style={{
         fontSize: 10,
         fontWeight: 600,
@@ -797,13 +980,7 @@ function StatusBadge({
         flexShrink: 0,
       }}
     >
-      {isSent
-        ? status === "sent"
-          ? "Sent"
-          : "Posted"
-        : isSkipped
-          ? "Skip"
-          : "Pending"}
+      {label}
     </span>
   );
 }
@@ -822,7 +999,7 @@ function PlanBadge({
           fontSize: 11,
           fontWeight: 600,
           color: T.green,
-          background: T.greenDim,
+          background: T.greenSoft,
           padding: "3px 8px",
           borderRadius: 6,
         }}
@@ -844,7 +1021,7 @@ function PlanBadge({
           fontSize: 11,
           fontWeight: 600,
           color: daysLeft <= 1 ? T.red : T.amber,
-          background: daysLeft <= 1 ? T.redDim : T.amberDim,
+          background: daysLeft <= 1 ? T.redSoft : T.amberSoft,
           padding: "3px 8px",
           borderRadius: 6,
         }}

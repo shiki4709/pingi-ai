@@ -134,6 +134,11 @@ export async function GET(request: NextRequest) {
   const lastInboxActivity = recentInbox[0]?.detected_at ?? null;
   const lastEngageActivity = recentEngage[0]?.created_at ?? null;
 
+  // Per-agent rates
+  const inboxRate = inboxTotal > 0 ? Math.round((inboxSent / inboxTotal) * 100) : null;
+  const engageRate = engageTotal > 0 ? Math.round((engagePosted / engageTotal) * 100) : null;
+  const engageSkipped = engageWeekItems.filter((i: any) => i.status === "skipped").length;
+
   return NextResponse.json({
     // Connection status
     inbox_linked: inboxLinked,
@@ -157,10 +162,21 @@ export async function GET(request: NextRequest) {
     // Today
     actioned_today: inboxSentToday + engagePostedToday,
 
+    // Per-agent stats
+    inbox_sent_week: inboxSent,
+    inbox_reviewed_week: inboxTotal,
+    inbox_sent_today: inboxSentToday,
+    inbox_rate: inboxRate,
+
+    engage_posted_week: engagePosted,
+    engage_skipped_week: engageSkipped,
+    engage_reviewed_week: engageTotal,
+    engage_posted_today: engagePostedToday,
+    engage_rate: engageRate,
+
     // Agent details
     watched_accounts: topicsRes.data?.topics ?? [],
     search_topics: topicsRes.data?.search_topics ?? [],
-    engage_posted_week: engagePosted,
     last_inbox_activity: lastInboxActivity,
     last_engage_activity: lastEngageActivity,
 

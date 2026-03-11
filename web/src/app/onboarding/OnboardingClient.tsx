@@ -6,19 +6,19 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import type { User } from "@supabase/supabase-js";
 
 const T = {
-  bg: "#0A0F1C",
-  bgEnd: "#1A0B2E",
-  heading: "#F1F5F9",
-  body: "#B0BEC5",
-  sub: "#B0BEC5",
-  muted: "#8899A6",
-  glass: "rgba(255,255,255,0.06)",
-  border: "rgba(255,255,255,0.12)",
-  borderLight: "rgba(255,255,255,0.08)",
-  blue: "#4F46E5",
-  purple: "#7C3AED",
-  green: "#34D399",
-  greenSoft: "rgba(52,211,153,0.15)",
+  bg: "#FAFAF7",
+  surface: "#F3F2EE",
+  surfaceAlt: "#ECEAE4",
+  ink: "#1A1917",
+  body: "#4A4A46",
+  muted: "#8C8C86",
+  dim: "#B5B5AE",
+  accent: "#C2410C",
+  accentHover: "#9A3412",
+  border: "#E5E4DF",
+  borderLight: "#EDECE8",
+  green: "#16A34A",
+  greenSoft: "#F0FDF4",
 };
 
 const serif = "'Instrument Serif', Georgia, serif";
@@ -29,13 +29,9 @@ const INBOX_BOT =
 const ENGAGE_BOT =
   process.env.NEXT_PUBLIC_TELEGRAM_X_BOT_USERNAME ?? "pingi_x_bot";
 
-const glassCard: React.CSSProperties = {
-  background: T.glass,
-  backdropFilter: "blur(20px) saturate(1.8)",
-  WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+const card: React.CSSProperties = {
+  background: "#fff",
   border: `1px solid ${T.border}`,
-  boxShadow:
-    "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
   borderRadius: 16,
 };
 
@@ -115,19 +111,31 @@ export default function OnboardingClient() {
         }
         if (autoSelected.size > 0) setSelected(autoSelected);
 
+        // Check if user came from dashboard to set up a specific agent
+        const params = new URLSearchParams(window.location.search);
+        const setupAgent = params.get("setup") as Agent | null;
+
         // If any agent is fully set up, redirect to dashboard
+        // (unless user explicitly asked to set up a specific agent)
         const inboxReady = status.gmail_connected && status.inbox_linked;
         const engageReady = status.x_linked;
-        if (inboxReady || engageReady) {
+        if ((inboxReady || engageReady) && !setupAgent) {
           router.replace("/dashboard");
           return; // Don't set loading=false, keep showing nothing during redirect
         }
 
-        // If partially set up, skip to screen 2
-        const params = new URLSearchParams(window.location.search);
-        const isReturning = params.get("gmail") || params.get("subscribed") || params.get("subscribe");
-        if (!isReturning && autoSelected.size > 0) {
+        // If directed to set up a specific agent, pre-select it and go to screen 2
+        if (setupAgent) {
+          autoSelected.add(setupAgent);
+          setSelected(new Set(autoSelected));
           setScreen(2);
+          window.history.replaceState({}, "", "/onboarding");
+        } else {
+          // If partially set up, skip to screen 2
+          const isReturning = params.get("gmail") || params.get("subscribed") || params.get("subscribe");
+          if (!isReturning && autoSelected.size > 0) {
+            setScreen(2);
+          }
         }
       } catch (err) {
         console.error("[onboarding] Status fetch failed:", err);
@@ -281,7 +289,7 @@ export default function OnboardingClient() {
         justifyContent: "center",
         padding: 32,
         fontFamily: sans,
-        background: `linear-gradient(180deg, ${T.bg} 0%, ${T.bgEnd} 50%, ${T.bg} 100%)`,
+        background: T.bg,
       }}
     >
       <style>{`
@@ -307,7 +315,7 @@ export default function OnboardingClient() {
               height: 8,
               borderRadius: "50%",
               background:
-                s <= dotProgress ? T.heading : "rgba(255,255,255,0.15)",
+                s <= dotProgress ? T.ink : T.borderLight,
               transition: "background 0.3s",
             }}
           />
@@ -328,7 +336,7 @@ export default function OnboardingClient() {
               fontFamily: serif,
               fontSize: "clamp(26px, 4vw, 34px)",
               fontWeight: 400,
-              color: T.heading,
+              color: T.ink,
               margin: "0 0 6px",
             }}
           >
@@ -367,8 +375,8 @@ export default function OnboardingClient() {
               onClick={() => toggleAgent("inbox")}
               icon="G"
               iconColor="#EA4335"
-              iconBg="rgba(234,67,53,0.1)"
-              iconBorder="rgba(234,67,53,0.15)"
+              iconBg="rgba(234,67,53,0.08)"
+              iconBorder="rgba(234,67,53,0.12)"
               title="Inbox Agent"
               desc="AI replies to your emails via Telegram"
               bot={INBOX_BOT}
@@ -377,9 +385,9 @@ export default function OnboardingClient() {
               selected={selected.has("engage")}
               onClick={() => toggleAgent("engage")}
               icon="X"
-              iconColor={T.heading}
-              iconBg="rgba(255,255,255,0.08)"
-              iconBorder="rgba(255,255,255,0.12)"
+              iconColor={T.ink}
+              iconBg={T.surface}
+              iconBorder={T.border}
               title="Engage Agent"
               desc="AI-drafted replies on X via Telegram"
               bot={ENGAGE_BOT}
@@ -395,17 +403,13 @@ export default function OnboardingClient() {
               border: "none",
               background:
                 selected.size > 0
-                  ? `linear-gradient(135deg, ${T.blue}, ${T.purple})`
-                  : "rgba(255,255,255,0.08)",
+                  ? T.ink
+                  : T.borderLight,
               color: selected.size > 0 ? "#fff" : T.muted,
               fontSize: 15,
               fontWeight: 600,
               cursor: selected.size > 0 ? "pointer" : "default",
               fontFamily: sans,
-              boxShadow:
-                selected.size > 0
-                  ? `0 4px 24px ${T.purple}40`
-                  : "none",
               transition: "all 0.2s",
             }}
           >
@@ -429,7 +433,7 @@ export default function OnboardingClient() {
                 fontFamily: serif,
                 fontSize: 28,
                 fontWeight: 400,
-                color: T.heading,
+                color: T.ink,
                 margin: "0 0 6px",
               }}
             >
@@ -573,14 +577,12 @@ export default function OnboardingClient() {
                   padding: "12px 40px",
                   borderRadius: 12,
                   border: "none",
-                  background:
-                    `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
+                  background: T.ink,
                   color: "#fff",
                   fontSize: 14,
                   fontWeight: 600,
                   cursor: "pointer",
                   fontFamily: sans,
-                  boxShadow: `0 4px 24px ${T.purple}40`,
                 }}
               >
                 Continue
@@ -622,7 +624,7 @@ export default function OnboardingClient() {
               fontFamily: serif,
               fontSize: 28,
               fontWeight: 400,
-              color: T.heading,
+              color: T.ink,
               margin: "0 0 6px",
             }}
           >
@@ -641,7 +643,7 @@ export default function OnboardingClient() {
 
           <div
             style={{
-              ...glassCard,
+              ...card,
               padding: "28px 24px",
               textAlign: "left",
               marginBottom: 24,
@@ -651,7 +653,7 @@ export default function OnboardingClient() {
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: T.heading,
+                color: T.ink,
                 marginBottom: 16,
               }}
             >
@@ -712,13 +714,12 @@ export default function OnboardingClient() {
               padding: "14px 0",
               borderRadius: 12,
               border: "none",
-              background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
+              background: T.ink,
               color: "#fff",
               fontSize: 15,
               fontWeight: 600,
               cursor: subscribing ? "wait" : "pointer",
               fontFamily: sans,
-              boxShadow: `0 4px 24px ${T.purple}40`,
               marginBottom: 12,
             }}
           >
@@ -746,15 +747,14 @@ export default function OnboardingClient() {
               width: 56,
               height: 56,
               borderRadius: "50%",
-              background: T.green,
-              color: "#fff",
+              background: T.greenSoft,
+              color: T.green,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: 26,
               fontWeight: 700,
               margin: "0 auto 20px",
-              boxShadow: `0 8px 32px ${T.green}30`,
             }}
           >
             {"\u2713"}
@@ -764,7 +764,7 @@ export default function OnboardingClient() {
               fontFamily: serif,
               fontSize: 30,
               fontWeight: 400,
-              color: T.heading,
+              color: T.ink,
               margin: "0 0 8px",
             }}
           >
@@ -796,13 +796,12 @@ export default function OnboardingClient() {
               padding: "14px 48px",
               borderRadius: 12,
               border: "none",
-              background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
+              background: T.ink,
               color: "#fff",
               fontSize: 15,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: sans,
-              boxShadow: `0 4px 24px ${T.purple}40`,
             }}
           >
             Go to dashboard
@@ -819,7 +818,7 @@ const actionBtnStyle: React.CSSProperties = {
   padding: "7px 16px",
   borderRadius: 10,
   border: "none",
-  background: `linear-gradient(135deg, #4F46E5, #7C3AED)`,
+  background: T.ink,
   color: "#fff",
   fontSize: 12,
   fontWeight: 600,
@@ -876,14 +875,14 @@ function AgentCard({
     <div
       onClick={onClick}
       style={{
-        ...glassCard,
+        ...card,
         padding: "28px 22px",
         cursor: "pointer",
         textAlign: "left",
         border: selected
           ? `2px solid ${T.green}`
           : `1px solid ${T.border}`,
-        background: selected ? T.greenSoft : T.glass,
+        background: selected ? T.greenSoft : "#fff",
         transition: "all 0.2s",
       }}
     >
@@ -910,7 +909,7 @@ function AgentCard({
           fontFamily: serif,
           fontSize: 20,
           fontWeight: 400,
-          color: T.heading,
+          color: T.ink,
           margin: "0 0 6px",
         }}
       >
@@ -957,15 +956,15 @@ function SetupStep({
   return (
     <div
       style={{
-        ...glassCard,
+        ...card,
         padding: "16px 18px",
         display: "flex",
         alignItems: "center",
         gap: 14,
         opacity: disabled ? 0.45 : 1,
         transition: "all 0.3s",
-        borderColor: done ? `rgba(52,211,153,0.3)` : T.border,
-        background: done ? T.greenSoft : T.glass,
+        borderColor: done ? "rgba(22,163,74,0.3)" : T.border,
+        background: done ? T.greenSoft : "#fff",
       }}
     >
       <div
@@ -977,7 +976,7 @@ function SetupStep({
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
-          background: done ? T.green : "rgba(255,255,255,0.06)",
+          background: done ? T.green : T.surface,
           color: done ? "#fff" : T.muted,
           fontSize: 13,
           fontWeight: 700,
@@ -994,7 +993,7 @@ function SetupStep({
               width: 8,
               height: 8,
               borderRadius: "50%",
-              background: T.muted,
+              background: T.dim,
             }}
           />
         )}
@@ -1004,7 +1003,7 @@ function SetupStep({
           style={{
             fontSize: 14,
             fontWeight: 600,
-            color: done ? T.green : T.heading,
+            color: done ? T.green : T.ink,
           }}
         >
           {label}
@@ -1030,8 +1029,8 @@ function Spinner() {
       style={{
         width: 14,
         height: 14,
-        border: "2px solid rgba(255,255,255,0.1)",
-        borderTopColor: T.heading,
+        border: `2px solid ${T.borderLight}`,
+        borderTopColor: T.ink,
         borderRadius: "50%",
         animation: "spin 0.8s linear infinite",
       }}

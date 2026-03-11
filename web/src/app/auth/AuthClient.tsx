@@ -7,15 +7,15 @@ import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 const T = {
-  bg: "#0A0F1C",
-  bgEnd: "#1A0B2E",
-  heading: "#F1F5F9",
-  body: "#B0BEC5",
-  muted: "#8899A6",
-  glass: "rgba(255,255,255,0.06)",
-  border: "rgba(255,255,255,0.12)",
-  purple: "#7C3AED",
-  blue: "#4F46E5",
+  bg: "#FAFAF7",
+  surface: "#F3F2EE",
+  ink: "#1A1917",
+  body: "#4A4A46",
+  muted: "#8C8C86",
+  accent: "#C2410C",
+  accentHover: "#9A3412",
+  border: "#E5E4DF",
+  borderLight: "#EDECE8",
 };
 
 const serif = "'Instrument Serif', Georgia, serif";
@@ -45,7 +45,7 @@ export default function AuthClient() {
         alignItems: "center",
         justifyContent: "center",
         padding: 32,
-        background: `linear-gradient(180deg, ${T.bg} 0%, ${T.bgEnd} 50%, ${T.bg} 100%)`,
+        background: T.bg,
         fontFamily: sans,
       }}
     >
@@ -63,8 +63,7 @@ export default function AuthClient() {
           marginBottom: 16,
           fontFamily: serif,
           color: "#fff",
-          background: `linear-gradient(135deg, ${T.blue}, ${T.purple})`,
-          boxShadow: `0 6px 24px ${T.purple}30`,
+          background: T.ink,
         }}
       >
         P
@@ -75,7 +74,7 @@ export default function AuthClient() {
           fontFamily: serif,
           fontSize: 26,
           fontWeight: 400,
-          color: T.heading,
+          color: T.ink,
           margin: "0 0 4px",
         }}
       >
@@ -85,16 +84,13 @@ export default function AuthClient() {
         Takes about 2 minutes
       </p>
 
-      {/* Glass card wrapping Supabase Auth UI */}
+      {/* Card wrapping Supabase Auth UI */}
       <div
         style={{
           width: "100%",
           maxWidth: 400,
-          background: T.glass,
-          backdropFilter: "blur(20px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+          background: "#fff",
           border: `1px solid ${T.border}`,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
           borderRadius: 20,
           padding: "28px 24px",
         }}
@@ -106,16 +102,16 @@ export default function AuthClient() {
             variables: {
               default: {
                 colors: {
-                  brand: T.purple,
-                  brandAccent: "#6D28D9",
-                  inputBackground: "rgba(255,255,255,0.06)",
+                  brand: T.accent,
+                  brandAccent: T.accentHover,
+                  inputBackground: "#fff",
                   inputBorder: T.border,
-                  inputText: T.heading,
+                  inputText: T.ink,
                   inputPlaceholder: T.muted,
                   messageText: T.body,
                   anchorTextColor: T.muted,
-                  defaultButtonBackground: T.glass,
-                  defaultButtonBackgroundHover: "rgba(255,255,255,0.1)",
+                  defaultButtonBackground: T.surface,
+                  defaultButtonBackgroundHover: T.borderLight,
                   defaultButtonBorder: T.border,
                   defaultButtonText: T.body,
                   inputLabelText: T.body,
