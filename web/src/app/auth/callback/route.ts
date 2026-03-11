@@ -62,13 +62,16 @@ export async function GET(request: NextRequest) {
         console.log(
           `[auth/callback] Created user ${user.id} (${email}) plan=${isAdmin ? "pro" : "trial"}`
         );
-      } else if (isAdmin && existing.plan !== "pro") {
-        // Admin exists but not pro — upgrade
-        await serviceClient
-          .from("users")
-          .update({ plan: "pro" })
-          .eq("id", user.id);
-        console.log(`[auth/callback] Admin bypass: upgraded ${email} to pro`);
+      } else {
+        // Existing user — redirect to dashboard instead of onboarding
+        if (isAdmin && existing.plan !== "pro") {
+          await serviceClient
+            .from("users")
+            .update({ plan: "pro" })
+            .eq("id", user.id);
+          console.log(`[auth/callback] Admin bypass: upgraded ${email} to pro`);
+        }
+        return NextResponse.redirect(new URL("/dashboard", request.url));
       }
     }
   }

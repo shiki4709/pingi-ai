@@ -140,7 +140,28 @@ export default function DashboardClient() {
             Pingi
           </span>
         </Link>
-        <span style={{ fontSize: 13, color: T.muted }}>{user?.email}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 13, color: T.muted }}>{user?.email}</span>
+          <button
+            onClick={async () => {
+              await getSupabaseBrowser().auth.signOut();
+              router.replace("/auth");
+            }}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: `1px solid ${T.border}`,
+              background: "transparent",
+              color: T.sub,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: sans,
+            }}
+          >
+            Log out
+          </button>
+        </div>
       </nav>
 
       {/* Content */}
