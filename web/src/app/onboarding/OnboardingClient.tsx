@@ -255,11 +255,20 @@ export default function OnboardingClient() {
             style={{
               fontSize: 15,
               color: T.sub,
-              margin: "0 0 36px",
+              margin: "0 0 6px",
               lineHeight: 1.6,
             }}
           >
             What would you like help with?
+          </p>
+          <p
+            style={{
+              fontSize: 12,
+              color: T.muted,
+              margin: "0 0 36px",
+            }}
+          >
+            Setup takes about 2 minutes
           </p>
 
           <div
@@ -342,7 +351,7 @@ export default function OnboardingClient() {
               Quick setup
             </h1>
             <p style={{ fontSize: 14, color: T.sub, margin: 0 }}>
-              This takes about 60 seconds
+              Connect your accounts. This takes under a minute.
             </p>
           </div>
 

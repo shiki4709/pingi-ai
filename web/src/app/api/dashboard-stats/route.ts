@@ -76,21 +76,21 @@ export async function GET(request: NextRequest) {
       .eq("user_id", userId)
       .single(),
 
-    // Recent inbox items (last 5)
+    // Recent inbox items (last 10)
     supabase
       .from("reply_items")
-      .select("id, platform, urgency, status, author_name, author_handle, context_text, draft_text, detected_at")
+      .select("id, platform, urgency, status, author_name, author_handle, context_text, draft_text, detected_at, sent_at")
       .eq("user_id", userId)
       .order("detected_at", { ascending: false })
-      .limit(5),
+      .limit(10),
 
-    // Recent engage items (last 5)
+    // Recent engage items (last 10)
     supabase
       .from("x_engage_items")
-      .select("id, author_name, author_handle, tweet_text, draft_comment, status, created_at")
+      .select("id, author_name, author_handle, tweet_text, draft_comment, status, created_at, posted_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(5),
+      .limit(10),
   ]);
 
   const user = userRes.data;
@@ -110,6 +110,25 @@ export async function GET(request: NextRequest) {
   const totalPending = (inboxPendingRes.count ?? 0) + (engagePendingRes.count ?? 0);
   const totalActioned = inboxSent + engagePosted;
   const totalReviewed = inboxTotal + engageTotal;
+
+  // Today's counts
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayISO = todayStart.toISOString();
+
+  const recentInbox = recentInboxRes.data ?? [];
+  const recentEngage = recentEngageRes.data ?? [];
+
+  const inboxSentToday = recentInbox.filter(
+    (i: any) => i.status === "sent" && i.sent_at && i.sent_at >= todayISO
+  ).length;
+  const engagePostedToday = recentEngage.filter(
+    (i: any) => i.status === "posted" && i.posted_at && i.posted_at >= todayISO
+  ).length;
+
+  // Last activity timestamps
+  const lastInboxActivity = recentInbox[0]?.detected_at ?? null;
+  const lastEngageActivity = recentEngage[0]?.created_at ?? null;
 
   return NextResponse.json({
     // Connection status
@@ -131,13 +150,18 @@ export async function GET(request: NextRequest) {
     reviewed_this_week: totalReviewed,
     response_rate: totalReviewed > 0 ? Math.round((totalActioned / totalReviewed) * 100) : null,
 
-    // Engage details
+    // Today
+    actioned_today: inboxSentToday + engagePostedToday,
+
+    // Agent details
     watched_accounts: topicsRes.data?.topics ?? [],
     search_topics: topicsRes.data?.search_topics ?? [],
     engage_posted_week: engagePosted,
+    last_inbox_activity: lastInboxActivity,
+    last_engage_activity: lastEngageActivity,
 
     // Recent activity (merged and sorted)
-    recent_inbox: (recentInboxRes.data ?? []).map((i: any) => ({
+    recent_inbox: recentInbox.map((i: any) => ({
       id: i.id,
       type: "inbox" as const,
       author: i.author_name || i.author_handle,
@@ -146,7 +170,7 @@ export async function GET(request: NextRequest) {
       urgency: i.urgency,
       time: i.detected_at,
     })),
-    recent_engage: (recentEngageRes.data ?? []).map((i: any) => ({
+    recent_engage: recentEngage.map((i: any) => ({
       id: i.id,
       type: "engage" as const,
       author: `@${i.author_handle}`,

@@ -35,7 +35,6 @@ const glassCard: React.CSSProperties = {
   boxShadow:
     "0 2px 16px rgba(0,0,0,0.04), 0 0.5px 0 rgba(255,255,255,0.6) inset",
   borderRadius: 16,
-  padding: "20px 20px",
 };
 
 interface ActivityItem {
@@ -60,11 +59,14 @@ interface DashboardData {
   inbox_pending: number;
   engage_pending: number;
   actioned_this_week: number;
+  actioned_today: number;
   reviewed_this_week: number;
   response_rate: number | null;
   watched_accounts: string[];
   search_topics: string[];
   engage_posted_week: number;
+  last_inbox_activity: string | null;
+  last_engage_activity: string | null;
   recent_inbox: ActivityItem[];
   recent_engage: ActivityItem[];
 }
@@ -98,12 +100,16 @@ export default function DashboardClient() {
   const engageReady = data.x_linked;
   const hasAnyAgent = inboxReady || engageReady;
 
-  const greeting = getGreeting(data.name || user?.user_metadata?.full_name || null);
+  const greeting = getGreeting(
+    data.name || user?.user_metadata?.full_name || null
+  );
 
-  // Merge and sort recent activity
+  // Merge and sort recent activity, group by day
   const recentActivity = [...data.recent_inbox, ...data.recent_engage]
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-    .slice(0, 8);
+    .slice(0, 10);
+
+  const grouped = groupByDay(recentActivity);
 
   return (
     <div
@@ -115,6 +121,8 @@ export default function DashboardClient() {
                      radial-gradient(ellipse at 50% 50%, rgba(242,240,236,1) 0%, rgba(234,230,223,1) 100%)`,
       }}
     >
+      <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+
       {/* Nav */}
       <nav
         style={{
@@ -122,7 +130,7 @@ export default function DashboardClient() {
           alignItems: "center",
           justifyContent: "space-between",
           padding: "20px 32px",
-          maxWidth: 800,
+          maxWidth: 720,
           margin: "0 auto",
         }}
       >
@@ -137,34 +145,28 @@ export default function DashboardClient() {
         >
           <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
+              width: 32,
+              height: 32,
+              borderRadius: 9,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: 800,
               fontFamily: serif,
               color: "#fff",
               background: "linear-gradient(135deg, #1a1a1a 0%, #3a3a3a 100%)",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
             }}
           >
             P
           </div>
           <span
-            style={{
-              fontFamily: serif,
-              fontSize: 20,
-              fontWeight: 400,
-              color: T.ink,
-            }}
+            style={{ fontFamily: serif, fontSize: 18, color: T.ink }}
           >
             Pingi
           </span>
         </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <PlanBadge plan={data.plan} trialEndsAt={data.trial_ends_at} />
           <button
             onClick={async () => {
@@ -172,13 +174,12 @@ export default function DashboardClient() {
               router.replace("/auth");
             }}
             style={{
-              padding: "6px 12px",
-              borderRadius: 8,
+              padding: "5px 10px",
+              borderRadius: 7,
               border: `1px solid ${T.border}`,
               background: "transparent",
-              color: T.sub,
+              color: T.muted,
               fontSize: 12,
-              fontWeight: 500,
               cursor: "pointer",
               fontFamily: sans,
             }}
@@ -190,17 +191,13 @@ export default function DashboardClient() {
 
       {/* Content */}
       <section
-        style={{
-          maxWidth: 640,
-          margin: "0 auto",
-          padding: "24px 32px 80px",
-        }}
+        style={{ maxWidth: 720, margin: "0 auto", padding: "16px 32px 80px" }}
       >
         {/* Greeting */}
         <h1
           style={{
             fontFamily: serif,
-            fontSize: "clamp(26px, 3.5vw, 34px)",
+            fontSize: "clamp(24px, 3.5vw, 32px)",
             fontWeight: 400,
             color: T.ink,
             margin: "0 0 4px",
@@ -212,314 +209,128 @@ export default function DashboardClient() {
           style={{
             fontSize: 14,
             color: T.sub,
-            margin: "0 0 28px",
+            margin: "0 0 24px",
             lineHeight: 1.6,
           }}
         >
           {hasAnyAgent
             ? data.pending_count > 0
-              ? `You have ${data.pending_count} item${data.pending_count !== 1 ? "s" : ""} waiting for review.`
-              : "All caught up. Your agents are running."
+              ? `${data.pending_count} item${data.pending_count !== 1 ? "s" : ""} waiting for your review in Telegram.`
+              : "All caught up. Your agents are working."
             : "Connect your agents to get started."}
         </p>
 
-        {/* Stats row */}
+        {/* ─── Hero Stats Row ─── */}
         {hasAnyAgent && (
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 12,
-              marginBottom: 24,
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 10,
+              marginBottom: 20,
             }}
           >
-            <StatCard
-              label="Pending"
+            <HeroStat
               value={data.pending_count}
+              label="Pending"
               color={data.pending_count > 0 ? T.amber : T.green}
             />
-            <StatCard
-              label="Actioned this week"
-              value={data.actioned_this_week}
+            <HeroStat
+              value={data.actioned_today}
+              label="Actioned today"
               color={T.ink}
             />
-            <StatCard
-              label="Action rate"
-              value={data.response_rate !== null ? `${data.response_rate}%` : "--"}
+            <HeroStat
+              value={data.actioned_this_week}
+              label="This week"
               color={T.ink}
+            />
+            <HeroStat
+              value={
+                data.response_rate !== null ? `${data.response_rate}%` : "--"
+              }
+              label="Action rate"
+              color={
+                data.response_rate !== null && data.response_rate >= 80
+                  ? T.green
+                  : T.ink
+              }
             />
           </div>
         )}
 
+        {/* ─── Agent Cards ─── */}
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
+            display: "grid",
+            gridTemplateColumns: inboxReady && engageReady ? "1fr 1fr" : "1fr",
+            gap: 12,
+            marginBottom: 24,
           }}
         >
-          {/* Inbox Agent card */}
-          <div
-            style={{
-              ...glassCard,
-              borderColor: inboxReady ? `${T.green}50` : T.border,
-              background: inboxReady ? T.greenSoft : T.glass,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                marginBottom: inboxReady ? 12 : 0,
-              }}
-            >
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: inboxReady ? T.green : T.red,
-                  background: inboxReady
-                    ? T.greenSoft
-                    : "rgba(234,67,53,0.04)",
-                  border: `1px solid ${inboxReady ? `${T.green}20` : "rgba(234,67,53,0.08)"}`,
-                  flexShrink: 0,
-                }}
-              >
-                {inboxReady ? "\u2713" : "G"}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: T.ink }}>
-                  Inbox Agent
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: inboxReady ? T.green : T.muted,
-                    marginTop: 2,
-                  }}
-                >
-                  {inboxReady
-                    ? data.inbox_pending > 0
-                      ? `${data.inbox_pending} email${data.inbox_pending !== 1 ? "s" : ""} pending review`
-                      : "Monitoring your inbox"
-                    : !data.gmail_connected
-                      ? "Gmail not connected"
-                      : "Telegram not linked"}
-                </div>
-              </div>
-              {inboxReady ? (
-                <a
-                  href={`https://t.me/${INBOX_BOT}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 10,
-                    background: "rgba(0,0,0,0.04)",
-                    color: T.sub,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    fontFamily: sans,
-                    textDecoration: "none",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Open bot
-                </a>
-              ) : (
-                <button
-                  onClick={() => router.push("/onboarding")}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 10,
-                    border: "none",
-                    background: "linear-gradient(135deg, #1a1a1a, #333)",
-                    color: "#fff",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: sans,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Set up
-                </button>
-              )}
-            </div>
+          {/* Inbox Agent */}
+          <AgentCard
+            ready={inboxReady}
+            icon="G"
+            iconColor={inboxReady ? T.green : T.red}
+            iconBg={
+              inboxReady ? T.greenSoft : "rgba(234,67,53,0.04)"
+            }
+            title="Inbox Agent"
+            status={
+              inboxReady
+                ? data.inbox_pending > 0
+                  ? `${data.inbox_pending} pending`
+                  : "Monitoring"
+                : !data.gmail_connected
+                  ? "Gmail not connected"
+                  : "Telegram not linked"
+            }
+            lastActivity={data.last_inbox_activity}
+            detail={
+              inboxReady && data.gmail_email
+                ? data.gmail_email
+                : undefined
+            }
+            botUrl={`https://t.me/${INBOX_BOT}`}
+            onSetup={() => router.push("/onboarding")}
+          />
 
-            {inboxReady && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  borderTop: `1px solid ${T.green}20`,
-                  paddingTop: 12,
-                }}
-              >
-                <StatusPill
-                  label={data.gmail_email ?? "Gmail"}
-                  connected
-                />
-                <StatusPill label="Telegram" connected />
-              </div>
-            )}
-          </div>
-
-          {/* Engage Agent card */}
-          <div
-            style={{
-              ...glassCard,
-              borderColor: engageReady ? `${T.green}50` : T.border,
-              background: engageReady ? T.greenSoft : T.glass,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                marginBottom: engageReady ? 12 : 0,
-              }}
-            >
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 16,
-                  fontWeight: 800,
-                  color: engageReady ? T.green : T.ink,
-                  background: engageReady
-                    ? T.greenSoft
-                    : "rgba(0,0,0,0.04)",
-                  border: `1px solid ${engageReady ? `${T.green}20` : "rgba(0,0,0,0.06)"}`,
-                  flexShrink: 0,
-                }}
-              >
-                {engageReady ? "\u2713" : "X"}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: T.ink }}>
-                  Engage Agent
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: engageReady ? T.green : T.muted,
-                    marginTop: 2,
-                  }}
-                >
-                  {engageReady
-                    ? data.engage_pending > 0
-                      ? `${data.engage_pending} tweet${data.engage_pending !== 1 ? "s" : ""} pending review`
-                      : "Scanning for opportunities"
-                    : "Not connected"}
-                </div>
-              </div>
-              {engageReady ? (
-                <a
-                  href={`https://t.me/${ENGAGE_BOT}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 10,
-                    background: "rgba(0,0,0,0.04)",
-                    color: T.sub,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    fontFamily: sans,
-                    textDecoration: "none",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Open bot
-                </a>
-              ) : (
-                <button
-                  onClick={() => router.push("/onboarding")}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 10,
-                    border: "none",
-                    background: "linear-gradient(135deg, #1a1a1a, #333)",
-                    color: "#fff",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: sans,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Set up
-                </button>
-              )}
-            </div>
-
-            {engageReady && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                  borderTop: `1px solid ${T.green}20`,
-                  paddingTop: 12,
-                }}
-              >
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <StatusPill label="Telegram" connected />
-                  <StatusPill
-                    label={`${data.watched_accounts.length} account${data.watched_accounts.length !== 1 ? "s" : ""} watched`}
-                    connected
-                  />
-                  {data.search_topics.length > 0 && (
-                    <StatusPill
-                      label={`${data.search_topics.length} topic${data.search_topics.length !== 1 ? "s" : ""} tracked`}
-                      connected
-                    />
-                  )}
-                </div>
-                {data.watched_accounts.length > 0 && (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: T.sub,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {data.watched_accounts
-                      .slice(0, 5)
-                      .map((a) => `@${a}`)
-                      .join(", ")}
-                    {data.watched_accounts.length > 5 &&
-                      ` +${data.watched_accounts.length - 5} more`}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Engage Agent */}
+          <AgentCard
+            ready={engageReady}
+            icon="X"
+            iconColor={engageReady ? T.green : T.ink}
+            iconBg={engageReady ? T.greenSoft : "rgba(0,0,0,0.04)"}
+            title="Engage Agent"
+            status={
+              engageReady
+                ? data.engage_pending > 0
+                  ? `${data.engage_pending} pending`
+                  : "Scanning"
+                : "Not connected"
+            }
+            lastActivity={data.last_engage_activity}
+            detail={
+              engageReady && data.watched_accounts.length > 0
+                ? `${data.watched_accounts.length} account${data.watched_accounts.length !== 1 ? "s" : ""}${data.search_topics.length > 0 ? `, ${data.search_topics.length} topic${data.search_topics.length !== 1 ? "s" : ""}` : ""}`
+                : undefined
+            }
+            botUrl={`https://t.me/${ENGAGE_BOT}`}
+            onSetup={() => router.push("/onboarding")}
+          />
         </div>
 
-        {/* Recent Activity */}
+        {/* ─── Recent Activity ─── */}
         {recentActivity.length > 0 && (
-          <div style={{ marginTop: 28 }}>
+          <div>
             <h2
               style={{
                 fontFamily: serif,
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: 400,
                 color: T.ink,
-                margin: "0 0 14px",
+                margin: "0 0 12px",
               }}
             >
               Recent activity
@@ -531,69 +342,123 @@ export default function DashboardClient() {
                 overflow: "hidden",
               }}
             >
-              {recentActivity.map((item, i) => (
-                <div
-                  key={item.id}
-                  style={{
-                    padding: "14px 20px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    borderTop: i > 0 ? `1px solid ${T.border}` : "none",
-                  }}
-                >
-                  {/* Type indicator */}
+              {grouped.map((group, gi) => (
+                <div key={group.label}>
+                  {/* Day header */}
                   <div
                     style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 7,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 10,
+                      padding: "10px 20px 6px",
+                      fontSize: 11,
                       fontWeight: 700,
-                      flexShrink: 0,
-                      color:
-                        item.type === "inbox" ? T.red : T.ink,
-                      background:
-                        item.type === "inbox"
-                          ? "rgba(234,67,53,0.06)"
-                          : "rgba(0,0,0,0.04)",
-                      border: `1px solid ${item.type === "inbox" ? "rgba(234,67,53,0.1)" : "rgba(0,0,0,0.06)"}`,
+                      color: T.muted,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      borderTop:
+                        gi > 0 ? `1px solid ${T.border}` : "none",
                     }}
                   >
-                    {item.type === "inbox" ? "G" : "X"}
+                    {group.label}
                   </div>
-                  {/* Content */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  {group.items.map((item) => (
                     <div
+                      key={item.id}
                       style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: T.ink,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        padding: "10px 20px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
                       }}
                     >
-                      {item.author}
-                      {item.subject && (
-                        <span style={{ color: T.muted, fontWeight: 400 }}>
-                          {" "}
-                          &middot; {item.subject}
-                        </span>
-                      )}
+                      <div
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 6,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 9,
+                          fontWeight: 700,
+                          flexShrink: 0,
+                          color:
+                            item.type === "inbox" ? T.red : T.ink,
+                          background:
+                            item.type === "inbox"
+                              ? "rgba(234,67,53,0.06)"
+                              : "rgba(0,0,0,0.04)",
+                        }}
+                      >
+                        {item.type === "inbox" ? "G" : "X"}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: T.ink,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {item.author}
+                          {item.subject && (
+                            <span
+                              style={{
+                                color: T.muted,
+                                fontWeight: 400,
+                              }}
+                            >
+                              {" "}
+                              &middot; {item.subject}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: T.muted,
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {timeShort(item.time)}
+                      </span>
+                      <StatusBadge
+                        status={item.status}
+                        urgency={item.urgency}
+                      />
                     </div>
-                    <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
-                      {timeAgo(item.time)}
-                    </div>
-                  </div>
-                  {/* Status */}
-                  <ActivityStatus status={item.status} urgency={item.urgency} />
+                  ))}
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {hasAnyAgent && recentActivity.length === 0 && (
+          <div
+            style={{
+              ...glassCard,
+              padding: "40px 24px",
+              textAlign: "center",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 14,
+                color: T.sub,
+                margin: "0 0 4px",
+              }}
+            >
+              No activity yet
+            </p>
+            <p style={{ fontSize: 13, color: T.muted, margin: 0 }}>
+              Your agents are scanning. Items will appear here once
+              found.
+            </p>
           </div>
         )}
       </section>
@@ -601,70 +466,239 @@ export default function DashboardClient() {
   );
 }
 
-function StatCard({
-  label,
+/* ─── Subcomponents ─── */
+
+function HeroStat({
   value,
+  label,
   color,
 }: {
-  label: string;
   value: number | string;
+  label: string;
   color: string;
 }) {
   return (
-    <div
-      style={{
-        ...glassCard,
-        padding: "16px 16px",
-        textAlign: "center",
-      }}
-    >
+    <div style={{ ...glassCard, padding: "14px 12px", textAlign: "center" }}>
       <div
         style={{
-          fontSize: 28,
+          fontSize: 26,
           fontWeight: 700,
-          fontFamily: "'Instrument Serif', Georgia, serif",
+          fontFamily: serif,
           color,
           lineHeight: 1,
-          marginBottom: 4,
+          marginBottom: 3,
         }}
       >
         {value}
       </div>
-      <div style={{ fontSize: 11, color: "#9a9a9a", fontWeight: 500 }}>
+      <div style={{ fontSize: 10, color: T.muted, fontWeight: 600 }}>
         {label}
       </div>
     </div>
   );
 }
 
-function StatusPill({
-  label,
-  connected,
+function AgentCard({
+  ready,
+  icon,
+  iconColor,
+  iconBg,
+  title,
+  status,
+  lastActivity,
+  detail,
+  botUrl,
+  onSetup,
 }: {
-  label: string;
-  connected: boolean;
+  ready: boolean;
+  icon: string;
+  iconColor: string;
+  iconBg: string;
+  title: string;
+  status: string;
+  lastActivity: string | null;
+  detail?: string;
+  botUrl: string;
+  onSetup: () => void;
 }) {
   return (
     <div
       style={{
+        ...glassCard,
+        padding: "18px 18px",
+        borderColor: ready ? `${T.green}50` : T.border,
+        background: ready ? T.greenSoft : T.glass,
         display: "flex",
-        alignItems: "center",
-        gap: 5,
-        fontSize: 11,
-        fontWeight: 600,
-        color: connected ? T.green : T.muted,
+        flexDirection: "column",
+        gap: 12,
       }}
     >
-      <div
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: connected ? T.green : T.muted,
-        }}
-      />
-      {label}
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: icon === "X" ? 14 : 12,
+            fontWeight: icon === "X" ? 800 : 700,
+            color: iconColor,
+            background: iconBg,
+            flexShrink: 0,
+          }}
+        >
+          {ready ? "\u2713" : icon}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: T.ink,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {title}
+            {ready && (
+              <div
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: T.green,
+                  animation: "pulse 2s ease-in-out infinite",
+                }}
+              />
+            )}
+          </div>
+          <div
+            style={{
+              fontSize: 12,
+              color: ready ? T.green : T.muted,
+              marginTop: 1,
+            }}
+          >
+            {status}
+          </div>
+        </div>
+      </div>
+
+      {/* Detail line + last activity */}
+      {ready && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderTop: `1px solid ${T.green}15`,
+            paddingTop: 10,
+            fontSize: 11,
+            color: T.muted,
+          }}
+        >
+          <span>{detail ?? "Active"}</span>
+          {lastActivity && (
+            <span>Last: {timeAgo(lastActivity)}</span>
+          )}
+        </div>
+      )}
+
+      {/* Action */}
+      {ready ? (
+        <a
+          href={botUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "block",
+            padding: "9px 0",
+            borderRadius: 10,
+            background: "rgba(0,0,0,0.04)",
+            color: T.sub,
+            fontSize: 12,
+            fontWeight: 600,
+            fontFamily: sans,
+            textDecoration: "none",
+            textAlign: "center",
+          }}
+        >
+          Open in Telegram
+        </a>
+      ) : (
+        <button
+          onClick={onSetup}
+          style={{
+            padding: "9px 0",
+            borderRadius: 10,
+            border: "none",
+            background: "linear-gradient(135deg, #1a1a1a, #333)",
+            color: "#fff",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: sans,
+          }}
+        >
+          Set up
+        </button>
+      )}
     </div>
+  );
+}
+
+function StatusBadge({
+  status,
+  urgency,
+}: {
+  status: string;
+  urgency?: string;
+}) {
+  const isSent = status === "sent" || status === "posted";
+  const isSkipped = status === "skipped";
+  const color = isSent
+    ? T.green
+    : isSkipped
+      ? T.muted
+      : urgency === "red"
+        ? T.red
+        : urgency === "amber"
+          ? T.amber
+          : T.muted;
+  const bg = isSent
+    ? T.greenSoft
+    : isSkipped
+      ? "rgba(0,0,0,0.04)"
+      : urgency === "red"
+        ? "rgba(234,67,53,0.06)"
+        : urgency === "amber"
+          ? "rgba(217,119,6,0.06)"
+          : "rgba(0,0,0,0.04)";
+
+  return (
+    <span
+      style={{
+        fontSize: 10,
+        fontWeight: 600,
+        color,
+        background: bg,
+        padding: "2px 7px",
+        borderRadius: 5,
+        flexShrink: 0,
+      }}
+    >
+      {isSent
+        ? status === "sent"
+          ? "Sent"
+          : "Posted"
+        : isSkipped
+          ? "Skip"
+          : "Pending"}
+    </span>
   );
 }
 
@@ -685,7 +719,6 @@ function PlanBadge({
           background: T.greenSoft,
           padding: "3px 8px",
           borderRadius: 6,
-          border: `1px solid ${T.green}20`,
         }}
       >
         Pro
@@ -706,106 +739,82 @@ function PlanBadge({
           fontWeight: 600,
           color: daysLeft <= 1 ? T.red : T.amber,
           background:
-            daysLeft <= 1 ? "rgba(234,67,53,0.06)" : "rgba(217,119,6,0.06)",
+            daysLeft <= 1
+              ? "rgba(234,67,53,0.06)"
+              : "rgba(217,119,6,0.06)",
           padding: "3px 8px",
           borderRadius: 6,
-          border: `1px solid ${daysLeft <= 1 ? "rgba(234,67,53,0.15)" : "rgba(217,119,6,0.15)"}`,
         }}
       >
-        Trial {daysLeft > 0 ? `(${daysLeft}d left)` : "(expired)"}
+        Trial {daysLeft > 0 ? `(${daysLeft}d)` : "(expired)"}
       </span>
     );
   }
-  return (
-    <span style={{ fontSize: 11, color: T.muted }}>Free</span>
-  );
+  return null;
 }
 
-function ActivityStatus({
-  status,
-  urgency,
-}: {
-  status: string;
-  urgency?: string;
-}) {
-  if (status === "sent" || status === "posted") {
-    return (
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: T.green,
-          background: T.greenSoft,
-          padding: "3px 8px",
-          borderRadius: 6,
-        }}
-      >
-        {status === "sent" ? "Sent" : "Posted"}
-      </span>
-    );
-  }
-  if (status === "skipped") {
-    return (
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: T.muted,
-          background: "rgba(0,0,0,0.04)",
-          padding: "3px 8px",
-          borderRadius: 6,
-        }}
-      >
-        Skipped
-      </span>
-    );
-  }
-  // Pending
-  const urgencyColor =
-    urgency === "red" ? T.red : urgency === "amber" ? T.amber : T.muted;
-  return (
-    <span
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        color: urgencyColor,
-        background:
-          urgency === "red"
-            ? "rgba(234,67,53,0.06)"
-            : urgency === "amber"
-              ? "rgba(217,119,6,0.06)"
-              : "rgba(0,0,0,0.04)",
-        padding: "3px 8px",
-        borderRadius: 6,
-      }}
-    >
-      Pending
-    </span>
-  );
-}
+/* ─── Helpers ─── */
 
 function getGreeting(name: string | null): string {
   const hour = new Date().getHours();
   const firstName = name?.split(" ")[0] ?? null;
-  const timeGreet =
+  const t =
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  return firstName ? `${timeGreet}, ${firstName}` : timeGreet;
+  return firstName ? `${t}, ${firstName}` : t;
 }
 
 function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = now - then;
+  const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return `${days}d ago`;
+}
+
+function timeShort(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function groupByDay(
+  items: ActivityItem[]
+): { label: string; items: ActivityItem[] }[] {
+  const groups: { label: string; items: ActivityItem[] }[] = [];
+  const now = new Date();
+  const todayStr = now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toDateString();
+
+  for (const item of items) {
+    const d = new Date(item.time).toDateString();
+    const label =
+      d === todayStr
+        ? "Today"
+        : d === yesterdayStr
+          ? "Yesterday"
+          : new Date(item.time).toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            });
+
+    const existing = groups.find((g) => g.label === label);
+    if (existing) {
+      existing.items.push(item);
+    } else {
+      groups.push({ label, items: [item] });
+    }
+  }
+  return groups;
 }
