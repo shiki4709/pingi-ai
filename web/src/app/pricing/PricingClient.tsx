@@ -107,8 +107,8 @@ export default function PricingClient() {
 
       if (data.url) {
         window.location.href = data.url;
-      } else if (data.upgraded) {
-        window.location.href = "/pricing?upgraded=true";
+      } else if (data.upgraded || data.trial_activated) {
+        window.location.href = "/dashboard";
       } else {
         setError("No checkout URL returned");
         setLoading(false);
