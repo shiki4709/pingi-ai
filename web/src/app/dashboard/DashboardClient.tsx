@@ -76,29 +76,44 @@ export default function DashboardClient() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
   useEffect(() => {
     (async () => {
-      const { data: authData } = await getSupabaseBrowser().auth.getUser();
-      if (!authData.user) {
+      const { data: authData, error: authError } = await getSupabaseBrowser().auth.getUser();
+      if (authError || !authData.user) {
+        setDebugInfo(`Auth failed: ${authError?.message ?? "no user"}`);
         router.replace("/auth");
         setLoading(false);
         return;
       }
       setUser(authData.user);
+      setDebugInfo(`userId=${authData.user.id}`);
       try {
         const res = await fetch(`/api/dashboard-stats?userId=${authData.user.id}`);
         const d = await res.json();
+        setDebugInfo(prev => `${prev} | status=${res.status} inbox_linked=${d.inbox_linked} x_linked=${d.x_linked} gmail=${d.gmail_connected}`);
         if (!d.error) setData(d);
-        else console.error("[dashboard] API error:", d.error);
+        else setDebugInfo(prev => `${prev} | API ERROR: ${d.error}`);
       } catch (e) {
-        console.error("[dashboard] Fetch failed:", e);
+        setDebugInfo(prev => `${prev} | FETCH ERROR: ${e instanceof Error ? e.message : String(e)}`);
       }
       setLoading(false);
     })();
   }, [router]);
 
-  if (loading || !data) return null;
+  if (loading || !data) {
+    return debugInfo ? (
+      <div style={{
+        position: "fixed", bottom: 12, left: 12, right: 12,
+        background: "rgba(0,0,0,0.85)", color: "#EF4444",
+        fontSize: 11, fontFamily: "monospace", padding: "8px 12px",
+        borderRadius: 8, zIndex: 999, wordBreak: "break-all",
+      }}>
+        Dashboard loading... {debugInfo}
+      </div>
+    ) : null;
+  }
 
   const inboxReady = data.gmail_connected && data.inbox_linked;
   const engageReady = data.x_linked;
@@ -466,6 +481,18 @@ export default function DashboardClient() {
           </div>
         )}
       </section>
+
+      {/* Debug info — temporary */}
+      {debugInfo && (
+        <div style={{
+          position: "fixed", bottom: 12, left: 12, right: 12,
+          background: "rgba(0,0,0,0.85)", color: "#34D399",
+          fontSize: 11, fontFamily: "monospace", padding: "8px 12px",
+          borderRadius: 8, zIndex: 999, wordBreak: "break-all",
+        }}>
+          {debugInfo}
+        </div>
+      )}
     </div>
   );
 }

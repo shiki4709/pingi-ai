@@ -77,16 +77,20 @@ export default function OnboardingClient() {
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
 
+  const [debugInfo, setDebugInfo] = useState<string>("");
+
   // Auth check + initial status load (single useEffect to avoid flicker)
   useEffect(() => {
     (async () => {
-      const { data: authData } = await getSupabaseBrowser().auth.getUser();
-      if (!authData.user) {
+      const { data: authData, error: authError } = await getSupabaseBrowser().auth.getUser();
+      if (authError || !authData.user) {
+        setDebugInfo(`Auth failed: ${authError?.message ?? "no user"}`);
         router.replace("/auth");
         setLoading(false);
         return;
       }
       setUser(authData.user);
+      setDebugInfo(`userId=${authData.user.id} email=${authData.user.email}`);
 
       // Immediately fetch connection status before showing any UI
       try {
@@ -96,6 +100,13 @@ export default function OnboardingClient() {
         ]);
         const status = await statusRes.json();
         const stats = await statsRes.json();
+
+        setDebugInfo(prev => `${prev} | status=${JSON.stringify({
+          inbox_linked: status.inbox_linked,
+          x_linked: status.x_linked,
+          gmail: status.gmail_connected,
+          plan: stats.plan,
+        })}`);
 
         // Set connection state from DB
         if (status.gmail_connected) setGmailConnected(true);
@@ -129,8 +140,8 @@ export default function OnboardingClient() {
         if (!isReturning && autoSelected.size > 0) {
           setScreen(2);
         }
-      } catch {
-        // Status check failed, just show onboarding normally
+      } catch (err) {
+        setDebugInfo(prev => `${prev} | FETCH ERROR: ${err instanceof Error ? err.message : String(err)}`);
       }
 
       setLoading(false);
@@ -729,6 +740,18 @@ export default function OnboardingClient() {
             You won&apos;t be charged during the trial. Cancel in one
             click.
           </p>
+        </div>
+      )}
+
+      {/* Debug info — temporary */}
+      {debugInfo && (
+        <div style={{
+          position: "fixed", bottom: 12, left: 12, right: 12,
+          background: "rgba(0,0,0,0.85)", color: "#34D399",
+          fontSize: 11, fontFamily: "monospace", padding: "8px 12px",
+          borderRadius: 8, zIndex: 999, wordBreak: "break-all",
+        }}>
+          {debugInfo}
         </div>
       )}
 
