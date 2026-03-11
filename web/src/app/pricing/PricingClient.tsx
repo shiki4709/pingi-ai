@@ -140,7 +140,7 @@ export default function PricingClient() {
         }}
       >
         <Link
-          href="/"
+          href="/dashboard"
           style={{
             display: "flex",
             alignItems: "center",

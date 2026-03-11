@@ -127,7 +127,7 @@ export default function DashboardClient() {
         }}
       >
         <Link
-          href="/"
+          href="/dashboard"
           style={{
             display: "flex",
             alignItems: "center",
