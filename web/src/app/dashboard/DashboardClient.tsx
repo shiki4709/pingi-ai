@@ -77,6 +77,8 @@ interface DashboardData {
   engage_reviewed_week: number;
   engage_posted_today: number;
   engage_rate: number | null;
+  engage_likes_received: number;
+  engage_replies_received: number;
   // Agent details
   watched_accounts: string[];
   search_topics: string[];
@@ -376,7 +378,7 @@ export default function DashboardClient() {
               }}>
                 <MiniStat
                   value={data.engage_posted_week}
-                  label="Replies posted this week"
+                  label="Replies posted"
                   color={T.ink}
                 />
                 <MiniStat
@@ -385,14 +387,14 @@ export default function DashboardClient() {
                   color={T.ink}
                 />
                 <MiniStat
-                  value={`${Math.round(data.engage_posted_week * 2)}min`}
-                  label="Time saved"
-                  color={T.green}
+                  value={data.engage_likes_received ?? 0}
+                  label="Likes received"
+                  color={T.accent}
                 />
                 <MiniStat
-                  value={data.engage_rate !== null ? `${data.engage_rate}%` : "--"}
-                  label="Engage rate"
-                  color={data.engage_rate !== null && data.engage_rate >= 80 ? T.green : T.ink}
+                  value={data.engage_replies_received ?? 0}
+                  label="Replies received"
+                  color={T.accent}
                 />
               </div>
             </section>

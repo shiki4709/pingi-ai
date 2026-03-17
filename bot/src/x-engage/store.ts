@@ -308,12 +308,56 @@ export async function getEngageItem(
   };
 }
 
-export async function markPosted(id: string): Promise<boolean> {
+export async function markPosted(id: string, replyTweetId?: string): Promise<boolean> {
+  const update: Record<string, unknown> = {
+    status: "posted",
+    posted_at: new Date().toISOString(),
+  };
+  if (replyTweetId) update.reply_tweet_id = replyTweetId;
   const { error } = await getSupabase()
     .from("x_engage_items")
-    .update({ status: "posted", posted_at: new Date().toISOString() })
+    .update(update)
     .eq("id", id);
   return !error;
+}
+
+export async function updateReplyMetrics(
+  id: string,
+  likes: number,
+  replies: number,
+  retweets: number
+): Promise<boolean> {
+  const { error } = await getSupabase()
+    .from("x_engage_items")
+    .update({
+      reply_likes: likes,
+      reply_replies: replies,
+      reply_retweets: retweets,
+      metrics_checked_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  return !error;
+}
+
+export async function getPostedItemsForMetrics(
+  userId?: string
+): Promise<{ id: string; reply_tweet_id: string; user_id: string }[]> {
+  let query = getSupabase()
+    .from("x_engage_items")
+    .select("id, reply_tweet_id, user_id")
+    .eq("status", "posted")
+    .not("reply_tweet_id", "is", null);
+
+  if (userId) query = query.eq("user_id", userId);
+
+  // Only check items posted in the last 7 days, and not checked in the last 6 hours
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString();
+  const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60_000).toISOString();
+  query = query.gte("posted_at", sevenDaysAgo);
+  query = query.or(`metrics_checked_at.is.null,metrics_checked_at.lt.${sixHoursAgo}`);
+
+  const { data } = await query.limit(50);
+  return (data ?? []) as { id: string; reply_tweet_id: string; user_id: string }[];
 }
 
 export async function markSkipped(id: string): Promise<boolean> {

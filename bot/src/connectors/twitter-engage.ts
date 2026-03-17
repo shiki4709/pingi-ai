@@ -471,7 +471,7 @@ export async function runEngagementScan(): Promise<void> {
 export async function postCommentToX(
   tweetId: string,
   commentText: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; replyTweetId?: string }> {
   const client = await getScraper();
   if (!client) {
     return { ok: false, error: "Twitter client not configured" };
@@ -543,8 +543,14 @@ export async function postCommentToX(
       throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
     }
     recordComment();
-    console.log(`[engage] Comment posted successfully`);
-    return { ok: true };
+    // Extract the reply tweet ID from the response
+    let replyTweetId: string | undefined;
+    try {
+      const json = await res.json();
+      replyTweetId = json?.data?.create_tweet?.tweet_results?.result?.rest_id;
+    } catch {}
+    console.log(`[engage] Comment posted successfully${replyTweetId ? ` (reply id: ${replyTweetId})` : ""}`);
+    return { ok: true, replyTweetId };
   } catch (e: any) {
     console.error("[engage] Post failed:", e.message);
     return { ok: false, error: e.message };

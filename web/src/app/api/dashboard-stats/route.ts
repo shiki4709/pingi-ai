@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     recentInboxRes,
     recentEngageRes,
     sourceStatsRes,
+    engageMetricsRes,
   ] = await Promise.all([
     // User info
     supabase
@@ -99,6 +100,14 @@ export async function GET(request: NextRequest) {
       .select("source_type, source_value, status")
       .eq("user_id", userId)
       .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+
+    // Engagement metrics on posted replies (likes + replies received)
+    supabase
+      .from("x_engage_items")
+      .select("reply_likes, reply_replies")
+      .eq("user_id", userId)
+      .eq("status", "posted")
+      .not("reply_tweet_id", "is", null),
   ]);
 
   const user = userRes.data;
@@ -173,6 +182,11 @@ export async function GET(request: NextRequest) {
     .filter(([k]) => k.startsWith("topic:"))
     .map(([k, v]) => ({ name: k.replace("topic:", ""), ...v }));
 
+  // Aggregate engagement on posted replies
+  const metricsRows = engageMetricsRes.data ?? [];
+  const engageLikesReceived = metricsRows.reduce((sum: number, r: any) => sum + (r.reply_likes ?? 0), 0);
+  const engageRepliesReceived = metricsRows.reduce((sum: number, r: any) => sum + (r.reply_replies ?? 0), 0);
+
   return NextResponse.json({
     // Connection status
     inbox_linked: inboxLinked,
@@ -207,6 +221,8 @@ export async function GET(request: NextRequest) {
     engage_reviewed_week: engageTotal,
     engage_posted_today: engagePostedToday,
     engage_rate: engageRate,
+    engage_likes_received: engageLikesReceived,
+    engage_replies_received: engageRepliesReceived,
 
     // Agent details
     watched_accounts: topicsRes.data?.topics ?? [],
