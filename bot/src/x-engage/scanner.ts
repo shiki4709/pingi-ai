@@ -18,16 +18,16 @@ import {
 import { pushItemCard } from "./handlers.js";
 import { sendMessage } from "./telegram.js";
 
-const SCAN_INTERVAL_MS = 30 * 60_000; // 30 minutes
+const SCAN_INTERVAL_MS = 60 * 60_000; // 1 hour
 const MAX_POSTS_PER_HOUR = 5;
 const MAX_AGE_HOURS = 24;
-const TWEETS_PER_ACCOUNT = 5;
+const TWEETS_PER_ACCOUNT = 3;
 
 let scanTimer: ReturnType<typeof setInterval> | null = null;
 let diagnosticDone = false;
 
 export function startScanner(): void {
-  console.log("[scanner] Starting periodic scan (every 30min)");
+  console.log("[scanner] Starting periodic scan (every 60min)");
   setTimeout(async () => {
     if (!diagnosticDone) {
       await runDiagnostic();

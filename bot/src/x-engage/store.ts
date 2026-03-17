@@ -101,6 +101,22 @@ export async function linkByEmail(
   return { userId: row.id };
 }
 
+// ─── Tracking limits ───
+
+/** Max combined accounts + topics on the free/trial plan */
+export const MAX_TRACKING_SLOTS = 5;
+
+export async function getTrackingCount(userId: string): Promise<number> {
+  const accounts = await getWatchedAccounts(userId);
+  const topics = await getSearchTopics(userId);
+  return accounts.length + topics.length;
+}
+
+export async function getRemainingSlots(userId: string): Promise<number> {
+  const used = await getTrackingCount(userId);
+  return Math.max(0, MAX_TRACKING_SLOTS - used);
+}
+
 // ─── Watched accounts ───
 
 export async function getWatchedAccounts(
@@ -135,11 +151,14 @@ export async function setWatchedAccounts(
 export async function addWatchedAccount(
   userId: string,
   handle: string
-): Promise<boolean> {
+): Promise<{ ok: boolean; reason?: "limit" | "duplicate" | "error" }> {
   const current = await getWatchedAccounts(userId);
   const normalized = handle.replace(/^@/, "").toLowerCase();
-  if (current.includes(normalized)) return true;
-  return setWatchedAccounts(userId, [...current, normalized]);
+  if (current.includes(normalized)) return { ok: true, reason: "duplicate" };
+  const remaining = await getRemainingSlots(userId);
+  if (remaining <= 0) return { ok: false, reason: "limit" };
+  const success = await setWatchedAccounts(userId, [...current, normalized]);
+  return success ? { ok: true } : { ok: false, reason: "error" };
 }
 
 export async function removeWatchedAccount(
@@ -187,11 +206,21 @@ export async function setSearchTopics(
 export async function addSearchTopics(
   userId: string,
   newTopics: string[]
-): Promise<boolean> {
+): Promise<{ ok: boolean; added: string[]; rejected: string[]; reason?: "limit" | "error" }> {
   const current = await getSearchTopics(userId);
   const normalized = newTopics.map((t) => t.trim().toLowerCase()).filter(Boolean);
-  const merged = [...new Set([...current, ...normalized])];
-  return setSearchTopics(userId, merged);
+  const deduped = normalized.filter((t) => !current.includes(t));
+  const remaining = await getRemainingSlots(userId);
+  const toAdd = deduped.slice(0, remaining);
+  const rejected = deduped.slice(remaining);
+  if (toAdd.length === 0 && rejected.length > 0) {
+    return { ok: false, added: [], rejected, reason: "limit" };
+  }
+  const merged = [...current, ...toAdd];
+  const success = await setSearchTopics(userId, merged);
+  return success
+    ? { ok: true, added: toAdd, rejected }
+    : { ok: false, added: [], rejected: deduped, reason: "error" };
 }
 
 export async function removeSearchTopic(

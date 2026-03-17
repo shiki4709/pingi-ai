@@ -21,6 +21,8 @@ import {
   getSearchTopics,
   setSearchTopics,
   addSearchTopics,
+  getRemainingSlots,
+  MAX_TRACKING_SLOTS,
   removeSearchTopic,
   getRecentEngageItems,
   getEngageItem,
@@ -267,19 +269,32 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
       return;
     }
 
+    const added: string[] = [];
+    const limitHit: string[] = [];
     for (const h of handles) {
-      await addWatchedAccount(userId, h);
+      const res = await addWatchedAccount(userId, h);
+      if (res.ok) added.push(h);
+      else if (res.reason === "limit") { limitHit.push(h); break; }
     }
 
     const all = await getWatchedAccounts(userId);
+    const remaining = await getRemainingSlots(userId);
+    const lines = [];
+    if (added.length > 0) {
+      lines.push(`Added ${added.length} account${added.length > 1 ? "s" : ""}\\. Now watching:`);
+      lines.push(all.map((a) => `\\- @${escMd(a)}`).join("\n"));
+    }
+    if (limitHit.length > 0) {
+      lines.push("");
+      lines.push(`You've hit the free plan limit of ${MAX_TRACKING_SLOTS} tracked items \\(accounts \\+ topics\\)\\.`);
+      lines.push(`Upgrade to Pro for unlimited tracking: https://pingi\\-ai\\.vercel\\.app/pricing`);
+    } else {
+      lines.push("");
+      lines.push(`I'll check their tweets every hour and send you drafts\\. ${remaining} slot${remaining !== 1 ? "s" : ""} remaining\\.`);
+    }
     await sendMessage({
       chat_id: chatId,
-      text: [
-        `Added ${handles.length} account${handles.length > 1 ? "s" : ""}\\. Now watching:`,
-        all.map((a) => `\\- @${escMd(a)}`).join("\n"),
-        "",
-        "I'll check their tweets every 30 min and send you drafts\\.",
-      ].join("\n"),
+      text: lines.join("\n"),
       parse_mode: "MarkdownV2",
     });
     return;
@@ -377,8 +392,8 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
       return;
     }
 
-    const ok = await addSearchTopics(userId, newTopics);
-    if (!ok) {
+    const res = await addSearchTopics(userId, newTopics);
+    if (res.reason === "error") {
       await sendMessage({
         chat_id: chatId,
         text: "Failed to save topics. The database may need a migration. Please contact support.",
@@ -386,14 +401,24 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
       return;
     }
     const all = await getSearchTopics(userId);
+    const remaining = await getRemainingSlots(userId);
+    const lines = [];
+    if (res.added.length > 0) {
+      lines.push(`Added ${res.added.length} topic${res.added.length > 1 ? "s" : ""}\\. Now tracking:`);
+      lines.push(all.map((t) => `\\- ${escMd(t)}`).join("\n"));
+    }
+    if (res.rejected.length > 0) {
+      lines.push("");
+      lines.push(`Couldn't add: ${res.rejected.map((t) => escMd(t)).join(", ")}`);
+      lines.push(`You've hit the free plan limit of ${MAX_TRACKING_SLOTS} tracked items \\(accounts \\+ topics\\)\\.`);
+      lines.push(`Upgrade to Pro for unlimited tracking: https://pingi\\-ai\\.vercel\\.app/pricing`);
+    } else {
+      lines.push("");
+      lines.push(`I'll find popular tweets about these every hour\\. ${remaining} slot${remaining !== 1 ? "s" : ""} remaining\\.`);
+    }
     await sendMessage({
       chat_id: chatId,
-      text: [
-        `Added ${newTopics.length} topic${newTopics.length > 1 ? "s" : ""}\\. Now tracking:`,
-        all.map((t) => `\\- ${escMd(t)}`).join("\n"),
-        "",
-        "I'll find popular tweets about these every 30 min\\.",
-      ].join("\n"),
+      text: lines.join("\n"),
       parse_mode: "MarkdownV2",
     });
     return;
@@ -677,10 +702,17 @@ async function handleConfirmAdd(
       await sendMessage({ chat_id: chatId, text: "Send /start to get connected first." });
       return;
     }
-    await addWatchedAccount(userId, pending.handle);
+    const res = await addWatchedAccount(userId, pending.handle);
+    if (!res.ok && res.reason === "limit") {
+      await sendMessage({
+        chat_id: chatId,
+        text: `You've hit the free plan limit of ${MAX_TRACKING_SLOTS} tracked items (accounts + topics). Upgrade to Pro for unlimited: https://pingi-ai.vercel.app/pricing`,
+      });
+      return;
+    }
     await sendMessage({
       chat_id: chatId,
-      text: `Added @${pending.handle} to your watchlist. I'll check their tweets every 30 min.`,
+      text: `Added @${pending.handle} to your watchlist. I'll check their tweets every hour.`,
     });
     return;
   }
@@ -702,10 +734,17 @@ async function handleConfirmAdd(
       await sendMessage({ chat_id: chatId, text: "Send /start to get connected first." });
       return;
     }
-    await addWatchedAccount(userId, newHandle);
+    const res2 = await addWatchedAccount(userId, newHandle);
+    if (!res2.ok && res2.reason === "limit") {
+      await sendMessage({
+        chat_id: chatId,
+        text: `You've hit the free plan limit of ${MAX_TRACKING_SLOTS} tracked items (accounts + topics). Upgrade to Pro for unlimited: https://pingi-ai.vercel.app/pricing`,
+      });
+      return;
+    }
     await sendMessage({
       chat_id: chatId,
-      text: `Added @${newHandle} to your watchlist. I'll check their tweets every 30 min.`,
+      text: `Added @${newHandle} to your watchlist. I'll check their tweets every hour.`,
     });
     return;
   }
