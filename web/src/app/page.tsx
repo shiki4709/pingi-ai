@@ -138,13 +138,22 @@ function TelegramIcon({ size = 24 }: { size?: number }) {
 // ─── Interactive Demo ───
 
 function InteractiveDemo() {
+  const [mode, setMode] = useState<"engage" | "inbox">("engage");
   const [step, setStep] = useState(0);
-  const stepLabels = [
+
+  const engageLabels = [
     "A tweet from @paulg appears",
     "Pingi AI is drafting a reply",
     "Draft reply ready with Post, Edit, Skip buttons",
     "Reply posted successfully",
   ];
+  const inboxLabels = [
+    "A new email needs a reply",
+    "Pingi AI is drafting a response",
+    "Draft reply ready with Send, Edit, Skip buttons",
+    "Email sent successfully",
+  ];
+  const stepLabels = mode === "engage" ? engageLabels : inboxLabels;
 
   useEffect(() => {
     const timings = [3000, 2500, 3000, 3000];
@@ -152,11 +161,15 @@ function InteractiveDemo() {
     return () => clearTimeout(timer);
   }, [step]);
 
+  useEffect(() => { setStep(0); }, [mode]);
+
   const demoGreen = "#34D399";
   const demoMuted = "#8899A6";
   const demoBody = "#B0BEC5";
   const demoHeading = "#F1F5F9";
   const demoBorderLight = "rgba(255,255,255,0.08)";
+  const accentGlow = mode === "engage" ? "rgba(99,102,241,0.15)" : "rgba(56,189,248,0.15)";
+  const accentBorder = mode === "engage" ? "rgba(99,102,241,0.25)" : "rgba(56,189,248,0.25)";
 
   return (
     <div
@@ -169,7 +182,31 @@ function InteractiveDemo() {
         Step {step + 1} of 4: {stepLabels[step]}
       </div>
 
-      {/* Phone frame — dark since it represents Telegram */}
+      {/* Demo switcher */}
+      <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20 }}>
+        {([["engage", "X Engage"], ["inbox", "Inbox"]] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setMode(key)}
+            style={{
+              padding: "6px 18px",
+              borderRadius: 8,
+              border: mode === key ? `1px solid ${T.accent}` : `1px solid ${T.border}`,
+              background: mode === key ? T.accentSoft : "transparent",
+              color: mode === key ? T.accent : T.muted,
+              fontSize: 13,
+              fontWeight: 600,
+              fontFamily: sans,
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Phone frame */}
       <div
         aria-hidden="true"
         style={{
@@ -202,22 +239,57 @@ function InteractiveDemo() {
 
         {/* Steps */}
         <div style={{ minHeight: 300, position: "relative" as const }}>
-          {/* Step 0: Tweet */}
+          {/* Step 0: Content card */}
           <div style={{ opacity: step >= 0 ? 1 : 0, transform: step >= 0 ? "translateY(0)" : "translateY(12px)", transition: "all 0.5s cubic-bezier(0.25,1,0.5,1)" }}>
             <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${demoBorderLight}`, borderRadius: 12, padding: "12px 14px", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 26, height: 26, borderRadius: 13, background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: demoMuted }}>
-                  PG
-                </div>
+                {mode === "engage" ? (
+                  <div style={{ width: 30, height: 30, borderRadius: 15, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>
+                    PG
+                  </div>
+                ) : (
+                  <div style={{ width: 30, height: 30, borderRadius: 15, background: "linear-gradient(135deg, #f093fb, #f5576c)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>
+                    SL
+                  </div>
+                )}
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: demoHeading }}>Paul Graham</div>
-                  <div style={{ fontSize: 10, color: demoMuted }}>@paulg</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: demoHeading }}>
+                    {mode === "engage" ? "Paul Graham" : "Sarah Lin"}
+                  </div>
+                  <div style={{ fontSize: 10, color: demoMuted }}>
+                    {mode === "engage" ? "@paulg" : "sarah@sequoiacap.com"}
+                  </div>
                 </div>
+                <span style={{
+                  marginLeft: "auto",
+                  fontSize: 9,
+                  fontWeight: 600,
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  background: mode === "engage" ? "rgba(99,102,241,0.15)" : "rgba(56,189,248,0.15)",
+                  color: mode === "engage" ? "#818CF8" : T.tgBlue,
+                  textTransform: "uppercase" as const,
+                  letterSpacing: "0.04em",
+                }}>
+                  {mode === "engage" ? "X" : "Gmail"}
+                </span>
               </div>
-              <p style={{ fontSize: 12, color: demoBody, margin: 0, lineHeight: 1.5 }}>
-                The best way to come up with startup ideas is to notice problems in your own life.
-                The tricky part is that you have to be working on something for the problems to become apparent.
-              </p>
+              {mode === "engage" ? (
+                <p style={{ fontSize: 12, color: demoBody, margin: 0, lineHeight: 1.5 }}>
+                  The best way to come up with startup ideas is to notice problems in your own life.
+                  The tricky part is that you have to be working on something for the problems to become apparent.
+                </p>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: demoHeading, marginBottom: 4 }}>
+                    Re: Quick question about your AI agent approach
+                  </div>
+                  <p style={{ fontSize: 12, color: demoBody, margin: 0, lineHeight: 1.5 }}>
+                    Hi, I saw your post about Pingi and I&apos;m curious about the agentic architecture.
+                    We&apos;re exploring something similar at our fund. Would you be open to a 15-min chat this week?
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
@@ -227,12 +299,12 @@ function InteractiveDemo() {
               style={{
                 display: "flex", alignItems: "center", gap: 8,
                 padding: "8px 12px",
-                background: step === 1 ? "rgba(194,65,12,0.08)" : "rgba(194,65,12,0.04)",
-                border: `1px solid ${step === 1 ? "rgba(194,65,12,0.2)" : "transparent"}`,
+                background: step === 1 ? accentGlow : "rgba(99,102,241,0.04)",
+                border: `1px solid ${step === 1 ? accentBorder : "transparent"}`,
                 borderRadius: 8, marginBottom: 10, transition: "all 0.3s",
               }}
             >
-              <div style={{ width: 16, height: 16, borderRadius: 8, background: step >= 2 ? demoGreen : "rgba(194,65,12,0.25)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.3s" }}>
+              <div style={{ width: 16, height: 16, borderRadius: 8, background: step >= 2 ? demoGreen : "rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.3s" }}>
                 {step >= 2 ? (
                   <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
                 ) : (
@@ -240,22 +312,29 @@ function InteractiveDemo() {
                 )}
               </div>
               <span style={{ fontSize: 11, color: step >= 2 ? demoGreen : demoBody, fontWeight: 500 }}>
-                {step >= 2 ? "Draft ready" : "Drafting reply"}
+                {step >= 2 ? "Draft ready" : mode === "engage" ? "Drafting reply" : "Drafting response"}
                 {step === 1 && <span style={{ display: "inline-block", width: 12, animation: "typingBlink 1s infinite" }}>...</span>}
               </span>
             </div>
           </div>
 
-          {/* Step 2: Telegram card */}
+          {/* Step 2: Draft card */}
           <div style={{ opacity: step >= 2 ? 1 : 0, transform: step >= 2 ? "translateX(0)" : "translateX(16px)", transition: "all 0.5s cubic-bezier(0.25,1,0.5,1)", transitionDelay: step >= 2 ? "0.1s" : "0s" }}>
             <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.12)", borderRadius: "12px 12px 12px 4px", padding: "12px 14px", marginBottom: 8 }}>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", margin: "0 0 10px", lineHeight: 1.5 }}>
-                &quot;This resonates. I built my last startup from a problem I hit running my
-                freelance practice — couldn&apos;t find a good way to track client communication.
-                The &apos;working on something&apos; part is what most people skip.&quot;
-              </p>
+              {mode === "engage" ? (
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                  &quot;This resonates. I built my last startup from a problem I hit running my
+                  freelance practice — couldn&apos;t find a good way to track client communication.
+                  The &apos;working on something&apos; part is what most people skip.&quot;
+                </p>
+              ) : (
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                  &quot;Hey Sarah, thanks for reaching out. I&apos;d be happy to chat about the architecture.
+                  Thursday or Friday afternoon works on my end. Want me to send a calendar link?&quot;
+                </p>
+              )}
               <div style={{ display: "flex", gap: 5 }}>
-                {["Post", "Edit", "Skip"].map((label, i) => (
+                {(mode === "engage" ? ["Post", "Edit", "Skip"] : ["Send", "Edit", "Skip"]).map((label, i) => (
                   <span
                     key={label}
                     role="presentation"
@@ -273,7 +352,7 @@ function InteractiveDemo() {
                       transition: "all 0.3s",
                     }}
                   >
-                    {i === 0 && step === 3 ? "Posted" : label}
+                    {i === 0 && step === 3 ? (mode === "engage" ? "Posted" : "Sent") : label}
                   </span>
                 ))}
               </div>
@@ -287,7 +366,9 @@ function InteractiveDemo() {
                 <circle cx="9" cy="9" r="9" fill={demoGreen} />
                 <path d="M5.5 9l2.5 2.5L12.5 7" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <span style={{ fontSize: 12, fontWeight: 600, color: demoGreen }}>Reply is live</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: demoGreen }}>
+                {mode === "engage" ? "Reply is live" : "Email sent"}
+              </span>
             </div>
           </div>
         </div>
