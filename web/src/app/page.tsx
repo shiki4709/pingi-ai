@@ -2,26 +2,27 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useCallback } from "react";
+import PingiLogo from "@/components/PingiLogo";
 
 // ─── Design tokens ───
 // Warm editorial palette — tinted neutrals, single accent
 // Contrast-checked against #FAFAF7:
-// ink      #1A1917 = 17.4:1 ✓ AAA
+// ink      #1E1B4B = 15.2:1 ✓ AAA
 // body     #4A4A46 = 8.3:1  ✓ AAA
 // muted    #8C8C86 = 3.8:1  ✓ AA large text
-// accent   #C2410C = 4.6:1  ✓ AA
+// accent   #6366F1 = 4.5:1  ✓ AA
 
 const T = {
   bg: "#FAFAF7",
   surface: "#F3F2EE",
   surfaceAlt: "#ECEAE4",
-  ink: "#1A1917",
+  ink: "#1E1B4B",
   body: "#4A4A46",
   muted: "#8C8C86",
   dim: "#B5B5AE",
-  accent: "#C2410C",
-  accentHover: "#9A3412",
-  accentSoft: "#FFF7ED",
+  accent: "#6366F1",
+  accentHover: "#4F46E5",
+  accentSoft: "#EEF2FF",
   border: "#E5E4DF",
   borderLight: "#EDECE8",
   green: "#16A34A",
@@ -194,16 +195,7 @@ function InteractiveDemo() {
 
         {/* App header */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 2px 12px", borderBottom: `1px solid ${demoBorderLight}`, marginBottom: 14 }}>
-          <div
-            style={{
-              width: 26, height: 26, borderRadius: 7,
-              background: T.accent,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 12, fontWeight: 800, color: "#fff",
-            }}
-          >
-            P
-          </div>
+          <PingiLogo size={26} />
           <span style={{ fontSize: 14, fontWeight: 600, color: demoHeading }}>Pingi</span>
           <div style={{ width: 5, height: 5, borderRadius: 3, background: demoGreen, marginLeft: -2 }} />
         </div>
@@ -331,8 +323,8 @@ function FlowDiagram({ sourceIcon, sourceLabel }: { sourceIcon: React.ReactNode;
         <polygon points="36,6 42,10 36,14" fill={T.dim} />
       </svg>
       <div style={{ textAlign: "center" }}>
-        <div style={{ ...iconBox, background: T.accent, border: "none" }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>P</span>
+        <div style={{ ...iconBox, background: "transparent", border: "none", padding: 0, overflow: "hidden" }}>
+          <PingiLogo size={36} />
         </div>
         <div style={{ fontSize: 10, color: T.ink, marginTop: 4, fontWeight: 600 }}>Pingi</div>
       </div>
@@ -383,17 +375,7 @@ export default function LandingPage() {
       {/* ─── Nav ─── */}
       <nav aria-label="Main navigation" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px clamp(20px, 4vw, 48px)", maxWidth: 1080, margin: "0 auto" }}>
         <Link href="/" aria-label="Pingi home" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <div
-            aria-hidden="true"
-            style={{
-              width: 30, height: 30, borderRadius: 8,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, fontWeight: 800, color: "#fff",
-              background: T.accent,
-            }}
-          >
-            P
-          </div>
+          <PingiLogo size={30} />
           <span style={{ fontFamily: serif, fontSize: 19, color: T.ink }}>Pingi</span>
         </Link>
         <Link
@@ -656,9 +638,7 @@ export default function LandingPage() {
       <footer style={{ borderTop: `1px solid ${T.border}`, padding: "28px clamp(20px, 4vw, 48px)" }}>
         <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div aria-hidden="true" style={{ width: 20, height: 20, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", background: T.accent }}>
-              P
-            </div>
+            <PingiLogo size={20} />
             <span style={{ fontSize: 13, color: T.muted }}>Pingi AI</span>
           </div>
           <nav aria-label="Footer navigation" style={{ display: "flex", gap: 24, fontSize: 13 }}>

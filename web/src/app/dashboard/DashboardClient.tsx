@@ -5,16 +5,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import type { User } from "@supabase/supabase-js";
+import PingiLogo from "@/components/PingiLogo";
 
 const T = {
   bg: "#FAFAF7",
   surface: "#F3F2EE",
   surfaceAlt: "#ECEAE4",
-  ink: "#1A1917",
+  ink: "#1E1B4B",
   body: "#4A4A46",
   muted: "#8C8C86",
   dim: "#B5B5AE",
-  accent: "#C2410C",
+  accent: "#6366F1",
   border: "#E5E4DF",
   borderLight: "#EDECE8",
   green: "#16A34A",
@@ -205,23 +206,7 @@ export default function DashboardClient() {
             textDecoration: "none",
           }}
         >
-          <div
-            aria-hidden="true"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 9,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 15,
-              fontWeight: 800,
-              color: "#fff",
-              background: T.ink,
-            }}
-          >
-            P
-          </div>
+          <PingiLogo size={32} />
           <span style={{ fontFamily: serif, fontSize: 19, color: T.ink }}>
             Pingi
           </span>

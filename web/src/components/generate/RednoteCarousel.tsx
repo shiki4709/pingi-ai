@@ -41,7 +41,7 @@ export default function RednoteCarousel({ slides }: RednoteCarouselProps) {
             className="w-full rounded-xl mb-3 object-cover max-h-[300px]"
           />
         )}
-        <p className="text-sm text-[#1a1a1a] leading-relaxed whitespace-pre-wrap">
+        <p className="text-sm text-[#1E1B4B] leading-relaxed whitespace-pre-wrap">
           {slide.content}
         </p>
       </div>
@@ -54,7 +54,7 @@ export default function RednoteCarousel({ slides }: RednoteCarouselProps) {
           className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all"
           style={{
             background: hasPrev ? "rgba(0,0,0,0.06)" : "transparent",
-            color: hasPrev ? "#1a1a1a" : "#9a9a9a",
+            color: hasPrev ? "#1E1B4B" : "#9a9a9a",
             cursor: hasPrev ? "pointer" : "default",
           }}
         >
@@ -82,7 +82,7 @@ export default function RednoteCarousel({ slides }: RednoteCarouselProps) {
           className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all"
           style={{
             background: hasNext ? "rgba(0,0,0,0.06)" : "transparent",
-            color: hasNext ? "#1a1a1a" : "#9a9a9a",
+            color: hasNext ? "#1E1B4B" : "#9a9a9a",
             cursor: hasNext ? "pointer" : "default",
           }}
         >

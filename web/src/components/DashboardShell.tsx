@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import PublishTab from "@/components/tabs/PublishTab";
+import PingiLogo from "@/components/PingiLogo";
 
 const TABS = [
   { key: "generate", label: "Generate" },
@@ -37,17 +38,9 @@ export default function DashboardShell() {
         }}
       >
         <div className="flex items-center gap-2">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold text-white"
-            style={{
-              fontFamily: "'Instrument Serif', Georgia, serif",
-              background: "linear-gradient(135deg, #1a1a1a, #333)",
-            }}
-          >
-            P
-          </div>
+          <PingiLogo size={28} />
           <span
-            className="text-lg text-[#1a1a1a]"
+            className="text-lg text-[#1E1B4B]"
             style={{ fontFamily: "'Instrument Serif', Georgia, serif" }}
           >
             Pingi
@@ -67,7 +60,7 @@ export default function DashboardShell() {
               style={{
                 background:
                   activeTab === t.key ? "rgba(255,255,255,0.85)" : "transparent",
-                color: activeTab === t.key ? "#1a1a1a" : "#9a9a9a",
+                color: activeTab === t.key ? "#1E1B4B" : "#9a9a9a",
                 boxShadow:
                   activeTab === t.key
                     ? "0 1px 4px rgba(0,0,0,0.06)"
@@ -98,7 +91,7 @@ export default function DashboardShell() {
                 background: "rgba(255,255,255,0.6)",
                 backdropFilter: "blur(8px)",
                 border: "1px solid rgba(0,0,0,0.08)",
-                color: "#1a1a1a",
+                color: "#1E1B4B",
               }}
             />
             {generatedContent.trim() && (
@@ -106,7 +99,7 @@ export default function DashboardShell() {
                 onClick={() => setActiveTab("publish")}
                 className="self-end px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
                 style={{
-                  background: "linear-gradient(135deg, #1a1a1a, #333)",
+                  background: "linear-gradient(135deg, #4F46E5, #6366F1)",
                   boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
                   cursor: "pointer",
                 }}

@@ -109,7 +109,7 @@ function OAuthSetupModal({
         }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-[#1a1a1a]">
+          <h3 className="text-base font-semibold text-[#1E1B4B]">
             Set up {platform.label} credentials
           </h3>
           <button
@@ -127,7 +127,7 @@ function OAuthSetupModal({
         </p>
         <div className="rounded-xl p-4 mb-4 font-mono text-xs leading-relaxed" style={{ background: "rgba(0,0,0,0.04)" }}>
           {platform.envVars?.map((v) => (
-            <div key={v} className="text-[#1a1a1a]">
+            <div key={v} className="text-[#1E1B4B]">
               <span className="text-[#9a9a9a]"># </span>{v}=your_value_here
             </div>
           ))}
@@ -274,7 +274,7 @@ export default function PublishTab({ content }: { content: string }) {
           Content preview
         </label>
         {hasContent ? (
-          <p className="text-sm text-[#1a1a1a] leading-relaxed whitespace-pre-wrap">
+          <p className="text-sm text-[#1E1B4B] leading-relaxed whitespace-pre-wrap">
             {content.length > 280 ? content.slice(0, 280) + "..." : content}
           </p>
         ) : (
@@ -299,7 +299,7 @@ export default function PublishTab({ content }: { content: string }) {
             background: "rgba(255,255,255,0.6)",
             backdropFilter: "blur(8px)",
             border: "1px solid rgba(0,0,0,0.08)",
-            color: "#1a1a1a",
+            color: "#1E1B4B",
           }}
         />
       </div>
@@ -314,7 +314,7 @@ export default function PublishTab({ content }: { content: string }) {
             >
               {p.letter}
             </span>
-            <span className="text-sm font-semibold text-[#1a1a1a]">{p.label}</span>
+            <span className="text-sm font-semibold text-[#1E1B4B]">{p.label}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-md font-medium" style={{ background: "rgba(42,138,74,0.08)", color: "#2a8a4a" }}>
               Direct publish
             </span>
@@ -324,7 +324,7 @@ export default function PublishTab({ content }: { content: string }) {
             disabled={!hasContent || publishing}
             className="w-full px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
             style={{
-              background: hasContent && !publishing ? "linear-gradient(135deg, #1a1a1a, #333)" : "rgba(0,0,0,0.06)",
+              background: hasContent && !publishing ? "linear-gradient(135deg, #4F46E5, #6366F1)" : "rgba(0,0,0,0.06)",
               color: hasContent && !publishing ? "#fff" : "#9a9a9a",
               boxShadow: hasContent && !publishing ? "0 4px 16px rgba(0,0,0,0.1)" : "none",
               cursor: hasContent && !publishing ? "pointer" : "not-allowed",
@@ -352,7 +352,7 @@ export default function PublishTab({ content }: { content: string }) {
               >
                 {p.letter}
               </span>
-              <span className="text-sm font-semibold text-[#1a1a1a]">{p.label}</span>
+              <span className="text-sm font-semibold text-[#1E1B4B]">{p.label}</span>
               <span className="text-[10px] px-2 py-0.5 rounded-md font-medium" style={{ background: "rgba(48,102,212,0.08)", color: "#3066d4" }}>
                 {isRednote ? "Copy & draft" : "Copy & draft"}
               </span>
@@ -367,7 +367,7 @@ export default function PublishTab({ content }: { content: string }) {
                 style={{
                   background: "rgba(255,255,255,0.7)",
                   border: "1px solid rgba(0,0,0,0.08)",
-                  color: hasContent ? "#1a1a1a" : "#9a9a9a",
+                  color: hasContent ? "#1E1B4B" : "#9a9a9a",
                   cursor: hasContent ? "pointer" : "not-allowed",
                 }}
               >

@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import PingiLogo from "@/components/PingiLogo";
 
 const T = {
   bg: "#FAFAF7",
   surface: "#F3F2EE",
-  ink: "#1A1917",
+  ink: "#1E1B4B",
   body: "#4A4A46",
   muted: "#8C8C86",
   dim: "#B5B5AE",
-  accent: "#C2410C",
+  accent: "#6366F1",
   border: "#E5E4DF",
   borderLight: "#EDECE8",
   green: "#16A34A",
@@ -121,22 +122,7 @@ export default function PricingClient() {
             textDecoration: "none",
           }}
         >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 9,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 15,
-              fontWeight: 800,
-              color: "#fff",
-              background: T.ink,
-            }}
-          >
-            P
-          </div>
+          <PingiLogo size={32} />
           <span
             style={{
               fontFamily: serif,
@@ -403,22 +389,7 @@ export default function PricingClient() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 6,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 10,
-                fontWeight: 800,
-                color: "#fff",
-                background: T.ink,
-              }}
-            >
-              P
-            </div>
+            <PingiLogo size={22} />
             <span style={{ fontSize: 13, color: T.muted }}>Pingi AI</span>
           </div>
           <nav style={{ display: "flex", gap: 24, fontSize: 13 }}>
