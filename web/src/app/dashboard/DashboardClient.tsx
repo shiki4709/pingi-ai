@@ -255,9 +255,7 @@ export default function DashboardClient() {
           }}
         >
           {hasAnyAgent
-            ? data.pending_count > 0
-              ? `${data.pending_count} item${data.pending_count !== 1 ? "s" : ""} waiting for your review in Telegram.`
-              : "All caught up. Your agents are working."
+            ? "Your agents are working."
             : "Connect your agents to get started."}
         </p>
 
@@ -313,9 +311,9 @@ export default function DashboardClient() {
                 gap: 8,
               }}>
                 <MiniStat
-                  value={data.inbox_pending}
-                  label="Pending"
-                  color={data.inbox_pending > 0 ? T.amber : T.green}
+                  value={data.inbox_sent_week}
+                  label="Replies sent this week"
+                  color={T.ink}
                 />
                 <MiniStat
                   value={data.inbox_sent_today}
@@ -323,13 +321,13 @@ export default function DashboardClient() {
                   color={T.ink}
                 />
                 <MiniStat
-                  value={data.inbox_sent_week}
-                  label="Sent this week"
-                  color={T.ink}
+                  value={`${Math.round(data.inbox_sent_week * 3)}min`}
+                  label="Time saved"
+                  color={T.green}
                 />
                 <MiniStat
                   value={data.inbox_rate !== null ? `${data.inbox_rate}%` : "--"}
-                  label="Send rate"
+                  label="Response rate"
                   color={data.inbox_rate !== null && data.inbox_rate >= 80 ? T.green : T.ink}
                 />
               </div>
@@ -377,9 +375,9 @@ export default function DashboardClient() {
                 gap: 8,
               }}>
                 <MiniStat
-                  value={data.engage_pending}
-                  label="Pending"
-                  color={data.engage_pending > 0 ? T.amber : T.green}
+                  value={data.engage_posted_week}
+                  label="Replies posted this week"
+                  color={T.ink}
                 />
                 <MiniStat
                   value={data.engage_posted_today}
@@ -387,13 +385,13 @@ export default function DashboardClient() {
                   color={T.ink}
                 />
                 <MiniStat
-                  value={data.engage_posted_week}
-                  label="Posted this week"
-                  color={T.ink}
+                  value={`${Math.round(data.engage_posted_week * 2)}min`}
+                  label="Time saved"
+                  color={T.green}
                 />
                 <MiniStat
                   value={data.engage_rate !== null ? `${data.engage_rate}%` : "--"}
-                  label="Post rate"
+                  label="Engage rate"
                   color={data.engage_rate !== null && data.engage_rate >= 80 ? T.green : T.ink}
                 />
               </div>
@@ -479,8 +477,8 @@ export default function DashboardClient() {
                   }}
                 >
                   {inboxReady
-                    ? data.inbox_pending > 0
-                      ? `${data.inbox_pending} pending`
+                    ? data.inbox_sent_week > 0
+                      ? `${data.inbox_sent_week} sent this week`
                       : "Monitoring"
                     : !data.gmail_connected
                       ? "Gmail not connected"
@@ -617,8 +615,8 @@ export default function DashboardClient() {
                   }}
                 >
                   {engageReady
-                    ? data.engage_pending > 0
-                      ? `${data.engage_pending} pending`
+                    ? data.engage_posted_week > 0
+                      ? `${data.engage_posted_week} posted this week`
                       : "Scanning"
                     : "Not connected"}
                 </div>
