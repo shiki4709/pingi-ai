@@ -62,13 +62,13 @@ export async function GET(request: NextRequest) {
       .eq("user_id", userId)
       .eq("status", "pending"),
 
-    // Engage: items this week (posted + skipped)
+    // Engage: items acted on this week (posted or skipped)
+    // Use posted_at for posted items, created_at as fallback for skipped
     supabase
       .from("x_engage_items")
-      .select("id, status", { count: "exact" })
+      .select("id, status, created_at, posted_at")
       .eq("user_id", userId)
-      .in("status", ["posted", "skipped"])
-      .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+      .in("status", ["posted", "skipped"]),
 
     // Watched accounts & topics
     supabase
@@ -115,7 +115,13 @@ export async function GET(request: NextRequest) {
   const inboxSent = inboxWeekItems.filter((i: any) => i.status === "sent").length;
   const inboxTotal = inboxWeekItems.length;
 
-  const engageWeekItems = engageWeekRes.data ?? [];
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const allEngageActioned = engageWeekRes.data ?? [];
+  // Filter to items acted on this week using the right timestamp
+  const engageWeekItems = allEngageActioned.filter((i: any) => {
+    const actionTime = i.status === "posted" ? (i.posted_at ?? i.created_at) : i.created_at;
+    return actionTime >= oneWeekAgo;
+  });
   const engagePosted = engageWeekItems.filter((i: any) => i.status === "posted").length;
   const engageTotal = engageWeekItems.length;
 
