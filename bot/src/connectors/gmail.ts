@@ -264,32 +264,6 @@ export async function fetchGmailForUser(
     }
   }
 
-  // Debug probe: can the API see max@aoniclife.com?
-  // TODO: remove after confirming the email comes through
-  try {
-    const debugQuery = "from:max@aoniclife.com";
-    const debugRes = await gmail.users.messages.list({
-      userId: "me",
-      q: debugQuery,
-      maxResults: 5,
-    });
-    const debugIds = (debugRes.data.messages ?? []).map((m) => m.id).filter(Boolean);
-    if (debugIds.length > 0) {
-      const inMain = debugIds.filter((id) => allIds.has(id!));
-      const missing = debugIds.filter((id) => !allIds.has(id!));
-      console.log(`[gmail] DEBUG "${debugQuery}" found ${debugIds.length} messages: ${debugIds.join(", ")}`);
-      if (inMain.length > 0) console.log(`[gmail] DEBUG  -> ${inMain.length} already in main results`);
-      if (missing.length > 0) {
-        console.log(`[gmail] DEBUG  -> ${missing.length} MISSING from main queries, adding: ${missing.join(", ")}`);
-        for (const id of missing) allIds.add(id!);
-      }
-    } else {
-      console.log(`[gmail] DEBUG "${debugQuery}" returned 0 messages — API cannot see this email`);
-    }
-  } catch (e: any) {
-    console.log(`[gmail] DEBUG aoniclife probe failed: ${e.message}`);
-  }
-
   const messageIds = [...allIds];
   console.log(`[gmail] ${messageIds.length} unique message IDs after merging all queries`);
 
@@ -419,23 +393,7 @@ export async function fetchGmailForUser(
 
       const filterContext: FilterContext = { isReplyThread, mentionsUserName, hasPersonalOutreach };
 
-      // Debug: log all filter inputs for aoniclife.com
-      if (from.toLowerCase().includes("aoniclife.com")) {
-        console.log(`[gmail] DEBUG aoniclife.com filter inputs:`);
-        console.log(`[gmail] DEBUG   from="${from}" subject="${subject}"`);
-        console.log(`[gmail] DEBUG   snippet="${snippet.slice(0, 200)}"`);
-        console.log(`[gmail] DEBUG   decodedSnippet="${decodedSnippet.slice(0, 200)}"`);
-        console.log(`[gmail] DEBUG   isReplyThread=${isReplyThread} mentionsUserName=${mentionsUserName} hasPersonalOutreach=${hasPersonalOutreach}`);
-        console.log(`[gmail] DEBUG   isHumanSender=${isHumanSender} (local="${senderLocal}") hasOutreachLanguage=${hasOutreachLanguage}`);
-        console.log(`[gmail] DEBUG   listUnsubscribe=${emailHeaders.listUnsubscribe ?? "(none)"}`);
-        console.log(`[gmail] DEBUG   precedence=${emailHeaders.precedence ?? "(none)"}`);
-      }
-
       const filterResult = shouldReply(emailHeaders, snippet, whitelistedDomains, filterContext);
-
-      if (from.toLowerCase().includes("aoniclife.com")) {
-        console.log(`[gmail] DEBUG aoniclife.com result: needsReply=${filterResult.needsReply} reason="${filterResult.reason}"`);
-      }
 
       if (!filterResult.needsReply) {
         result.filtered++;

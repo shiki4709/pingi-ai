@@ -493,7 +493,7 @@ export async function postCommentToX(
       if ((obj.key ?? obj.name) === "ct0") ct0 = obj.value;
     }
     if (!authToken || !ct0) throw new Error("Missing auth cookies for posting");
-    const BEARER = "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA";
+    const BEARER = process.env.TWITTER_BEARER_TOKEN ?? "";
     const res = await fetch("https://twitter.com/i/api/graphql/a1p9RWpkYKBjWv_I3WzS-A/CreateTweet", {
       method: "POST",
       headers: {

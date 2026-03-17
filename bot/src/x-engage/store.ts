@@ -432,7 +432,7 @@ export async function countPostedLastHour(
 
 // ─── Plan helpers ───
 
-const ADMIN_EMAILS = ["shiki4709@gmail.com"];
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 
 export async function hasPro(userId: string): Promise<boolean> {
   const { data } = await getSupabase()
