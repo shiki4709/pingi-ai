@@ -124,121 +124,12 @@ const CONTEXT_DESCRIPTIONS: Record<ContextCategory, ContextConfig> = {
   },
 };
 
-// ─── Classify context ───
+// ─── Valid categories ───
 
 const VALID_CATEGORIES = new Set<ContextCategory>([
   "BUSINESS_OPPORTUNITY", "PROFESSIONAL_NETWORK", "AUDIENCE_ENGAGEMENT",
   "KNOWLEDGE_EXCHANGE", "OPERATIONAL", "PERSONAL",
 ]);
-
-export async function classifyContext(
-  platform: string,
-  authorName: string,
-  subject: string,
-  snippet: string
-): Promise<ContextCategory> {
-  const anthropic = getClient();
-  if (!anthropic) return "OPERATIONAL";
-
-  try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 50,
-      messages: [
-        {
-          role: "user",
-          content: `Classify this message into exactly one category:
-BUSINESS_OPPORTUNITY, PROFESSIONAL_NETWORK, AUDIENCE_ENGAGEMENT,
-KNOWLEDGE_EXCHANGE, OPERATIONAL, PERSONAL
-
-Message: ${snippet}
-From: ${authorName} on ${platform}
-Subject/Context: ${subject}
-
-Respond with just the category name, nothing else.`,
-        },
-      ],
-    });
-
-    const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-    const category = text.toUpperCase().replace(/\s+/g, "_") as ContextCategory;
-    if (VALID_CATEGORIES.has(category)) return category;
-
-    console.warn(`[drafter] Unexpected classification: "${text}", defaulting to OPERATIONAL`);
-    return "OPERATIONAL";
-  } catch (e: any) {
-    console.error(`[drafter] Classification failed: ${e.message}`);
-    return "OPERATIONAL";
-  }
-}
-
-// ─── Generate draft reply ───
-
-export async function generateDraft(
-  platform: string,
-  authorName: string,
-  subject: string,
-  snippet: string,
-  context: ContextCategory,
-  signOff?: string | null
-): Promise<string> {
-  const anthropic = getClient();
-  if (!anthropic) return "";
-
-  const ctx = CONTEXT_DESCRIPTIONS[context];
-  const firstName = extractFirstName(authorName);
-  const platformGuide = getPlatformInstructions(platform);
-
-  const extraBlock = ctx.extraInstructions
-    ? `\nADDITIONAL INSTRUCTIONS FOR THIS CONTEXT:\n${ctx.extraInstructions}\n`
-    : "";
-
-  try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 400,
-      messages: [
-        {
-          role: "user",
-          content: `You are drafting a reply on ${platform} on behalf of the user.
-
-${platformGuide}
-
-CONTEXT CATEGORY: ${context}
-SENDER: ${authorName} (first name: ${firstName})
-SUBJECT: ${subject}
-FULL INCOMING MESSAGE:
-${snippet}
-
-TONE FOR THIS CONTEXT:
-${ctx.tone}
-Reply goal: ${ctx.goal}
-Target length: ${ctx.length}
-${extraBlock}
-${ANTI_AI_RULES}
-
-Write a reply that sounds like a real person typed it. Adapt your length and tone for ${platform}.
-
-If the sender asked specific questions, address each one. If they proposed a meeting time, respond to it. If they shared a link, acknowledge it. Mirror the sender's level of formality. Use their first name (${firstName}) if they used yours.
-
-Do not include a subject line. Do not include a sign-off or signature. Return only the reply body.`,
-        },
-      ],
-    });
-
-    let draft = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-
-    // Append sign-off for email platforms only
-    if (draft && signOff && platform === "gmail") {
-      draft = draft + "\n\n" + signOff;
-    }
-
-    return draft;
-  } catch (e: any) {
-    console.error(`[drafter] Draft generation failed: ${e.message}`);
-    return "";
-  }
-}
 
 // ─── Rewrite draft based on user instruction ───
 
@@ -287,7 +178,11 @@ Return ONLY the new draft text. No explanation, no quotes, no "Here's the update
   }
 }
 
-// ─── Combined: classify + draft in one call ───
+// ─── Combined: classify + draft in a single API call ───
+
+const CATEGORY_GUIDE = Object.entries(CONTEXT_DESCRIPTIONS)
+  .map(([key, cfg]) => `- ${key}: "${cfg.tone}" → goal: ${cfg.goal} (${cfg.length})`)
+  .join("\n");
 
 export async function classifyAndDraft(
   platform: string,
@@ -296,8 +191,64 @@ export async function classifyAndDraft(
   snippet: string,
   signOff?: string | null
 ): Promise<{ context: ContextCategory; draftText: string }> {
-  const context = await classifyContext(platform, authorName, subject, snippet);
-  const draftText = await generateDraft(platform, authorName, subject, snippet, context, signOff);
-  console.log(`[drafter] ${authorName}: context=${context}, draft=${draftText.length} chars`);
-  return { context, draftText };
+  const anthropic = getClient();
+  if (!anthropic) return { context: "OPERATIONAL", draftText: "" };
+
+  const firstName = extractFirstName(authorName);
+  const platformGuide = getPlatformInstructions(platform);
+
+  try {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 500,
+      messages: [
+        {
+          role: "user",
+          content: `You are drafting a reply on ${platform} on behalf of the user.
+
+STEP 1 — Classify this message into exactly one category:
+${CATEGORY_GUIDE}
+
+STEP 2 — Draft a reply using the tone and goal for that category.
+
+${platformGuide}
+
+SENDER: ${authorName} (first name: ${firstName})
+SUBJECT: ${subject}
+FULL INCOMING MESSAGE:
+${snippet}
+
+${ANTI_AI_RULES}
+
+Write a reply that sounds like a real person typed it. Adapt your length and tone for ${platform}. If the sender asked specific questions, address each one. Mirror the sender's level of formality. Use their first name (${firstName}) if they used yours.
+
+RESPOND IN EXACTLY THIS FORMAT (two lines, no other text):
+CATEGORY: <category name>
+DRAFT: <your reply>`,
+        },
+      ],
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+
+    // Parse structured response
+    const categoryMatch = text.match(/^CATEGORY:\s*(.+)/m);
+    const draftMatch = text.match(/^DRAFT:\s*([\s\S]+)/m);
+
+    const rawCategory = (categoryMatch?.[1] ?? "OPERATIONAL").trim().toUpperCase().replace(/\s+/g, "_") as ContextCategory;
+    const context = VALID_CATEGORIES.has(rawCategory) ? rawCategory : "OPERATIONAL";
+
+    let draftText = (draftMatch?.[1] ?? "").trim();
+
+    // Append sign-off for email platforms only
+    if (draftText && signOff && platform === "gmail") {
+      draftText = draftText + "\n\n" + signOff;
+    }
+
+    console.log(`[drafter] ${authorName}: context=${context}, draft=${draftText.length} chars (single call)`);
+    return { context, draftText };
+  } catch (e: any) {
+    console.error(`[drafter] classifyAndDraft failed: ${e.message}`);
+    return { context: "OPERATIONAL", draftText: "" };
+  }
 }
