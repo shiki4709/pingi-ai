@@ -105,7 +105,7 @@ export async function scanForUser(
     const tweets = await getRecentTweets(handle, TWEETS_PER_ACCOUNT);
     console.log(`[scanner]   Got ${tweets.length} tweets from @${handle}`);
 
-    itemsSent += await processTweets(tweets, userId, chatId, cutoff, postedCount + itemsSent);
+    itemsSent += await processTweets(tweets, userId, chatId, cutoff, postedCount + itemsSent, { type: "account", value: handle });
   }
 
   // --- Search topics ---
@@ -117,7 +117,7 @@ export async function scanForUser(
     const tweets = await searchTopicTweets(topic, TWEETS_PER_ACCOUNT);
     console.log(`[scanner]   Got ${tweets.length} tweets for topic "${topic}"`);
 
-    itemsSent += await processTweets(tweets, userId, chatId, cutoff, postedCount + itemsSent);
+    itemsSent += await processTweets(tweets, userId, chatId, cutoff, postedCount + itemsSent, { type: "topic", value: topic });
   }
 
   console.log(`[scanner] User ${userId}: sent ${itemsSent} items this scan`);
@@ -129,7 +129,8 @@ async function processTweets(
   userId: string,
   chatId: number,
   cutoff: Date,
-  currentCount: number
+  currentCount: number,
+  source?: { type: "account" | "topic"; value: string }
 ): Promise<number> {
   let sent = 0;
 
@@ -164,7 +165,7 @@ async function processTweets(
       authorFollowers: (tweet as any).followers ?? 0,
       tweetText: tweet.text ?? "",
       draftComment: draft,
-    });
+    }, source);
 
     if (!itemId) continue;
 

@@ -80,6 +80,8 @@ interface DashboardData {
   // Agent details
   watched_accounts: string[];
   search_topics: string[];
+  account_stats: { name: string; total: number; posted: number; pending: number }[];
+  topic_stats: { name: string; total: number; posted: number; pending: number }[];
   last_inbox_activity: string | null;
   last_engage_activity: string | null;
   recent_inbox: ActivityItem[];
@@ -641,25 +643,87 @@ export default function DashboardClient() {
                 }}
               >
                 {data.watched_accounts.length > 0 && (
-                  <div style={{ marginBottom: 6 }}>
-                    <span style={{ color: T.dim, fontWeight: 600 }}>Tracking: </span>
-                    {data.watched_accounts.map((a, i) => (
-                      <span key={a}>
-                        <span style={{ color: T.body }}>@{a}</span>
-                        {i < data.watched_accounts.length - 1 ? ", " : ""}
-                      </span>
-                    ))}
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ color: T.dim, fontWeight: 600, display: "block", marginBottom: 4 }}>Tracking accounts</span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {data.watched_accounts.map((a) => {
+                        const stat = data.account_stats?.find((s) => s.name === a);
+                        return (
+                          <span
+                            key={a}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              background: T.surface,
+                              borderRadius: 6,
+                              padding: "2px 8px",
+                              fontSize: 11,
+                            }}
+                          >
+                            <span style={{ color: T.body, fontWeight: 500 }}>@{a}</span>
+                            {stat && (
+                              <span
+                                style={{
+                                  background: stat.total > 0 ? T.accent : T.dim,
+                                  color: "#fff",
+                                  borderRadius: 4,
+                                  padding: "0 4px",
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  minWidth: 16,
+                                  textAlign: "center",
+                                }}
+                              >
+                                {stat.total}
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
                 {data.search_topics.length > 0 && (
-                  <div style={{ marginBottom: 6 }}>
-                    <span style={{ color: T.dim, fontWeight: 600 }}>Topics: </span>
-                    {data.search_topics.map((t, i) => (
-                      <span key={t}>
-                        <span style={{ color: T.body }}>{t}</span>
-                        {i < data.search_topics.length - 1 ? ", " : ""}
-                      </span>
-                    ))}
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ color: T.dim, fontWeight: 600, display: "block", marginBottom: 4 }}>Topics</span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {data.search_topics.map((t) => {
+                        const stat = data.topic_stats?.find((s) => s.name === t);
+                        return (
+                          <span
+                            key={t}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              background: T.surface,
+                              borderRadius: 6,
+                              padding: "2px 8px",
+                              fontSize: 11,
+                            }}
+                          >
+                            <span style={{ color: T.body, fontWeight: 500 }}>{t}</span>
+                            {stat && (
+                              <span
+                                style={{
+                                  background: stat.total > 0 ? T.accent : T.dim,
+                                  color: "#fff",
+                                  borderRadius: 4,
+                                  padding: "0 4px",
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  minWidth: 16,
+                                  textAlign: "center",
+                                }}
+                              >
+                                {stat.total}
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between" }}>

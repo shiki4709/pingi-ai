@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     topicsRes,
     recentInboxRes,
     recentEngageRes,
+    sourceStatsRes,
   ] = await Promise.all([
     // User info
     supabase
@@ -91,6 +92,13 @@ export async function GET(request: NextRequest) {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(10),
+
+    // Per-source counts (last 7 days)
+    supabase
+      .from("x_engage_items")
+      .select("source_type, source_value, status")
+      .eq("user_id", userId)
+      .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
   ]);
 
   const user = userRes.data;
@@ -139,6 +147,26 @@ export async function GET(request: NextRequest) {
   const engageRate = engageTotal > 0 ? Math.round((engagePosted / engageTotal) * 100) : null;
   const engageSkipped = engageWeekItems.filter((i: any) => i.status === "skipped").length;
 
+  // Aggregate per-source counts (last 7 days)
+  const sourceRows = sourceStatsRes.data ?? [];
+  const sourceCounts: Record<string, { total: number; posted: number; pending: number }> = {};
+  for (const r of sourceRows as any[]) {
+    if (!r.source_type || !r.source_value) continue;
+    const key = `${r.source_type}:${r.source_value}`;
+    if (!sourceCounts[key]) sourceCounts[key] = { total: 0, posted: 0, pending: 0 };
+    sourceCounts[key].total++;
+    if (r.status === "posted") sourceCounts[key].posted++;
+    if (r.status === "pending") sourceCounts[key].pending++;
+  }
+
+  const accountStats = Object.entries(sourceCounts)
+    .filter(([k]) => k.startsWith("account:"))
+    .map(([k, v]) => ({ name: k.replace("account:", ""), ...v }));
+
+  const topicStats = Object.entries(sourceCounts)
+    .filter(([k]) => k.startsWith("topic:"))
+    .map(([k, v]) => ({ name: k.replace("topic:", ""), ...v }));
+
   return NextResponse.json({
     // Connection status
     inbox_linked: inboxLinked,
@@ -177,6 +205,8 @@ export async function GET(request: NextRequest) {
     // Agent details
     watched_accounts: topicsRes.data?.topics ?? [],
     search_topics: topicsRes.data?.search_topics ?? [],
+    account_stats: accountStats,
+    topic_stats: topicStats,
     last_inbox_activity: lastInboxActivity,
     last_engage_activity: lastEngageActivity,
 

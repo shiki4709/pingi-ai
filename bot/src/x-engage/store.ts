@@ -217,13 +217,16 @@ export interface EngageItem {
   tweetText: string;
   draftComment: string;
   status: "pending" | "posted" | "skipped";
+  sourceType?: "account" | "topic";
+  sourceValue?: string;
 }
 
 export async function insertEngageItem(
   userId: string,
-  item: Omit<EngageItem, "id" | "status">
+  item: Omit<EngageItem, "id" | "status">,
+  source?: { type: "account" | "topic"; value: string }
 ): Promise<string | null> {
-  const row = {
+  const row: Record<string, unknown> = {
     user_id: userId,
     tweet_id: item.tweetId,
     tweet_url: item.tweetUrl,
@@ -234,6 +237,10 @@ export async function insertEngageItem(
     draft_comment: item.draftComment,
     status: "pending",
   };
+  if (source) {
+    row.source_type = source.type;
+    row.source_value = source.value;
+  }
   console.log("[x-store] insertEngageItem row:", JSON.stringify(row, null, 2));
 
   const { data, error } = await getSupabase()
