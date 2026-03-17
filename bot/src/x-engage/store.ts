@@ -104,7 +104,7 @@ export async function linkByEmail(
 // ─── Tracking limits ───
 
 /** Max combined accounts + topics on the free/trial plan */
-export const MAX_TRACKING_SLOTS = 5;
+export const MAX_TRACKING_SLOTS = 10;
 
 export async function getTrackingCount(userId: string): Promise<number> {
   const accounts = await getWatchedAccounts(userId);
