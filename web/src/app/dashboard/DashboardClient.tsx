@@ -509,26 +509,75 @@ export default function DashboardClient() {
             )}
 
             {inboxReady ? (
-              <a
-                href={`https://t.me/${INBOX_BOT}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "block",
-                  padding: "9px 0",
-                  borderRadius: 10,
-                  background: T.surface,
-                  border: `1px solid ${T.borderLight}`,
-                  color: T.body,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  fontFamily: sans,
-                  textDecoration: "none",
-                  textAlign: "center",
-                }}
-              >
-                Open in Telegram
-              </a>
+              <div style={{ display: "flex", gap: 6 }}>
+                <a
+                  href={`https://t.me/${INBOX_BOT}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    flex: 1,
+                    display: "block",
+                    padding: "9px 0",
+                    borderRadius: 10,
+                    background: T.surface,
+                    border: `1px solid ${T.borderLight}`,
+                    color: T.body,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    fontFamily: sans,
+                    textDecoration: "none",
+                    textAlign: "center",
+                  }}
+                >
+                  Open in Telegram
+                </a>
+                <button
+                  onClick={async () => {
+                    const { data: authData } = await getSupabaseBrowser().auth.getUser();
+                    if (!authData.user) return;
+                    window.location.href = `/api/auth/gmail?user_id=${authData.user.id}`;
+                  }}
+                  style={{
+                    padding: "9px 12px",
+                    borderRadius: 10,
+                    background: T.surface,
+                    border: `1px solid ${T.borderLight}`,
+                    color: T.accent,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    fontFamily: sans,
+                    cursor: "pointer",
+                  }}
+                >
+                  Reconnect
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm("Disconnect Gmail? You can reconnect anytime.")) return;
+                    const { data: authData } = await getSupabaseBrowser().auth.getUser();
+                    if (!authData.user) return;
+                    await fetch("/api/gmail-disconnect", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ userId: authData.user.id }),
+                    });
+                    window.location.reload();
+                  }}
+                  style={{
+                    padding: "9px 12px",
+                    borderRadius: 10,
+                    background: "transparent",
+                    border: `1px solid ${T.border}`,
+                    color: T.muted,
+                    fontSize: 11,
+                    fontWeight: 500,
+                    fontFamily: sans,
+                    cursor: "pointer",
+                  }}
+                >
+                  Disconnect
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => router.push("/onboarding?setup=inbox")}
