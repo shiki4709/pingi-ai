@@ -88,6 +88,19 @@ interface DashboardData {
   last_engage_activity: string | null;
   recent_inbox: ActivityItem[];
   recent_engage: ActivityItem[];
+  // Onboarding
+  created_at: string | null;
+  has_seen_celebration: boolean;
+  trial_extended: boolean;
+  onboarding: {
+    show: boolean;
+    telegram: boolean;
+    tracked: boolean;
+    reviewed: boolean;
+    posted: boolean;
+    completed: number;
+    total: number;
+  };
 }
 
 export default function DashboardClient() {
@@ -118,6 +131,44 @@ export default function DashboardClient() {
       setLoading(false);
     })();
   }, [router]);
+
+  // Suggested accounts
+  const SUGGESTED_ACCOUNTS = [
+    { handle: "paulg", name: "Paul Graham", desc: "Startup essays", gradient: "linear-gradient(135deg, #667eea, #764ba2)" },
+    { handle: "naval", name: "Naval Ravikant", desc: "Philosophy & startups", gradient: "linear-gradient(135deg, #f093fb, #f5576c)" },
+    { handle: "sama", name: "Sam Altman", desc: "AI & OpenAI", gradient: "linear-gradient(135deg, #4facfe, #00f2fe)" },
+    { handle: "levelsio", name: "Pieter Levels", desc: "Indie hacking", gradient: "linear-gradient(135deg, #43e97b, #38f9d7)" },
+    { handle: "dhh", name: "DHH", desc: "Rails, bootstrapping", gradient: "linear-gradient(135deg, #fa709a, #fee140)" },
+    { handle: "patio11", name: "Patrick McKenzie", desc: "SaaS & strategy", gradient: "linear-gradient(135deg, #a18cd1, #fbc2eb)" },
+    { handle: "asmartbear", name: "Jason Cohen", desc: "WP Engine founder", gradient: "linear-gradient(135deg, #fccb90, #d57eeb)" },
+    { handle: "shreyas", name: "Shreyas Doshi", desc: "Product management", gradient: "linear-gradient(135deg, #89f7fe, #66a6ff)" },
+  ];
+  const [trackedSet, setTrackedSet] = useState<Set<string>>(new Set(data?.watched_accounts ?? []));
+  const [manualHandle, setManualHandle] = useState("");
+
+  async function trackAccount(handle: string) {
+    const { data: authData } = await getSupabaseBrowser().auth.getUser();
+    if (!authData.user) return;
+    const res = await fetch("/api/track-account", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: authData.user.id, handle }),
+    });
+    if (res.ok) {
+      setTrackedSet((prev) => {
+      const next = new Set(Array.from(prev));
+      next.add(handle.replace(/^@/, "").toLowerCase());
+      return next;
+    });
+    }
+  }
+
+  // Trial banner
+  const trialEndsAt = data?.trial_ends_at ? new Date(data.trial_ends_at) : null;
+  const trialHoursLeft = trialEndsAt
+    ? Math.max(0, Math.round((trialEndsAt.getTime() - Date.now()) / (60 * 60 * 1000)))
+    : null;
+  const showTrialBanner = data?.plan === "trial" && trialHoursLeft !== null && trialHoursLeft <= 24;
 
   if (loading || !data) {
     return (
@@ -260,6 +311,265 @@ export default function DashboardClient() {
             ? "Your agents are working."
             : "Connect your agents to get started."}
         </p>
+
+        {/* ─── Celebration Banner ─── */}
+        {data.onboarding.reviewed && !data.has_seen_celebration && (
+          <div
+            style={{
+              ...cardStyle,
+              padding: "16px 20px",
+              background: "linear-gradient(135deg, rgba(99,102,241,0.08), rgba(56,189,248,0.06))",
+              border: `1px solid rgba(99,102,241,0.15)`,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ flex: 1, fontSize: 14, color: T.ink, lineHeight: 1.5 }}>
+              Your first reply draft was sent to Telegram. Early replies get 10x more visibility — this is the edge.
+            </div>
+            <button
+              onClick={async () => {
+                const { data: authData } = await getSupabaseBrowser().auth.getUser();
+                if (authData.user) {
+                  await fetch("/api/dismiss-celebration", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ userId: authData.user.id }),
+                  });
+                  window.location.reload();
+                }
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: T.muted,
+                fontSize: 18,
+                cursor: "pointer",
+                padding: 4,
+                flexShrink: 0,
+              }}
+              aria-label="Dismiss"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
+        {/* ─── Trial Expiry Banner ─── */}
+        {showTrialBanner && !(data.onboarding.reviewed && !data.has_seen_celebration) && (
+          <div
+            style={{
+              ...cardStyle,
+              padding: "14px 20px",
+              background: T.amberSoft,
+              border: `1px solid rgba(217,119,6,0.15)`,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ flex: 1, fontSize: 13, color: T.ink, minWidth: 200 }}>
+              Your trial ends in <strong>{trialHoursLeft}h</strong> — upgrade to keep going.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <a
+                href="/pricing"
+                style={{
+                  padding: "7px 16px",
+                  borderRadius: 8,
+                  background: T.accent,
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  fontFamily: sans,
+                }}
+              >
+                Upgrade
+              </a>
+              {!data.trial_extended && (
+                <button
+                  onClick={async () => {
+                    const { data: authData } = await getSupabaseBrowser().auth.getUser();
+                    if (authData.user) {
+                      await fetch("/api/trial-extend", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ userId: authData.user.id }),
+                      });
+                      window.location.reload();
+                    }
+                  }}
+                  style={{
+                    padding: "7px 16px",
+                    borderRadius: 8,
+                    background: "#fff",
+                    border: `1px solid ${T.border}`,
+                    color: T.body,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    fontFamily: sans,
+                    cursor: "pointer",
+                  }}
+                >
+                  Extend 2 days
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Onboarding Checklist ─── */}
+        {data.onboarding.show && (
+          <section aria-label="Onboarding checklist" style={{ ...cardStyle, padding: "20px 24px", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
+                Get started — {data.onboarding.completed} of {data.onboarding.total}
+              </span>
+            </div>
+            <div style={{ height: 4, borderRadius: 2, background: T.surface, marginBottom: 16 }}>
+              <div style={{
+                height: 4,
+                borderRadius: 2,
+                background: T.accent,
+                width: `${(data.onboarding.completed / data.onboarding.total) * 100}%`,
+                transition: "width 0.3s",
+              }} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                { done: data.onboarding.telegram, label: "Connect Telegram", action: `https://t.me/${ENGAGE_BOT}`, actionLabel: "Connect" },
+                { done: data.onboarding.tracked, label: "Track your first account", action: "#suggested-accounts", actionLabel: "Add" },
+                { done: data.onboarding.reviewed, label: "Review your first draft", action: `https://t.me/${ENGAGE_BOT}`, actionLabel: "Open Telegram" },
+                { done: data.onboarding.posted, label: "Post your first reply", action: `https://t.me/${ENGAGE_BOT}`, actionLabel: "Open Telegram" },
+              ].map((step, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 10,
+                    border: step.done ? "none" : `2px solid ${T.border}`,
+                    background: step.done ? T.accent : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    {step.done && (
+                      <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+                    )}
+                  </div>
+                  <span style={{
+                    flex: 1, fontSize: 13, color: step.done ? T.muted : T.ink,
+                    textDecoration: step.done ? "line-through" : "none",
+                  }}>
+                    {step.label}
+                  </span>
+                  {!step.done && (
+                    <a
+                      href={step.action}
+                      target={step.action.startsWith("http") ? "_blank" : undefined}
+                      rel={step.action.startsWith("http") ? "noopener noreferrer" : undefined}
+                      style={{
+                        fontSize: 11, fontWeight: 600, color: T.accent,
+                        textDecoration: "none", fontFamily: sans,
+                      }}
+                    >
+                      {step.actionLabel}
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ─── Suggested Accounts ─── */}
+        {data.watched_accounts.length === 0 && (
+          <section id="suggested-accounts" aria-label="Suggested accounts to track" style={{ ...cardStyle, padding: "20px 24px", marginBottom: 16 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 600, color: T.ink, margin: "0 0 4px" }}>
+              Track accounts to get started
+            </h2>
+            <p style={{ fontSize: 12, color: T.muted, margin: "0 0 14px" }}>
+              Add accounts you want to engage with. Pingi will watch their posts and draft replies.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8, marginBottom: 12 }}>
+              {SUGGESTED_ACCOUNTS.map((a) => {
+                const isTracked = trackedSet.has(a.handle);
+                return (
+                  <button
+                    key={a.handle}
+                    onClick={() => !isTracked && trackAccount(a.handle)}
+                    disabled={isTracked}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "10px 12px", borderRadius: 10,
+                      border: `1px solid ${isTracked ? T.accent : T.border}`,
+                      background: isTracked ? "rgba(99,102,241,0.04)" : "#fff",
+                      cursor: isTracked ? "default" : "pointer",
+                      textAlign: "left" as const, fontFamily: sans,
+                    }}
+                  >
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 14,
+                      background: a.gradient,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 10, fontWeight: 700, color: "#fff", flexShrink: 0,
+                    }}>
+                      {a.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        @{a.handle}
+                      </div>
+                      <div style={{ fontSize: 10, color: T.muted }}>{a.desc}</div>
+                    </div>
+                    {isTracked ? (
+                      <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill={T.accent}/><path d="M4 7l2 2 4-4" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round"/></svg>
+                    ) : (
+                      <span style={{ fontSize: 16, color: T.accent, fontWeight: 300, flexShrink: 0 }}>+</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                type="text"
+                value={manualHandle}
+                onChange={(e) => setManualHandle(e.target.value)}
+                placeholder="or enter any @handle"
+                style={{
+                  flex: 1, padding: "8px 12px", borderRadius: 8,
+                  border: `1px solid ${T.border}`, fontSize: 13,
+                  fontFamily: sans, color: T.ink, outline: "none",
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && manualHandle.trim()) {
+                    trackAccount(manualHandle.trim());
+                    setManualHandle("");
+                  }
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (manualHandle.trim()) {
+                    trackAccount(manualHandle.trim());
+                    setManualHandle("");
+                  }
+                }}
+                style={{
+                  padding: "8px 16px", borderRadius: 8,
+                  background: T.accent, color: "#fff",
+                  border: "none", fontSize: 12, fontWeight: 600,
+                  fontFamily: sans, cursor: "pointer",
+                }}
+              >
+                Add
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* ─── Per-Agent Metrics ─── */}
         {hasAnyAgent && (

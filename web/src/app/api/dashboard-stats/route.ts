@@ -25,11 +25,13 @@ export async function GET(request: NextRequest) {
     recentEngageRes,
     sourceStatsRes,
     engageMetricsRes,
+    engageAllTimePostedRes,
+    engageAllTimeRes,
   ] = await Promise.all([
     // User info
     supabase
       .from("users")
-      .select("name, email, plan, trial_ends_at, telegram_chat_id, x_bot_chat_id, sign_off")
+      .select("name, email, plan, trial_ends_at, telegram_chat_id, x_bot_chat_id, sign_off, has_seen_celebration, trial_extended, created_at")
       .eq("id", userId)
       .single(),
 
@@ -108,6 +110,19 @@ export async function GET(request: NextRequest) {
       .eq("user_id", userId)
       .eq("status", "posted")
       .not("reply_tweet_id", "is", null),
+
+    // All-time posted engage items (for onboarding "posted" check)
+    supabase
+      .from("x_engage_items")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "posted"),
+
+    // All-time engage items (for onboarding "reviewed" check)
+    supabase
+      .from("x_engage_items")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
   ]);
 
   const user = userRes.data;
@@ -182,6 +197,18 @@ export async function GET(request: NextRequest) {
     .filter(([k]) => k.startsWith("topic:"))
     .map(([k, v]) => ({ name: k.replace("topic:", ""), ...v }));
 
+  // Onboarding checklist (computed from existing data)
+  const userCreatedAt = user?.created_at ?? null;
+  const isNewUser = userCreatedAt
+    ? Date.now() - new Date(userCreatedAt).getTime() < 7 * 24 * 60 * 60 * 1000
+    : false;
+  const onboardingTelegram = inboxLinked || xLinked;
+  const onboardingTracked = (topicsRes.data?.topics as string[] ?? []).length > 0;
+  const onboardingReviewed = (engageAllTimeRes.count ?? 0) > 0;
+  const onboardingPosted = (engageAllTimePostedRes.count ?? 0) > 0;
+  const onboardingCompleted = [onboardingTelegram, onboardingTracked, onboardingReviewed, onboardingPosted].filter(Boolean).length;
+  const showChecklist = isNewUser && onboardingCompleted < 4;
+
   // Aggregate engagement on posted replies
   const metricsRows = engageMetricsRes.data ?? [];
   const engageLikesReceived = metricsRows.reduce((sum: number, r: any) => sum + (r.reply_likes ?? 0), 0);
@@ -223,6 +250,20 @@ export async function GET(request: NextRequest) {
     engage_rate: engageRate,
     engage_likes_received: engageLikesReceived,
     engage_replies_received: engageRepliesReceived,
+
+    // Onboarding
+    created_at: user?.created_at ?? null,
+    has_seen_celebration: user?.has_seen_celebration ?? false,
+    trial_extended: user?.trial_extended ?? false,
+    onboarding: {
+      show: showChecklist,
+      telegram: onboardingTelegram,
+      tracked: onboardingTracked,
+      reviewed: onboardingReviewed,
+      posted: onboardingPosted,
+      completed: onboardingCompleted,
+      total: 4,
+    },
 
     // Agent details
     watched_accounts: topicsRes.data?.topics ?? [],
