@@ -216,8 +216,7 @@ export default function OnboardingClient() {
       !selected.has("inbox") || (gmailConnected && inboxLinked);
     const engageDone = !selected.has("engage") || engageLinked;
     if (inboxDone && engageDone) {
-      const alreadyPaid = userPlan === "pro" || userPlan === "trial";
-      setTimeout(() => setScreen(alreadyPaid ? 4 : 3), 800);
+      setTimeout(() => setScreen(4), 800);
     }
   }, [screen, selected, gmailConnected, inboxLinked, engageLinked, userPlan]);
 
@@ -570,8 +569,7 @@ export default function OnboardingClient() {
             {hasProgress && (
               <button
                 onClick={() => {
-                  const alreadyPaid = userPlan === "pro" || userPlan === "trial";
-                  setScreen(alreadyPaid ? 4 : 3);
+                  setScreen(4);
                 }}
                 style={{
                   padding: "12px 40px",
