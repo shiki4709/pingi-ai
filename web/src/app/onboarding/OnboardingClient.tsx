@@ -69,6 +69,11 @@ export default function OnboardingClient() {
   const [engageLinked, setEngageLinked] = useState(false);
   const [userPlan, setUserPlan] = useState<string | null>(null);
 
+  // Invite code
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [redeemingCode, setRedeemingCode] = useState(false);
+
   // Stripe
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
@@ -258,6 +263,31 @@ export default function OnboardingClient() {
       setSubscribeError("Network error. Please try again.");
     }
     setSubscribing(false);
+  };
+
+  const handleRedeemCode = async () => {
+    if (!user || !inviteCode.trim()) return;
+    setRedeemingCode(true);
+    setInviteError(null);
+
+    try {
+      const res = await fetch("/api/invite-code/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: inviteCode.trim(), userId: user.id }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setUserPlan("trial");
+        setScreen(4);
+        return;
+      }
+      setInviteError(data.error ?? "Invalid code");
+    } catch {
+      setInviteError("Network error. Please try again.");
+    }
+    setRedeemingCode(false);
   };
 
   const toggleAgent = (agent: Agent) => {
@@ -627,7 +657,7 @@ export default function OnboardingClient() {
               margin: "0 0 6px",
             }}
           >
-            Start your free trial
+            Have an invite code?
           </h1>
           <p
             style={{
@@ -637,63 +667,74 @@ export default function OnboardingClient() {
               lineHeight: 1.6,
             }}
           >
-            3 days free, then $19/mo. Cancel anytime.
+            Enter your code to start your 14-day free trial.
           </p>
 
           <div
             style={{
               ...card,
               padding: "28px 24px",
-              textAlign: "left",
               marginBottom: 24,
             }}
           >
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: T.ink,
-                marginBottom: 16,
-              }}
-            >
-              What you get
-            </div>
-            {[
-              "AI-drafted replies to emails and tweets",
-              "Smart urgency detection and prioritization",
-              "Review and send from Telegram with one tap",
-              "Unlimited agents and connected accounts",
-              "3-day free trial, no charge today",
-            ].map((item) => (
-              <div
-                key={item}
+            <div style={{ display: "flex", gap: 10, marginBottom: inviteError ? 12 : 0 }}>
+              <input
+                type="text"
+                value={inviteCode}
+                onChange={(e) => {
+                  setInviteCode(e.target.value.toUpperCase());
+                  setInviteError(null);
+                }}
+                placeholder="e.g. A3F1B2"
+                maxLength={6}
                 style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 10,
-                  marginBottom: 10,
-                  fontSize: 13,
-                  color: T.body,
-                  lineHeight: 1.5,
+                  flex: 1,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  border: `1px solid ${inviteError ? "#EF4444" : T.border}`,
+                  fontSize: 16,
+                  fontFamily: "monospace",
+                  letterSpacing: 3,
+                  textAlign: "center",
+                  outline: "none",
+                  textTransform: "uppercase",
+                  background: T.bg,
+                  color: T.ink,
+                }}
+              />
+              <button
+                onClick={handleRedeemCode}
+                disabled={redeemingCode || inviteCode.trim().length === 0}
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: T.ink,
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: redeemingCode || !inviteCode.trim() ? "not-allowed" : "pointer",
+                  fontFamily: sans,
+                  opacity: redeemingCode || !inviteCode.trim() ? 0.5 : 1,
                 }}
               >
-                <span
-                  style={{
-                    color: T.green,
-                    fontWeight: 700,
-                    fontSize: 14,
-                    lineHeight: "20px",
-                    flexShrink: 0,
-                  }}
-                >
-                  {"\u2713"}
-                </span>
-                {item}
-              </div>
-            ))}
+                {redeemingCode ? "..." : "Redeem"}
+              </button>
+            </div>
+            {inviteError && (
+              <p style={{ fontSize: 13, color: "#EF4444", margin: 0 }}>
+                {inviteError}
+              </p>
+            )}
           </div>
 
-          {subscribeError && (
+          <div
+            style={{
+              borderTop: `1px solid ${T.border}`,
+              paddingTop: 20,
+              marginBottom: 16,
+            }}
+          >
             <p
               style={{
                 fontSize: 13,
@@ -701,34 +742,99 @@ export default function OnboardingClient() {
                 margin: "0 0 16px",
               }}
             >
-              {subscribeError}
+              No invite code? Start a free trial instead.
             </p>
-          )}
 
-          <button
-            onClick={handleSubscribe}
-            disabled={subscribing}
-            style={{
-              width: "100%",
-              padding: "14px 0",
-              borderRadius: 12,
-              border: "none",
-              background: T.ink,
-              color: "#fff",
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: subscribing ? "wait" : "pointer",
-              fontFamily: sans,
-              marginBottom: 12,
-            }}
-          >
-            {subscribing ? "Redirecting..." : "Start free trial"}
-          </button>
+            <div
+              style={{
+                ...card,
+                padding: "28px 24px",
+                textAlign: "left",
+                marginBottom: 24,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: T.ink,
+                  marginBottom: 16,
+                }}
+              >
+                What you get
+              </div>
+              {[
+                "AI-drafted replies to emails and tweets",
+                "Smart urgency detection and prioritization",
+                "Review and send from Telegram with one tap",
+                "Unlimited agents and connected accounts",
+                "3-day free trial, no charge today",
+              ].map((item) => (
+                <div
+                  key={item}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    marginBottom: 10,
+                    fontSize: 13,
+                    color: T.body,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <span
+                    style={{
+                      color: T.green,
+                      fontWeight: 700,
+                      fontSize: 14,
+                      lineHeight: "20px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {"\u2713"}
+                  </span>
+                  {item}
+                </div>
+              ))}
+            </div>
 
-          <p style={{ fontSize: 11, color: T.muted, margin: 0 }}>
-            You won&apos;t be charged during the trial. Cancel in one
-            click.
-          </p>
+            {subscribeError && (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: T.muted,
+                  margin: "0 0 16px",
+                }}
+              >
+                {subscribeError}
+              </p>
+            )}
+
+            <button
+              onClick={handleSubscribe}
+              disabled={subscribing}
+              style={{
+                width: "100%",
+                padding: "14px 0",
+                borderRadius: 12,
+                border: "none",
+                background: T.ink,
+                color: "#fff",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: subscribing ? "wait" : "pointer",
+                fontFamily: sans,
+                marginBottom: 12,
+              }}
+            >
+              {subscribing ? "Redirecting..." : "Start free trial"}
+            </button>
+
+            <p style={{ fontSize: 11, color: T.muted, margin: 0 }}>
+              You won&apos;t be charged during the trial. Cancel in one
+              click.
+            </p>
+          </div>
         </div>
       )}
 
