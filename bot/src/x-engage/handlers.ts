@@ -32,7 +32,7 @@ import {
   hasPro,
   isTrialExpired,
 } from "./store.js";
-import { likeTweet, searchTwitterUsers } from "./scraper.js";
+import { searchTwitterUsers } from "./scraper.js";
 import { rewriteComment, chatWithAssistant } from "./drafter.js";
 import { scanForUser } from "./scanner.js";
 
@@ -101,7 +101,6 @@ function itemCard(item: {
       { text: "Skip", data: `skip:${item.id}` },
     ],
     [
-      { text: "Like", data: `like:${item.id}` },
       { text: "View tweet", url: item.tweetUrl },
     ],
   ]);
@@ -866,38 +865,6 @@ export async function handleCallbackQuery(
     });
 
     console.log(`[x-handlers] POST: sent draft + link for @${item.authorHandle}`);
-    return;
-  }
-
-  // like:<id>
-  if (data.startsWith("like:")) {
-    const itemId = data.slice(5);
-    console.log(`[x-handlers] LIKE: itemId=${itemId}`);
-
-    const item = await getEngageItem(itemId);
-    if (!item) {
-      await answerCallbackQuery(cb.id, "Item not found");
-      return;
-    }
-
-    await answerCallbackQuery(cb.id, "Liking...");
-
-    const result = await likeTweet(item.tweetId);
-    console.log(`[x-handlers] LIKE: result=${JSON.stringify(result)}`);
-
-    if (result.ok) {
-      await sendMessage({
-        chat_id: chatId,
-        text: `Liked @${escMd(item.authorHandle)}'s tweet\\.`,
-        parse_mode: "MarkdownV2",
-      });
-    } else {
-      await sendMessage({
-        chat_id: chatId,
-        text: `Failed to like: ${escMd(result.error ?? "unknown error")}`,
-        parse_mode: "MarkdownV2",
-      });
-    }
     return;
   }
 

@@ -2,10 +2,8 @@
  * Twitter data layer for the X engagement bot.
  *
  * READING tweets: SocialData API (socialdata.tools) — no cookies needed.
- * POSTING/LIKING: Twitter API v2 (OAuth 1.0a) — kept from before.
  */
 
-import { TwitterApi } from "twitter-api-v2";
 import { config } from "./config.js";
 
 // ─── Tweet type (matches SocialData response shape) ───
@@ -282,100 +280,4 @@ export async function runDiagnostic(): Promise<void> {
   }
 
   console.log("[scraper-diag] === Diagnostic complete ===");
-}
-
-// ─── Twitter API v2 (OAuth 1.0a) for posting/liking ───
-
-let twitterClient: TwitterApi | null = null;
-
-function getTwitterClient(): TwitterApi | null {
-  if (twitterClient) return twitterClient;
-
-  const { twitterApiKey, twitterApiSecret, twitterAccessToken, twitterAccessSecret } = config;
-  if (!twitterApiKey || !twitterApiSecret || !twitterAccessToken || !twitterAccessSecret) {
-    console.warn("[scraper] Twitter API v2 not configured (missing TWITTER_API_KEY/SECRET/ACCESS_TOKEN/ACCESS_SECRET)");
-    return null;
-  }
-
-  twitterClient = new TwitterApi({
-    appKey: twitterApiKey,
-    appSecret: twitterApiSecret,
-    accessToken: twitterAccessToken,
-    accessSecret: twitterAccessSecret,
-  });
-
-  console.log("[scraper] Twitter API v2 client initialized");
-  return twitterClient;
-}
-
-export async function postQuote(
-  tweetId: string,
-  text: string
-): Promise<{ ok: boolean; error?: string }> {
-  console.log(`[scraper] postQuote: tweetId=${tweetId} text="${text.slice(0, 80)}..."`);
-
-  const client = getTwitterClient();
-  if (!client) {
-    return { ok: false, error: "Twitter API not configured. Set TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET." };
-  }
-
-  try {
-    const result = await client.v2.tweet({ text, quote_tweet_id: tweetId });
-    console.log(`[scraper] Quote tweet posted: id=${result.data.id} text="${result.data.text?.slice(0, 80)}"`);
-    return { ok: true };
-  } catch (e: any) {
-    console.error("[scraper] Quote tweet failed:", e.message);
-    if (e.data) {
-      console.error("[scraper] Quote tweet error data:", JSON.stringify(e.data));
-    }
-    return { ok: false, error: e.message };
-  }
-}
-
-// Cache authenticated user ID for like endpoint
-let cachedUserId: string | null = null;
-
-async function getAuthenticatedUserId(): Promise<string | null> {
-  if (cachedUserId) return cachedUserId;
-
-  const client = getTwitterClient();
-  if (!client) return null;
-
-  try {
-    const me = await client.v2.me();
-    cachedUserId = me.data.id;
-    console.log(`[scraper] Authenticated as @${me.data.username} (id=${cachedUserId})`);
-    return cachedUserId;
-  } catch (e: any) {
-    console.error("[scraper] Failed to get authenticated user:", e.message);
-    return null;
-  }
-}
-
-export async function likeTweet(
-  tweetId: string
-): Promise<{ ok: boolean; error?: string }> {
-  console.log(`[scraper] likeTweet: tweetId=${tweetId}`);
-
-  const client = getTwitterClient();
-  if (!client) {
-    return { ok: false, error: "Twitter API not configured." };
-  }
-
-  const userId = await getAuthenticatedUserId();
-  if (!userId) {
-    return { ok: false, error: "Could not determine authenticated user ID." };
-  }
-
-  try {
-    await client.v2.like(userId, tweetId);
-    console.log(`[scraper] Liked tweet ${tweetId}`);
-    return { ok: true };
-  } catch (e: any) {
-    console.error("[scraper] Like failed:", e.message);
-    if (e.data) {
-      console.error("[scraper] Like error data:", JSON.stringify(e.data));
-    }
-    return { ok: false, error: e.message };
-  }
 }

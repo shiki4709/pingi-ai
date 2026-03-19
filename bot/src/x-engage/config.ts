@@ -11,10 +11,6 @@ export const config = {
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY ?? "",
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   socialDataApiKey: process.env.SOCIALDATA_API_KEY ?? "",
-  twitterApiKey: process.env.TWITTER_API_KEY ?? "",
-  twitterApiSecret: process.env.TWITTER_API_SECRET ?? "",
-  twitterAccessToken: process.env.TWITTER_ACCESS_TOKEN ?? "",
-  twitterAccessSecret: process.env.TWITTER_ACCESS_SECRET ?? "",
   get usePolling(): boolean {
     return !this.webhookUrl;
   },
