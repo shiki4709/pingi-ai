@@ -120,11 +120,11 @@ export default function OnboardingClient() {
         const params = new URLSearchParams(window.location.search);
         const setupAgent = params.get("setup") as Agent | null;
 
-        // If any agent is fully set up, redirect to dashboard
+        // If any agent is fully set up AND onboarding is completed, redirect to dashboard
         // (unless user explicitly asked to set up a specific agent)
         const inboxReady = status.gmail_connected && status.inbox_linked;
         const engageReady = status.x_linked;
-        if ((inboxReady || engageReady) && !setupAgent) {
+        if ((inboxReady || engageReady) && !setupAgent && stats.onboarding_completed) {
           router.replace("/dashboard");
           return; // Don't set loading=false, keep showing nothing during redirect
         }

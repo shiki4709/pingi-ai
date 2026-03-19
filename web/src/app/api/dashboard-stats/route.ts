@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     // User info
     supabase
       .from("users")
-      .select("name, email, plan, trial_ends_at, telegram_chat_id, x_bot_chat_id, sign_off, has_seen_celebration, trial_extended, created_at")
+      .select("name, email, plan, trial_ends_at, telegram_chat_id, x_bot_chat_id, sign_off, has_seen_celebration, trial_extended, created_at, onboarding_completed")
       .eq("id", userId)
       .single(),
 
@@ -225,6 +225,7 @@ export async function GET(request: NextRequest) {
     name: user?.name ?? null,
     plan: user?.plan ?? "free",
     trial_ends_at: user?.trial_ends_at ?? null,
+    onboarding_completed: user?.onboarding_completed ?? false,
 
     // Stats
     pending_count: totalPending,
