@@ -13,6 +13,9 @@ import {
   getUserIdForChat,
   getItemsSince,
   getAllChatIds,
+  getExpiringTesters,
+  markExpiryWarning,
+  markExpiryNotice,
 } from "./store.js";
 import { generateWeeklyReport } from "./services/report.js";
 import { deleteWebhook, getUpdates, sendMessage } from "./telegram.js";
@@ -273,6 +276,63 @@ function stopDrips(): void {
   drips.clear();
 }
 
+// ─── Tester expiry notifications ───
+const EXPIRY_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+let expiryCheckTimer: ReturnType<typeof setInterval> | null = null;
+
+async function checkExpiringTesters(): Promise<void> {
+  try {
+    const testers = await getExpiringTesters();
+    const now = new Date();
+    const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+
+    for (const tester of testers) {
+      const expiresAt = new Date(tester.trial_ends_at);
+      const msUntilExpiry = expiresAt.getTime() - now.getTime();
+
+      // Day 14: trial has expired
+      if (msUntilExpiry <= 0 && !tester.sent_expiry_notice) {
+        await sendMessage({
+          chat_id: tester.telegram_chat_id,
+          text: `Your test access has ended\\. Thanks for trying Pingi\\!\n\nIf you haven\\'t already \u2014 [book a quick chat](${config.feedbackCallUrl})`,
+          parse_mode: "MarkdownV2",
+        });
+        await markExpiryNotice(tester.id);
+        console.log(`[expiry] Sent expiry notice to user ${tester.id}`);
+      }
+      // Day 12: 2 days before expiry
+      else if (msUntilExpiry <= twoDaysMs && msUntilExpiry > 0 && !tester.sent_expiry_warning) {
+        await sendMessage({
+          chat_id: tester.telegram_chat_id,
+          text: `Your test access ends in 2 days\\. We\\'d love to hear how it went \u2014 [schedule a call](${config.feedbackCallUrl})`,
+          parse_mode: "MarkdownV2",
+        });
+        await markExpiryWarning(tester.id);
+        console.log(`[expiry] Sent expiry warning to user ${tester.id}`);
+      }
+    }
+  } catch (err) {
+    console.error("[expiry] Failed to check expiring testers:", err);
+  }
+}
+
+function startExpiryCheckTimer(): void {
+  // Run once immediately, then every hour
+  checkExpiringTesters();
+  expiryCheckTimer = setInterval(() => {
+    checkExpiringTesters().catch((err) =>
+      console.error("[expiry] Expiry check failed:", err)
+    );
+  }, EXPIRY_CHECK_INTERVAL_MS);
+}
+
+function stopExpiryCheckTimer(): void {
+  if (expiryCheckTimer) {
+    clearInterval(expiryCheckTimer);
+    expiryCheckTimer = null;
+  }
+}
+
 // ─── Start ───
 async function start(): Promise<void> {
   if (!config.botToken) {
@@ -296,6 +356,9 @@ async function start(): Promise<void> {
   // Start weekly report broadcast timer
   startWeeklyReportTimer();
 
+  // Start tester expiry notification checker
+  startExpiryCheckTimer();
+
   if (config.usePolling) {
     pollLoop();
   } else {
@@ -310,6 +373,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     stopDrips();
     stopWeeklyReportTimer();
     stopEngagementWorker();
+    stopExpiryCheckTimer();
     pollWorker.stop();
     app.close();
   });

@@ -13,6 +13,7 @@ export const config = {
   gmailClientId: process.env.GMAIL_CLIENT_ID ?? "",
   gmailClientSecret: process.env.GMAIL_CLIENT_SECRET ?? "",
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
+  feedbackCallUrl: process.env.FEEDBACK_CALL_URL ?? "https://calendar.app.google/VMnMCm36vaHv5LPr6",
   get usePolling(): boolean {
     return !this.webhookUrl;
   },

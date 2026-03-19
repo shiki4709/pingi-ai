@@ -353,3 +353,48 @@ export async function getAllChatIds(): Promise<number[]> {
     .map((row: Record<string, any>) => row.telegram_chat_id as number | null)
     .filter((id: number | null): id is number => id != null);
 }
+
+// ─── Invite code expiry notifications ───
+
+interface ExpiringTester {
+  id: string;
+  telegram_chat_id: number;
+  trial_ends_at: string;
+  sent_expiry_warning: boolean;
+  sent_expiry_notice: boolean;
+}
+
+/**
+ * Find invite-code testers whose trial is expiring soon or has expired,
+ * and who haven't been notified yet.
+ */
+export async function getExpiringTesters(): Promise<ExpiringTester[]> {
+  const { data } = await getSupabase()
+    .from("users")
+    .select("id, telegram_chat_id, trial_ends_at, sent_expiry_warning, sent_expiry_notice")
+    .eq("source", "invite_code")
+    .eq("plan", "trial")
+    .not("telegram_chat_id", "is", null)
+    .not("trial_ends_at", "is", null);
+
+  return (data ?? []).filter(
+    (u): u is ExpiringTester =>
+      u.telegram_chat_id != null &&
+      u.trial_ends_at != null &&
+      (!u.sent_expiry_warning || !u.sent_expiry_notice)
+  );
+}
+
+export async function markExpiryWarning(userId: string): Promise<void> {
+  await getSupabase()
+    .from("users")
+    .update({ sent_expiry_warning: true })
+    .eq("id", userId);
+}
+
+export async function markExpiryNotice(userId: string): Promise<void> {
+  await getSupabase()
+    .from("users")
+    .update({ sent_expiry_notice: true })
+    .eq("id", userId);
+}
