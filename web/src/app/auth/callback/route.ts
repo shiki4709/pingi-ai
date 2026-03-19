@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       // Check if user row already exists (by auth ID first, then email fallback)
       let { data: existing } = await serviceClient
         .from("users")
-        .select("id, plan")
+        .select("id, plan, onboarding_completed")
         .eq("id", user.id)
         .single();
 
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       if (!existing && email) {
         const { data: byEmail } = await serviceClient
           .from("users")
-          .select("id, plan")
+          .select("id, plan, onboarding_completed")
           .eq("email", email)
           .single();
 
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
           `[auth/callback] Created user ${user.id} (${email}) plan=${isAdmin ? "pro" : "trial"}`
         );
       } else {
-        // Existing user — redirect to dashboard instead of onboarding
+        // Existing user
         if (isAdmin && existing.plan !== "pro") {
           await serviceClient
             .from("users")
@@ -91,7 +91,9 @@ export async function GET(request: NextRequest) {
             .eq("id", user.id);
           console.log(`[auth/callback] Admin bypass: upgraded ${email} to pro`);
         }
-        return NextResponse.redirect(new URL("/dashboard", request.url));
+        // Send to onboarding if not completed, otherwise dashboard
+        const dest = existing.onboarding_completed ? "/dashboard" : "/onboarding";
+        return NextResponse.redirect(new URL(dest, request.url));
       }
     }
   }
