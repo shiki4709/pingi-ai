@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
           name: user.user_metadata?.full_name ?? null,
           plan: isAdmin ? "pro" : "trial",
           trial_ends_at: isAdmin ? null : trialEndsAt,
+          source: isAdmin ? "admin" : "organic",
         });
         console.log(
           `[auth/callback] Created user ${user.id} (${email}) plan=${isAdmin ? "pro" : "trial"}`
