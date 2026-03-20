@@ -31,10 +31,18 @@ import {
   updateDraftComment,
   hasPro,
   isTrialExpired,
+  getNicheProfile,
 } from "./store.js";
 import { searchTwitterUsers } from "./scraper.js";
 import { rewriteComment, chatWithAssistant } from "./drafter.js";
 import { scanForUser } from "./scanner.js";
+import {
+  startNicheChat,
+  isInNicheChat,
+  endNicheChat,
+  handleNicheChatMessage,
+} from "./niche-chat.js";
+import { checkMilestones } from "./coaching.js";
 
 // ─── Session state ───
 
@@ -134,6 +142,46 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
   // Check if we're awaiting an email from this chat
   if (awaitingEmail.has(chatId) && text && !text.startsWith("/")) {
     await handleEmailInput(chatId, text);
+    return;
+  }
+
+  // Niche onboarding chat
+  if (isInNicheChat(chatId) && text && !text.startsWith("/")) {
+    const result = await handleNicheChatMessage(chatId, text);
+
+    if (result.type === "profile_complete") {
+      const userId = await getUserIdForChat(chatId);
+      if (result.text === "accounts_accepted" && result.profile && userId) {
+        const existing = await getWatchedAccounts(userId);
+        const newAccounts = result.profile.suggested_accounts
+          .map((h: string) => h.replace(/^@/, "").toLowerCase())
+          .filter((h: string) => !existing.includes(h));
+        if (newAccounts.length > 0) {
+          await setWatchedAccounts(userId, [...existing, ...newAccounts]);
+        }
+        await sendMessage({
+          chat_id: chatId,
+          text: "Added\\! I'll start finding tweets in your niche\\. Use `/watch` or `/topics` to add more anytime\\.",
+          parse_mode: "MarkdownV2",
+        });
+      } else {
+        await sendMessage({
+          chat_id: chatId,
+          text: "No problem\\. Use `/watch` or `/topics` to add accounts manually\\. Update your goals anytime with `/goals`\\.",
+          parse_mode: "MarkdownV2",
+        });
+      }
+      return;
+    }
+
+    if (result.type === "error") {
+      endNicheChat(chatId);
+      await sendMessage({ chat_id: chatId, text: result.text });
+      return;
+    }
+
+    // LLM follow-up message
+    await sendMessage({ chat_id: chatId, text: result.text });
     return;
   }
 
@@ -540,11 +588,27 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     return;
   }
 
+  // /goals — start or restart niche onboarding chat
+  if (text.match(/^\/goals(@\w+)?$/)) {
+    const userId = await getUserIdForChat(chatId);
+    if (!userId) {
+      await sendMessage({ chat_id: chatId, text: "Link your account first with /start" });
+      return;
+    }
+    startNicheChat(chatId, userId);
+    await sendMessage({
+      chat_id: chatId,
+      text: "Tell me about yourself and what you're building\\. Who do you want to reach on X?",
+      parse_mode: "MarkdownV2",
+    });
+    return;
+  }
+
   // Unknown command
   if (text.startsWith("/")) {
     await sendMessage({
       chat_id: chatId,
-      text: "Commands: `/start`, `/watch`, `/unwatch`, `/topics`, `/untopics`, `/scan`",
+      text: "Commands: `/start`, `/watch`, `/unwatch`, `/topics`, `/untopics`, `/goals`, `/scan`",
       parse_mode: "MarkdownV2",
     });
     return;
@@ -777,19 +841,38 @@ async function handleEmailInput(
   }
 
   awaitingEmail.delete(chatId);
-  await sendMessage({
-    chat_id: chatId,
-    text: [
-      "Connected\\! Here's what you can do:",
-      "",
-      "`/watch @paulg @naval` \\- Watch accounts for new tweets",
-      "`/topics AI agents, fintech, startups` \\- Track topics \\(finds popular tweets about these\\)",
-      "`/scan` \\- Scan now instead of waiting 30 min",
-      "",
-      "Type `/watch` or `/topics` to get started\\.",
-    ].join("\n"),
-    parse_mode: "MarkdownV2",
-  });
+
+  // Check if user already has a niche profile
+  const existingProfile = await getNicheProfile(result.userId);
+  if (existingProfile && existingProfile.trending_queries.length > 0) {
+    // Already set up — show commands
+    await sendMessage({
+      chat_id: chatId,
+      text: [
+        "Connected\\! Here's what you can do:",
+        "",
+        "`/watch @paulg @naval` \\- Watch accounts for new tweets",
+        "`/topics AI agents, fintech, startups` \\- Track topics",
+        "`/goals` \\- Update your engagement strategy",
+        "`/scan` \\- Scan now",
+        "",
+        "Type `/watch` or `/topics` to get started\\.",
+      ].join("\n"),
+      parse_mode: "MarkdownV2",
+    });
+  } else {
+    // New user — start niche onboarding
+    startNicheChat(chatId, result.userId);
+    await sendMessage({
+      chat_id: chatId,
+      text: [
+        "Connected\\!",
+        "",
+        "Before we start, tell me about yourself and what you're building\\. Who do you want to reach on X?",
+      ].join("\n"),
+      parse_mode: "MarkdownV2",
+    });
+  }
 }
 
 // ─── Callback query handler ───
@@ -865,6 +948,12 @@ export async function handleCallbackQuery(
     });
 
     console.log(`[x-handlers] POST: sent draft + link for @${item.authorHandle}`);
+
+    // Check milestones after posting
+    if (postUserId) {
+      checkMilestones(postUserId, chatId).catch(() => {});
+    }
+
     return;
   }
 
