@@ -519,3 +519,103 @@ export async function getUsersWithAccounts(): Promise<
       searchTopics: (r.search_topics as string[]) ?? [],
     }));
 }
+
+// ─── Niche profiles ───
+
+export interface NicheProfile {
+  user_id: string;
+  goal_text: string | null;
+  target_icp: string | null;
+  niche_keywords: string[];
+  trending_queries: string[];
+  suggested_accounts: string[];
+  x_handle: string | null;
+  x_follower_count: number;
+  milestones_sent: string[];
+}
+
+export async function getNicheProfile(userId: string): Promise<NicheProfile | null> {
+  const { data } = await getSupabase()
+    .from("user_niche_profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+  return data ?? null;
+}
+
+export async function upsertNicheProfile(
+  userId: string,
+  profile: Partial<Omit<NicheProfile, "user_id">>
+): Promise<void> {
+  await getSupabase()
+    .from("user_niche_profiles")
+    .upsert(
+      { user_id: userId, ...profile, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+}
+
+export async function addMilestone(userId: string, milestone: string): Promise<void> {
+  const profile = await getNicheProfile(userId);
+  if (!profile) return;
+  if (profile.milestones_sent.includes(milestone)) return;
+  await getSupabase()
+    .from("user_niche_profiles")
+    .update({
+      milestones_sent: [...profile.milestones_sent, milestone],
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+}
+
+export async function getUsersWithNicheProfiles(): Promise<
+  Array<{ user_id: string; telegram_chat_id: number; niche: NicheProfile }>
+> {
+  const { data: profiles } = await getSupabase()
+    .from("user_niche_profiles")
+    .select("*")
+    .not("trending_queries", "eq", "{}");
+
+  if (!profiles || profiles.length === 0) return [];
+
+  const userIds = profiles.map((p: any) => p.user_id);
+  const { data: users } = await getSupabase()
+    .from("users")
+    .select("id, telegram_chat_id")
+    .in("id", userIds)
+    .not("telegram_chat_id", "is", null);
+
+  if (!users) return [];
+
+  const userMap = new Map(users.map((u: any) => [u.id, u.telegram_chat_id]));
+  return profiles
+    .filter((p: any) => userMap.has(p.user_id))
+    .map((p: any) => ({
+      user_id: p.user_id,
+      telegram_chat_id: userMap.get(p.user_id)!,
+      niche: p as NicheProfile,
+    }));
+}
+
+// ─── Engagement stats helpers ───
+
+export async function getPostedCountForUser(userId: string): Promise<number> {
+  const { count } = await getSupabase()
+    .from("x_engage_items")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("status", "posted");
+  return count ?? 0;
+}
+
+export async function getConversationCount(userId: string, since?: string): Promise<number> {
+  let query = getSupabase()
+    .from("x_engage_items")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("status", "posted")
+    .gt("reply_replies", 0);
+  if (since) query = query.gte("posted_at", since);
+  const { count } = await query;
+  return count ?? 0;
+}
