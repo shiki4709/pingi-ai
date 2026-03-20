@@ -12,6 +12,8 @@ import {
 } from "./telegram.js";
 import { handleMessage, handleCallbackQuery } from "./handlers.js";
 import { startScanner, stopScanner } from "./scanner.js";
+import { startTrendingScanner, stopTrendingScanner } from "./trending.js";
+import { startCoachingTimer, stopCoachingTimer } from "./coaching.js";
 
 const app = Fastify({ logger: false });
 
@@ -84,8 +86,10 @@ async function main(): Promise<void> {
   console.log(`[x-bot] Server listening on ${config.host}:${config.port}`);
   console.log(`[x-bot] Mode: ${config.usePolling ? "polling" : "webhook"}`);
 
-  // Start the tweet scanner
+  // Start scanners and coaching
   startScanner();
+  startTrendingScanner();
+  startCoachingTimer();
 
   // Start polling if no webhook
   if (config.usePolling) {
@@ -98,6 +102,8 @@ async function main(): Promise<void> {
 function shutdown(signal: string): void {
   console.log(`[x-bot] ${signal} received, shutting down...`);
   stopScanner();
+  stopTrendingScanner();
+  stopCoachingTimer();
   app.close().then(() => process.exit(0));
 }
 

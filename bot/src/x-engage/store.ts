@@ -253,7 +253,7 @@ export interface EngageItem {
 export async function insertEngageItem(
   userId: string,
   item: Omit<EngageItem, "id" | "status">,
-  source?: { type: "account" | "topic"; value: string }
+  source?: { type: "account" | "topic" | "trending"; value: string }
 ): Promise<string | null> {
   const row: Record<string, unknown> = {
     user_id: userId,

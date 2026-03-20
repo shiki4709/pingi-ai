@@ -11,6 +11,7 @@ export const config = {
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY ?? "",
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   socialDataApiKey: process.env.SOCIALDATA_API_KEY ?? "",
+  trendingScanIntervalMs: Number(process.env.TRENDING_SCAN_INTERVAL_MS ?? 10 * 60_000),
   get usePolling(): boolean {
     return !this.webhookUrl;
   },
