@@ -32,6 +32,7 @@ import {
   hasPro,
   isTrialExpired,
   getNicheProfile,
+  linkByCode,
 } from "./store.js";
 import { searchTwitterUsers } from "./scraper.js";
 import { rewriteComment, chatWithAssistant } from "./drafter.js";
@@ -206,8 +207,10 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
           "You're already connected\\! Here's what you can do:",
           "",
           "`/watch @paulg @naval` \\- Watch accounts for new tweets",
-          "`/topics AI agents, fintech, startups` \\- Track topics \\(finds popular tweets about these\\)",
-          "`/scan` \\- Scan now instead of waiting 30 min",
+          "`/topics AI agents, fintech, startups` \\- Track topics",
+          "`/goals` \\- Update your engagement strategy",
+          "`/switch` \\- Switch to a different account",
+          "`/scan` \\- Scan now",
           "",
           "Type `/watch` or `/topics` to get started\\.",
         ].join("\n"),
@@ -224,7 +227,7 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
         "",
         "I monitor accounts you pick, draft smart replies to their tweets, and let you post with one tap\\.",
         "",
-        "What email did you sign up with on Pingi?",
+        "Enter your email or paste your link code from the dashboard\\.",
       ].join("\n"),
       parse_mode: "MarkdownV2",
     });
@@ -599,6 +602,16 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     return;
   }
 
+  // /switch — link a different account to this chat via code
+  if (text.match(/^\/switch(@\w+)?$/)) {
+    awaitingEmail.add(chatId);
+    await sendMessage({
+      chat_id: chatId,
+      text: "Go to your Pingi dashboard and copy your link code, then paste it here.",
+    });
+    return;
+  }
+
   // /goals — start or restart niche onboarding chat
   if (text.match(/^\/goals(@\w+)?$/)) {
     const userId = await getUserIdForChat(chatId);
@@ -619,7 +632,7 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
   if (text.startsWith("/")) {
     await sendMessage({
       chat_id: chatId,
-      text: "Commands: `/start`, `/watch`, `/unwatch`, `/topics`, `/untopics`, `/goals`, `/scan`",
+      text: "Commands: `/start`, `/switch`, `/watch`, `/unwatch`, `/topics`, `/untopics`, `/goals`, `/scan`",
       parse_mode: "MarkdownV2",
     });
     return;
@@ -831,21 +844,29 @@ async function handleConfirmAdd(
   });
 }
 
-// ─── Email linking flow ───
+// ─── Email / code linking flow ───
 
 async function handleEmailInput(
   chatId: number,
-  email: string
+  input: string
 ): Promise<void> {
-  if (!email.includes("@") || !email.includes(".")) {
+  // Check if input looks like a link code (6 hex chars, no @)
+  const isCode = /^[A-Fa-f0-9]{6}$/.test(input.trim());
+
+  let result: { userId: string } | { error: string };
+
+  if (isCode) {
+    result = await linkByCode(input.trim().toUpperCase(), chatId);
+  } else if (input.includes("@") && input.includes(".")) {
+    result = await linkByEmail(input, chatId);
+  } else {
     await sendMessage({
       chat_id: chatId,
-      text: "That doesn't look like an email. Try again.",
+      text: "Enter your email or paste your 6-character link code from the dashboard.",
     });
     return;
   }
 
-  const result = await linkByEmail(email, chatId);
   if ("error" in result) {
     await sendMessage({ chat_id: chatId, text: result.error });
     return;

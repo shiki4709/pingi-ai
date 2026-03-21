@@ -101,6 +101,49 @@ export async function linkByEmail(
   return { userId: row.id };
 }
 
+// ─── Code-based account linking ───
+
+export async function linkByCode(
+  code: string,
+  chatId: number
+): Promise<{ userId: string } | { error: string }> {
+  const sb = getSupabase();
+  console.log(`[x-store] linkByCode: code="${code}" chatId=${chatId}`);
+
+  // Look up the code
+  const { data: linkCode, error } = await sb
+    .from("link_codes")
+    .select("user_id, expires_at")
+    .eq("code", code)
+    .single();
+
+  if (error || !linkCode) {
+    return { error: "Invalid code. Check your dashboard and try again." };
+  }
+
+  // Check expiry
+  if (linkCode.expires_at && new Date(linkCode.expires_at) <= new Date()) {
+    return { error: "Code expired. Generate a new one from your dashboard." };
+  }
+
+  // Link the user
+  const { error: updateErr } = await sb
+    .from("users")
+    .update({ x_bot_chat_id: chatId })
+    .eq("id", linkCode.user_id);
+
+  if (updateErr) {
+    console.error(`[x-store] Link by code failed:`, updateErr.message);
+    return { error: "Failed to link account. Try again." };
+  }
+
+  // Delete the used code
+  await sb.from("link_codes").delete().eq("code", code);
+
+  console.log(`[x-store] SUCCESS: user ${linkCode.user_id} linked to x-bot chat ${chatId} via code`);
+  return { userId: linkCode.user_id };
+}
+
 // ─── Tracking limits ───
 
 /** Max combined accounts + topics on the free/trial plan */
