@@ -35,7 +35,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Code expired" }, { status: 400 });
     }
 
-    // Step 2: Mark code as used
+    // Step 2: Verify user exists
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", userId)
+      .single();
+
+    if (!userRow) {
+      console.error(`[invite-code/redeem] User ${userId} not found in users table`);
+      return NextResponse.json({ error: "User not found. Sign up first." }, { status: 400 });
+    }
+
+    // Step 3: Mark code as used
     const { error: redeemError } = await supabase
       .from("invite_codes")
       .update({ used_by: userId, used_at: new Date().toISOString() })
@@ -43,7 +55,8 @@ export async function POST(request: NextRequest) {
       .is("used_by", null);
 
     if (redeemError) {
-      return NextResponse.json({ error: "Failed to redeem code" }, { status: 500 });
+      console.error(`[invite-code/redeem] Update failed:`, redeemError.message);
+      return NextResponse.json({ error: "Failed to redeem code: " + redeemError.message }, { status: 500 });
     }
 
     const redeemed = existing;
