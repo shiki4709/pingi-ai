@@ -18,35 +18,35 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabase();
     const normalizedCode = code.trim().toUpperCase();
 
-    // Atomic redemption: only succeeds if code exists, is unused, and not expired
-    const { data: redeemed, error: redeemError } = await supabase
+    // Step 1: Look up the code
+    const { data: existing, error: lookupError } = await supabase
       .from("invite_codes")
-      .update({ used_by: userId, used_at: new Date().toISOString() })
+      .select("id, used_by, expires_at")
       .eq("code", normalizedCode)
-      .is("used_by", null)
-      .or("expires_at.is.null,expires_at.gt." + new Date().toISOString())
-      .select("id")
       .single();
 
-    if (redeemError || !redeemed) {
-      // Determine specific error for better UX
-      const { data: existing } = await supabase
-        .from("invite_codes")
-        .select("used_by, expires_at")
-        .eq("code", normalizedCode)
-        .single();
-
-      if (!existing) {
-        return NextResponse.json({ error: "Code not found" }, { status: 400 });
-      }
-      if (existing.used_by) {
-        return NextResponse.json({ error: "Code already used" }, { status: 400 });
-      }
-      if (existing.expires_at && new Date(existing.expires_at) <= new Date()) {
-        return NextResponse.json({ error: "Code expired" }, { status: 400 });
-      }
-      return NextResponse.json({ error: "Invalid code" }, { status: 400 });
+    if (lookupError || !existing) {
+      return NextResponse.json({ error: "Code not found" }, { status: 400 });
     }
+    if (existing.used_by) {
+      return NextResponse.json({ error: "Code already used" }, { status: 400 });
+    }
+    if (existing.expires_at && new Date(existing.expires_at) <= new Date()) {
+      return NextResponse.json({ error: "Code expired" }, { status: 400 });
+    }
+
+    // Step 2: Mark code as used
+    const { error: redeemError } = await supabase
+      .from("invite_codes")
+      .update({ used_by: userId, used_at: new Date().toISOString() })
+      .eq("id", existing.id)
+      .is("used_by", null);
+
+    if (redeemError) {
+      return NextResponse.json({ error: "Failed to redeem code" }, { status: 500 });
+    }
+
+    const redeemed = existing;
 
     // Update user: 14-day trial, source, link to invite code
     const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
