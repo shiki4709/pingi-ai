@@ -151,7 +151,28 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
 
     if (result.type === "profile_complete") {
       const userId = await getUserIdForChat(chatId);
-      if (result.text === "accounts_accepted" && result.profile && userId) {
+      // Voice saved — add suggested accounts if they were accepted earlier
+      if (result.text === "voice_saved" && result.profile && userId) {
+        await sendMessage({
+          chat_id: chatId,
+          text: "Voice profile saved\\. I'll draft replies that sound like you\\.\n\nUse `/watch` or `/topics` to add more accounts, or `/goals` to update your strategy\\.",
+          parse_mode: "MarkdownV2",
+        });
+      } else if (userId) {
+        await sendMessage({
+          chat_id: chatId,
+          text: "All set\\. Use `/watch` or `/topics` to get started\\.",
+          parse_mode: "MarkdownV2",
+        });
+      }
+      return;
+    }
+
+    // Handle account confirmation messages (which now include profile for adding accounts)
+    if (result.type === "message" && result.profile) {
+      const userId = await getUserIdForChat(chatId);
+      // Check if this is the "added them" response (accounts were accepted)
+      if (result.text.includes("added them") && userId) {
         const existing = await getWatchedAccounts(userId);
         const newAccounts = result.profile.suggested_accounts
           .map((h: string) => h.replace(/^@/, "").toLowerCase())
@@ -159,18 +180,8 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
         if (newAccounts.length > 0) {
           await setWatchedAccounts(userId, [...existing, ...newAccounts]);
         }
-        await sendMessage({
-          chat_id: chatId,
-          text: "Added\\! I'll start finding tweets in your niche\\. Use `/watch` or `/topics` to add more anytime\\.",
-          parse_mode: "MarkdownV2",
-        });
-      } else {
-        await sendMessage({
-          chat_id: chatId,
-          text: "No problem\\. Use `/watch` or `/topics` to add accounts manually\\. Update your goals anytime with `/goals`\\.",
-          parse_mode: "MarkdownV2",
-        });
       }
+      await sendMessage({ chat_id: chatId, text: result.text });
       return;
     }
 

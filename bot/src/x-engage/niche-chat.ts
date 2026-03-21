@@ -7,6 +7,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { config } from "./config.js";
 import { upsertNicheProfile } from "./store.js";
+import { getSupabase } from "./supabase.js";
 
 const MODEL = "claude-sonnet-4-20250514";
 
@@ -16,7 +17,13 @@ interface NicheChatSession {
   chatId: number;
   userId: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
-  stage: "awaiting_goals" | "awaiting_followup" | "awaiting_account_confirm";
+  stage: "awaiting_goals" | "awaiting_followup" | "awaiting_account_confirm" | "awaiting_voice_examples";
+  profile?: {
+    target_icp: string;
+    niche_keywords: string[];
+    trending_queries: string[];
+    suggested_accounts: string[];
+  };
 }
 
 const sessions = new Map<number, NicheChatSession>();
@@ -87,14 +94,53 @@ export async function handleNicheChatMessage(
   const session = sessions.get(chatId);
   if (!session) return { type: "error", text: "No active session." };
 
+  // If we're waiting for voice examples
+  if (session.stage === "awaiting_voice_examples") {
+    // User pastes example tweets/replies (one or more, separated by newlines)
+    const examples = userText.split("\n").map((e) => e.trim()).filter((e) => e.length > 10);
+
+    if (examples.length === 0) {
+      return { type: "message", text: "I need at least one example tweet or reply. Paste a few things you've written on X (one per line)." };
+    }
+
+    // Generate voice description from examples using Claude
+    const voiceDesc = await generateVoiceDescription(examples);
+
+    // Save to voice_profiles table
+    await getSupabase()
+      .from("voice_profiles")
+      .upsert({
+        user_id: session.userId,
+        context: "twitter_reply",
+        description: voiceDesc,
+        examples,
+      }, { onConflict: "user_id,context" });
+
+    endNicheChat(chatId);
+    return {
+      type: "profile_complete",
+      text: "voice_saved",
+      profile: session.profile,
+    };
+  }
+
   // If we're waiting for account confirmation
   if (session.stage === "awaiting_account_confirm") {
     const yes = /^(y|yes|sure|ok|yep|yeah|yea)/i.test(userText.trim());
-    endNicheChat(chatId);
+    // Transition to voice collection instead of ending
+    session.stage = "awaiting_voice_examples";
     if (yes) {
-      return { type: "profile_complete", text: "accounts_accepted" };
+      return {
+        type: "message",
+        text: "Great, added them. One more thing -- paste 3-5 example tweets or replies you've written before (one per line). This helps me match your voice when drafting.",
+        profile: session.profile,
+      };
     }
-    return { type: "profile_complete", text: "accounts_declined" };
+    return {
+      type: "message",
+      text: "No problem. One more thing -- paste 3-5 example tweets or replies you've written before (one per line). This helps me match your voice when drafting.",
+      profile: session.profile,
+    };
   }
 
   session.messages.push({ role: "user", content: userText });
@@ -135,7 +181,8 @@ export async function handleNicheChatMessage(
           suggested_accounts: profile.suggested_accounts,
         });
 
-        // Move to account confirmation stage
+        // Store profile on session and move to account confirmation
+        session.profile = profile;
         session.stage = "awaiting_account_confirm";
 
         const accountList = profile.suggested_accounts
@@ -158,5 +205,29 @@ export async function handleNicheChatMessage(
   } catch (err: any) {
     console.error("[niche-chat] LLM error:", err.message);
     return { type: "error", text: "Something went wrong. Try again or type /goals later." };
+  }
+}
+
+// ─── Voice profile generation ───
+
+async function generateVoiceDescription(examples: string[]): Promise<string> {
+  const client = getAnthropic();
+  if (!client) return "Conversational, direct, uses contractions.";
+
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 200,
+      system: `Analyze these example tweets/replies and describe the writing voice in 2-3 sentences. Focus on: formality level, humor style, sentence length, use of contractions, directness, and any distinctive patterns. Return ONLY the voice description, nothing else.`,
+      messages: [
+        { role: "user", content: examples.map((e, i) => `${i + 1}. "${e}"`).join("\n") },
+      ],
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    return text.trim() || "Conversational, direct, uses contractions.";
+  } catch (err: any) {
+    console.error("[niche-chat] Voice generation failed:", err.message);
+    return "Conversational, direct, uses contractions.";
   }
 }

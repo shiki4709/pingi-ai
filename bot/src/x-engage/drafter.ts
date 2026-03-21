@@ -36,7 +36,7 @@ const ANTI_AI_RULES = `STRICT RULES:
 - DO be specific. Reference actual details from the tweet.
 - Keep it under 280 characters.`;
 
-export async function draftComment(tweet: Tweet, nicheContext?: string): Promise<string | null> {
+export async function draftComment(tweet: Tweet, nicheContext?: string, voiceDescription?: string): Promise<string | null> {
   const anthropic = getClient();
   if (!anthropic) return null;
 
@@ -46,6 +46,9 @@ export async function draftComment(tweet: Tweet, nicheContext?: string): Promise
   const nicheIntro = nicheContext
     ? `You are engaging as an expert in: ${nicheContext}. Your replies should reflect this expertise and attract followers interested in this niche.`
     : "You are engaging authentically as a knowledgeable person in this space.";
+  const voiceIntro = voiceDescription
+    ? `\nIMPORTANT — match this writing voice: ${voiceDescription}`
+    : "";
 
   try {
     const response = await anthropic.messages.create({
@@ -54,7 +57,7 @@ export async function draftComment(tweet: Tweet, nicheContext?: string): Promise
       messages: [
         {
           role: "user",
-          content: `Write a reply to this tweet. ${nicheIntro}
+          content: `Write a reply to this tweet. ${nicheIntro}${voiceIntro}
 
 TWEET by @${author} (${authorName}):
 "${text}"

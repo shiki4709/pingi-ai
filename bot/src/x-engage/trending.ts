@@ -17,7 +17,7 @@ import { sendMessage, inlineButtons } from "./telegram.js";
 import { getSupabase } from "./supabase.js";
 
 const MODEL = "claude-sonnet-4-20250514";
-const MAX_TRENDING_PER_HOUR = 5;
+const MAX_TRENDING_PER_DAY = 3;
 const MAX_TWEET_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
 const MIN_SCORE = 7;
 
@@ -64,6 +64,13 @@ async function runTrendingScan(): Promise<void> {
       await scanTrendingForUser(user_id, telegram_chat_id, niche);
     } catch (err: any) {
       console.error(`[trending] Error for user ${user_id}:`, err.message);
+      // Notify user on rate limit or auth errors
+      if (err.message?.includes("rate limit") || err.status === 429) {
+        await sendMessage({
+          chat_id: telegram_chat_id,
+          text: "Proactive scanning paused — rate limit hit. Will resume on next cycle.",
+        }).catch(() => {});
+      }
     }
   }
 }
@@ -73,21 +80,22 @@ async function scanTrendingForUser(
   chatId: number,
   niche: NicheProfile
 ): Promise<void> {
-  // Check how many trending items sent in last hour
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  // Check how many trending items sent today
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
   const { count: recentCount } = await getSupabase()
     .from("x_engage_items")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
     .eq("source_type", "trending")
-    .gte("created_at", oneHourAgo);
+    .gte("created_at", todayStart.toISOString());
 
-  if ((recentCount ?? 0) >= MAX_TRENDING_PER_HOUR) {
-    console.log(`[trending] User ${userId} hit hourly limit (${recentCount}/${MAX_TRENDING_PER_HOUR})`);
+  if ((recentCount ?? 0) >= MAX_TRENDING_PER_DAY) {
+    console.log(`[trending] User ${userId} hit daily limit (${recentCount}/${MAX_TRENDING_PER_DAY})`);
     return;
   }
 
-  const remaining = MAX_TRENDING_PER_HOUR - (recentCount ?? 0);
+  const remaining = MAX_TRENDING_PER_DAY - (recentCount ?? 0);
 
   // Fetch candidate tweets from all trending queries
   const allCandidates: Tweet[] = [];
@@ -230,6 +238,7 @@ Score each tweet 1-10 based on:
 2. Velocity (likes/retweets suggest momentum)
 3. Niche fit (relevance to user's ICP)
 4. Reply count (under 20 = visible, over 100 = buried)
+5. Gap detection (does the thread lack an expert reply in this niche? If no one knowledgeable has chimed in yet, score higher — the user can be the authoritative voice)
 
 Return ONLY a JSON array: [{"index": 0, "score": 7}, ...]`,
       messages: [

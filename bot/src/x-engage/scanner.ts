@@ -5,6 +5,7 @@
 
 import { getRecentTweets, searchTopicTweets, runDiagnostic } from "./scraper.js";
 import { draftComment } from "./drafter.js";
+import { getSupabase } from "./supabase.js";
 import {
   getUsersWithAccounts,
   getChatIdForUser,
@@ -98,9 +99,18 @@ export async function scanForUser(
   const cutoff = new Date(Date.now() - MAX_AGE_HOURS * 60 * 60_000);
   let itemsSent = 0;
 
-  // Fetch niche context for better drafts
+  // Fetch niche context and voice profile for better drafts
   const nicheProfile = await getNicheProfile(userId);
   const nicheContext = nicheProfile?.target_icp ?? undefined;
+
+  // Fetch voice profile
+  const { data: voiceProfile } = await getSupabase()
+    .from("voice_profiles")
+    .select("description")
+    .eq("user_id", userId)
+    .eq("context", "twitter_reply")
+    .single();
+  const voiceDescription = voiceProfile?.description ?? undefined;
 
   // --- Watched accounts ---
   for (const handle of accounts) {
@@ -110,7 +120,7 @@ export async function scanForUser(
     const tweets = await getRecentTweets(handle, TWEETS_PER_ACCOUNT);
     console.log(`[scanner]   Got ${tweets.length} tweets from @${handle}`);
 
-    itemsSent += await processTweets(tweets, userId, chatId, cutoff, postedCount + itemsSent, { type: "account", value: handle }, nicheContext);
+    itemsSent += await processTweets(tweets, userId, chatId, cutoff, postedCount + itemsSent, { type: "account", value: handle }, nicheContext, voiceDescription);
   }
 
   // --- Search topics ---
@@ -122,7 +132,7 @@ export async function scanForUser(
     const tweets = await searchTopicTweets(topic, TWEETS_PER_ACCOUNT);
     console.log(`[scanner]   Got ${tweets.length} tweets for topic "${topic}"`);
 
-    itemsSent += await processTweets(tweets, userId, chatId, cutoff, postedCount + itemsSent, { type: "topic", value: topic }, nicheContext);
+    itemsSent += await processTweets(tweets, userId, chatId, cutoff, postedCount + itemsSent, { type: "topic", value: topic }, nicheContext, voiceDescription);
   }
 
   console.log(`[scanner] User ${userId}: sent ${itemsSent} items this scan`);
@@ -136,7 +146,8 @@ async function processTweets(
   cutoff: Date,
   currentCount: number,
   source?: { type: "account" | "topic"; value: string },
-  nicheContext?: string
+  nicheContext?: string,
+  voiceDescription?: string
 ): Promise<number> {
   let sent = 0;
 
@@ -156,7 +167,7 @@ async function processTweets(
     if (await hasSeenTweet(userId, tweetId)) { console.log(`[scanner]   skip: already seen ${tweetId}`); continue; }
 
     console.log(`[scanner]   drafting for tweet ${tweetId} by @${tweet.username}`);
-    const draft = await draftComment(tweet, nicheContext);
+    const draft = await draftComment(tweet, nicheContext, voiceDescription);
     if (!draft) { console.log(`[scanner]   skip: draft failed for ${tweetId}`); continue; }
 
     const authorHandle = tweet.username ?? "";
