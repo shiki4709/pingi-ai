@@ -423,66 +423,7 @@ export default function DashboardClient() {
           </div>
         )}
 
-        {/* ─── Onboarding Checklist ─── */}
-        {data.onboarding.show && (
-          <section aria-label="Onboarding checklist" style={{ ...cardStyle, padding: "20px 24px", marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
-                Get started — {data.onboarding.completed} of {data.onboarding.total}
-              </span>
-            </div>
-            <div style={{ height: 4, borderRadius: 2, background: T.surface, marginBottom: 16 }}>
-              <div style={{
-                height: 4,
-                borderRadius: 2,
-                background: T.accent,
-                width: `${(data.onboarding.completed / data.onboarding.total) * 100}%`,
-                transition: "width 0.3s",
-              }} />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[
-                { done: data.onboarding.telegram, label: "Connect Telegram", action: `https://t.me/${ENGAGE_BOT}`, actionLabel: "Connect" },
-                { done: data.onboarding.tracked, label: "Track your first account", action: "#suggested-accounts", actionLabel: "Add" },
-                { done: data.onboarding.reviewed, label: "Review your first draft", action: `https://t.me/${ENGAGE_BOT}`, actionLabel: "Open Telegram" },
-                { done: data.onboarding.posted, label: "Post your first reply", action: `https://t.me/${ENGAGE_BOT}`, actionLabel: "Open Telegram" },
-              ].map((step, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{
-                    width: 20, height: 20, borderRadius: 10,
-                    border: step.done ? "none" : `2px solid ${T.border}`,
-                    background: step.done ? T.accent : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    flexShrink: 0,
-                  }}>
-                    {step.done && (
-                      <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
-                    )}
-                  </div>
-                  <span style={{
-                    flex: 1, fontSize: 13, color: step.done ? T.muted : T.ink,
-                    textDecoration: step.done ? "line-through" : "none",
-                  }}>
-                    {step.label}
-                  </span>
-                  {!step.done && (
-                    <a
-                      href={step.action}
-                      target={step.action.startsWith("http") ? "_blank" : undefined}
-                      rel={step.action.startsWith("http") ? "noopener noreferrer" : undefined}
-                      style={{
-                        fontSize: 11, fontWeight: 600, color: T.accent,
-                        textDecoration: "none", fontFamily: sans,
-                      }}
-                    >
-                      {step.actionLabel}
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+        {/* Onboarding checklist hidden — users set up via Telegram bot */}
 
         {/* Suggested accounts section hidden — users set up accounts via Telegram bot */}
 
