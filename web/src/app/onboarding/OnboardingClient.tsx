@@ -619,7 +619,7 @@ export default function OnboardingClient() {
             )}
             <button
               onClick={() => {
-                const alreadyPaid = userPlan === "pro" || userPlan === "trial";
+                const alreadyPaid = userPlan === "pro";
                 setScreen(alreadyPaid ? 4 : 3);
               }}
               style={{
