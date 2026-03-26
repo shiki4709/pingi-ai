@@ -7,18 +7,18 @@ import PingiLogo from "@/components/PingiLogo";
 
 /* ─── design tokens ─── */
 const T = {
-  bg: "#FAFAF7",
-  surface: "#F3F2EE",
-  ink: "#1E1B4B",
-  body: "#4A4A46",
-  muted: "#8C8C86",
-  accent: "#6366F1",
-  accentHover: "#4F46E5",
-  border: "#E5E4DF",
-  borderLight: "#EDECE8",
+  bg: "#f8fafb",
+  surface: "#eef4f8",
+  ink: "#1a1e2e",
+  body: "#3a4058",
+  muted: "#6a7088",
+  accent: "#2196F3",
+  accentHover: "#1a6fc0",
+  border: "#d8e2ea",
+  borderLight: "#e8eff4",
   error: "#DC2626",
 };
-const serif = "'Instrument Serif', Georgia, serif";
+const serif = "'Space Grotesk', system-ui, sans-serif";
 const sans = "'DM Sans', sans-serif";
 
 /* ─── reusable styles ─── */
@@ -45,7 +45,7 @@ const btnPrimary: React.CSSProperties = {
   fontWeight: 500,
   fontFamily: sans,
   color: "#fff",
-  background: T.accent,
+  background: "linear-gradient(135deg, #2196F3, #42B1F0, #FF8A65)",
   border: "none",
   borderRadius: 10,
   cursor: "pointer",
@@ -168,7 +168,7 @@ export default function AuthClient() {
         style={{
           fontFamily: serif,
           fontSize: 26,
-          fontWeight: 400,
+          fontWeight: 600,
           color: T.ink,
           margin: "0 0 4px",
         }}
@@ -198,7 +198,7 @@ export default function AuthClient() {
               style={{
                 fontFamily: serif,
                 fontSize: 20,
-                fontWeight: 400,
+                fontWeight: 600,
                 color: T.ink,
                 margin: "0 0 8px",
               }}

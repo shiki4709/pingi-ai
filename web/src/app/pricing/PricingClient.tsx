@@ -7,20 +7,20 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import PingiLogo from "@/components/PingiLogo";
 
 const T = {
-  bg: "#FAFAF7",
-  surface: "#F3F2EE",
-  ink: "#1E1B4B",
-  body: "#4A4A46",
-  muted: "#8C8C86",
-  dim: "#B5B5AE",
-  accent: "#6366F1",
-  border: "#E5E4DF",
-  borderLight: "#EDECE8",
+  bg: "#f8fafb",
+  surface: "#eef4f8",
+  ink: "#1a1e2e",
+  body: "#3a4058",
+  muted: "#6a7088",
+  dim: "#9aa0b3",
+  accent: "#2196F3",
+  border: "#d8e2ea",
+  borderLight: "#e8eff4",
   green: "#16A34A",
   greenSoft: "#F0FDF4",
 };
 
-const serif = "'Instrument Serif', Georgia, serif";
+const serif = "'Space Grotesk', system-ui, sans-serif";
 const sans = "'DM Sans', sans-serif";
 
 const FEATURES = [
@@ -214,7 +214,7 @@ export default function PricingClient() {
             style={{
               fontFamily: serif,
               fontSize: "clamp(32px, 4vw, 44px)",
-              fontWeight: 400,
+              fontWeight: 600,
               color: T.ink,
               margin: "0 0 12px",
               letterSpacing: "-0.02em",
@@ -330,7 +330,7 @@ export default function PricingClient() {
               padding: "14px 24px",
               borderRadius: 12,
               border: "none",
-              background: T.ink,
+              background: "linear-gradient(135deg, #2196F3, #42B1F0, #FF8A65)",
               color: "#fff",
               fontSize: 15,
               fontWeight: 600,

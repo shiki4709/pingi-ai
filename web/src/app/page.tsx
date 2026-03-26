@@ -13,24 +13,24 @@ import PingiLogo from "@/components/PingiLogo";
 // accent   #6366F1 = 4.5:1  ✓ AA
 
 const T = {
-  bg: "#FAFAF7",
-  surface: "#F3F2EE",
-  surfaceAlt: "#ECEAE4",
-  ink: "#1E1B4B",
-  body: "#4A4A46",
-  muted: "#8C8C86",
-  dim: "#B5B5AE",
-  accent: "#6366F1",
-  accentHover: "#4F46E5",
-  accentSoft: "#EEF2FF",
-  border: "#E5E4DF",
-  borderLight: "#EDECE8",
+  bg: "#f8fafb",
+  surface: "#eef4f8",
+  surfaceAlt: "#e8eff4",
+  ink: "#1a1e2e",
+  body: "#3a4058",
+  muted: "#6a7088",
+  dim: "#9aa0b3",
+  accent: "#2196F3",
+  accentHover: "#1a6fc0",
+  accentSoft: "#e8f4fd",
+  border: "#d8e2ea",
+  borderLight: "#e8eff4",
   green: "#16A34A",
   greenSoft: "#F0FDF4",
   tgBlue: "#38BDF8",
 };
 
-const serif = "'Instrument Serif', Georgia, serif";
+const serif = "'Space Grotesk', system-ui, sans-serif";
 const sans = "'DM Sans', sans-serif";
 
 const keyframesCSS = `
@@ -488,7 +488,7 @@ export default function LandingPage() {
                 style={{
                   fontFamily: serif,
                   fontSize: "clamp(36px, 5vw, 56px)",
-                  fontWeight: 400,
+                  fontWeight: 600,
                   color: T.ink,
                   margin: "0 0 20px",
                   letterSpacing: "-0.025em",
@@ -510,8 +510,8 @@ export default function LandingPage() {
                     display: "inline-block",
                     padding: "13px 32px",
                     borderRadius: 8,
-                    background: T.ink,
-                    color: T.bg,
+                    background: "linear-gradient(135deg, #2196F3, #42B1F0, #FF8A65)",
+                    color: "#fff",
                     fontSize: 15,
                     fontWeight: 600,
                     textDecoration: "none",
@@ -560,11 +560,11 @@ export default function LandingPage() {
               { num: "03", title: "Human in the loop, not auto-pilot", desc: "Nothing posts without your approval. Review every reply, edit what needs adjusting, skip what does not fit. You stay in control. No blind automation. No spam." },
             ].map((v) => (
               <div key={v.num} style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "clamp(16px, 3vw, 32px)", alignItems: "baseline" }}>
-                <span style={{ fontFamily: serif, fontSize: 48, fontWeight: 400, color: T.dim, lineHeight: 1 }}>
+                <span style={{ fontFamily: serif, fontSize: 48, fontWeight: 600, color: T.dim, lineHeight: 1 }}>
                   {v.num}
                 </span>
                 <div>
-                  <h3 style={{ fontFamily: serif, fontSize: "clamp(22px, 2.5vw, 28px)", fontWeight: 400, color: T.ink, margin: "0 0 8px", lineHeight: 1.2 }}>
+                  <h3 style={{ fontFamily: serif, fontSize: "clamp(22px, 2.5vw, 28px)", fontWeight: 600, color: T.ink, margin: "0 0 8px", lineHeight: 1.2 }}>
                     {v.title}
                   </h3>
                   <p style={{ fontSize: 15, color: T.body, margin: 0, lineHeight: 1.7, maxWidth: 520 }}>
@@ -579,7 +579,7 @@ export default function LandingPage() {
         {/* ─── Two Products ─── */}
         <FadeSection label="Products" style={{ padding: "0 clamp(20px, 4vw, 48px) clamp(60px, 8vw, 100px)", maxWidth: 1080, margin: "0 auto" }}>
           <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: "clamp(40px, 5vw, 64px)" }}>
-            <h2 style={{ fontFamily: serif, fontSize: "clamp(28px, 3vw, 36px)", fontWeight: 400, color: T.ink, margin: "0 0 8px", letterSpacing: "-0.01em" }}>
+            <h2 style={{ fontFamily: serif, fontSize: "clamp(28px, 3vw, 36px)", fontWeight: 600, color: T.ink, margin: "0 0 8px", letterSpacing: "-0.01em" }}>
               Two agents. One workflow.
             </h2>
             <p style={{ fontSize: 16, color: T.muted, margin: "0 0 clamp(32px, 4vw, 48px)", maxWidth: 420, lineHeight: 1.6 }}>
@@ -630,7 +630,7 @@ export default function LandingPage() {
         {/* ─── Exposure compounds ─── */}
         <FadeSection label="Why it matters" style={{ padding: "0 clamp(20px, 4vw, 48px)", maxWidth: 1080, margin: "0 auto" }}>
           <div style={{ background: T.surface, borderRadius: 16, padding: "clamp(40px, 5vw, 64px) clamp(24px, 4vw, 48px)", border: `1px solid ${T.borderLight}`, maxWidth: 640 }}>
-            <h2 style={{ fontFamily: serif, fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 400, color: T.ink, margin: "0 0 12px", lineHeight: 1.2 }}>
+            <h2 style={{ fontFamily: serif, fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 600, color: T.ink, margin: "0 0 12px", lineHeight: 1.2 }}>
               Exposure compounds. Showing up is the hard part.
             </h2>
             <p style={{ fontSize: 15, color: T.body, margin: 0, lineHeight: 1.7, maxWidth: 480 }}>
@@ -645,7 +645,7 @@ export default function LandingPage() {
         <FadeSection label="Social proof" style={{ padding: "clamp(60px, 8vw, 100px) clamp(20px, 4vw, 48px)", maxWidth: 1080, margin: "0 auto" }}>
           <div style={{ maxWidth: 600 }}>
             <blockquote style={{ margin: 0, padding: "0 0 0 24px", borderLeft: `3px solid ${T.accent}` }}>
-              <p style={{ fontFamily: serif, fontSize: "clamp(20px, 2.5vw, 26px)", color: T.ink, margin: "0 0 16px", lineHeight: 1.45, fontWeight: 400, fontStyle: "italic" }}>
+              <p style={{ fontFamily: serif, fontSize: "clamp(20px, 2.5vw, 26px)", color: T.ink, margin: "0 0 16px", lineHeight: 1.45, fontWeight: 600, fontStyle: "italic" }}>
                 Replied to a Paul Graham tweet 90 seconds after it went live. First reply in the thread.
                 That does not happen when you are checking X manually between meetings.
               </p>
@@ -697,8 +697,8 @@ export default function LandingPage() {
                   display: "inline-block",
                   padding: "13px 40px",
                   borderRadius: 8,
-                  background: T.ink,
-                  color: T.bg,
+                  background: "linear-gradient(135deg, #2196F3, #42B1F0, #FF8A65)",
+                  color: "#fff",
                   fontSize: 15, fontWeight: 600,
                   textDecoration: "none",
                   fontFamily: sans,

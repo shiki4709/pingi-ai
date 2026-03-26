@@ -6,22 +6,22 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import type { User } from "@supabase/supabase-js";
 
 const T = {
-  bg: "#FAFAF7",
-  surface: "#F3F2EE",
-  surfaceAlt: "#ECEAE4",
-  ink: "#1E1B4B",
-  body: "#4A4A46",
-  muted: "#8C8C86",
-  dim: "#B5B5AE",
-  accent: "#6366F1",
-  accentHover: "#4F46E5",
-  border: "#E5E4DF",
-  borderLight: "#EDECE8",
+  bg: "#f8fafb",
+  surface: "#eef4f8",
+  surfaceAlt: "#e8eff4",
+  ink: "#1a1e2e",
+  body: "#3a4058",
+  muted: "#6a7088",
+  dim: "#9aa0b3",
+  accent: "#2196F3",
+  accentHover: "#1a6fc0",
+  border: "#d8e2ea",
+  borderLight: "#e8eff4",
   green: "#16A34A",
   greenSoft: "#F0FDF4",
 };
 
-const serif = "'Instrument Serif', Georgia, serif";
+const serif = "'Space Grotesk', system-ui, sans-serif";
 const sans = "'DM Sans', sans-serif";
 
 const INBOX_BOT =
@@ -365,7 +365,7 @@ export default function OnboardingClient() {
             style={{
               fontFamily: serif,
               fontSize: "clamp(26px, 4vw, 34px)",
-              fontWeight: 400,
+              fontWeight: 600,
               color: T.ink,
               margin: "0 0 6px",
             }}
@@ -433,7 +433,7 @@ export default function OnboardingClient() {
               border: "none",
               background:
                 selected.size > 0
-                  ? T.ink
+                  ? "linear-gradient(135deg, #2196F3, #42B1F0, #FF8A65)"
                   : T.borderLight,
               color: selected.size > 0 ? "#fff" : T.muted,
               fontSize: 15,
@@ -462,7 +462,7 @@ export default function OnboardingClient() {
               style={{
                 fontFamily: serif,
                 fontSize: 28,
-                fontWeight: 400,
+                fontWeight: 600,
                 color: T.ink,
                 margin: "0 0 6px",
               }}
@@ -606,7 +606,7 @@ export default function OnboardingClient() {
                   padding: "12px 40px",
                   borderRadius: 12,
                   border: "none",
-                  background: T.ink,
+                  background: "linear-gradient(135deg, #2196F3, #42B1F0, #FF8A65)",
                   color: "#fff",
                   fontSize: 14,
                   fontWeight: 600,
@@ -709,7 +709,7 @@ export default function OnboardingClient() {
                   padding: "12px 24px",
                   borderRadius: 10,
                   border: "none",
-                  background: T.ink,
+                  background: "linear-gradient(135deg, #2196F3, #42B1F0, #FF8A65)",
                   color: "#fff",
                   fontSize: 14,
                   fontWeight: 600,
@@ -818,7 +818,7 @@ export default function OnboardingClient() {
                 padding: "14px 0",
                 borderRadius: 12,
                 border: "none",
-                background: T.ink,
+                background: "linear-gradient(135deg, #2196F3, #42B1F0, #FF8A65)",
                 color: "#fff",
                 fontSize: 15,
                 fontWeight: 600,
@@ -868,7 +868,7 @@ export default function OnboardingClient() {
             style={{
               fontFamily: serif,
               fontSize: 30,
-              fontWeight: 400,
+              fontWeight: 600,
               color: T.ink,
               margin: "0 0 8px",
             }}
@@ -901,7 +901,7 @@ export default function OnboardingClient() {
               padding: "14px 48px",
               borderRadius: 12,
               border: "none",
-              background: T.ink,
+              background: "linear-gradient(135deg, #2196F3, #42B1F0, #FF8A65)",
               color: "#fff",
               fontSize: 15,
               fontWeight: 600,
@@ -1013,7 +1013,7 @@ function AgentCard({
         style={{
           fontFamily: serif,
           fontSize: 20,
-          fontWeight: 400,
+          fontWeight: 600,
           color: T.ink,
           margin: "0 0 6px",
         }}

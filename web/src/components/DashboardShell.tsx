@@ -20,9 +20,9 @@ export default function DashboardShell() {
       className="min-h-screen flex flex-col"
       style={{
         fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif",
-        background: `radial-gradient(ellipse at 20% 0%, rgba(232,228,221,0.8) 0%, transparent 50%),
-                     radial-gradient(ellipse at 80% 100%, rgba(226,220,210,0.6) 0%, transparent 50%),
-                     radial-gradient(ellipse at 50% 50%, rgba(242,240,236,1) 0%, rgba(234,230,223,1) 100%)`,
+        background: `radial-gradient(ellipse at 20% 0%, rgba(216,226,234,0.8) 0%, transparent 50%),
+                     radial-gradient(ellipse at 80% 100%, rgba(232,239,244,0.6) 0%, transparent 50%),
+                     radial-gradient(ellipse at 50% 50%, rgba(248,250,251,1) 0%, rgba(238,244,248,1) 100%)`,
       }}
     >
       {/* Header */}
@@ -40,8 +40,8 @@ export default function DashboardShell() {
         <div className="flex items-center gap-2">
           <PingiLogo size={28} />
           <span
-            className="text-lg text-[#1E1B4B]"
-            style={{ fontFamily: "'Instrument Serif', Georgia, serif" }}
+            className="text-lg text-[#1a1e2e]"
+            style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}
           >
             Pingi
           </span>
@@ -60,7 +60,7 @@ export default function DashboardShell() {
               style={{
                 background:
                   activeTab === t.key ? "rgba(255,255,255,0.85)" : "transparent",
-                color: activeTab === t.key ? "#1E1B4B" : "#9a9a9a",
+                color: activeTab === t.key ? "#1a1e2e" : "#9a9a9a",
                 boxShadow:
                   activeTab === t.key
                     ? "0 1px 4px rgba(0,0,0,0.06)"
@@ -91,7 +91,7 @@ export default function DashboardShell() {
                 background: "rgba(255,255,255,0.6)",
                 backdropFilter: "blur(8px)",
                 border: "1px solid rgba(0,0,0,0.08)",
-                color: "#1E1B4B",
+                color: "#1a1e2e",
               }}
             />
             {generatedContent.trim() && (
@@ -99,7 +99,7 @@ export default function DashboardShell() {
                 onClick={() => setActiveTab("publish")}
                 className="self-end px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
                 style={{
-                  background: "linear-gradient(135deg, #4F46E5, #6366F1)",
+                  background: "linear-gradient(135deg, #2196F3, #42B1F0, #FF8A65)",
                   boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
                   cursor: "pointer",
                 }}
