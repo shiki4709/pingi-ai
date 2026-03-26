@@ -214,6 +214,69 @@ export async function GET(request: NextRequest) {
   const engageLikesReceived = metricsRows.reduce((sum: number, r: any) => sum + (r.reply_likes ?? 0), 0);
   const engageRepliesReceived = metricsRows.reduce((sum: number, r: any) => sum + (r.reply_replies ?? 0), 0);
 
+  // ─── Aggregate all accounts sharing the same Telegram chat ───
+  // Find sibling user IDs that share the same telegram_chat_id or x_bot_chat_id
+  const siblingUserIds: string[] = [userId];
+  if (user?.telegram_chat_id || user?.x_bot_chat_id) {
+    const conditions: string[] = [];
+    if (user.telegram_chat_id) conditions.push(`telegram_chat_id.eq.${user.telegram_chat_id}`);
+    if (user.x_bot_chat_id) conditions.push(`x_bot_chat_id.eq.${user.x_bot_chat_id}`);
+
+    const { data: siblings } = await supabase
+      .from("users")
+      .select("id, email")
+      .or(conditions.join(","))
+      .neq("id", userId);
+
+    if (siblings) {
+      for (const s of siblings) siblingUserIds.push(s.id);
+    }
+  }
+
+  // Fetch connected accounts + topics for ALL sibling users
+  let allConnectedAccounts = connectedAccounts.map((a) => ({ platform: a.platform, username: a.platform_username }));
+  let allWatchedAccounts = (topicsRes.data?.topics ?? []) as string[];
+  let allSearchTopics = (topicsRes.data?.search_topics ?? []) as string[];
+  let allXHandles: string[] = topicsRes.data?.x_handle ? [topicsRes.data.x_handle as string] : [];
+
+  if (siblingUserIds.length > 1) {
+    const otherIds = siblingUserIds.filter((id) => id !== userId);
+
+    const [siblingAccountsRes, siblingTopicsRes] = await Promise.all([
+      supabase
+        .from("connected_accounts")
+        .select("platform, platform_username")
+        .in("user_id", otherIds),
+      supabase
+        .from("user_topics")
+        .select("topics, search_topics, x_handle")
+        .in("user_id", otherIds),
+    ]);
+
+    // Merge connected accounts (dedupe by platform+username)
+    const seen = new Set(allConnectedAccounts.map((a) => `${a.platform}:${a.username}`));
+    for (const a of (siblingAccountsRes.data ?? []) as any[]) {
+      const key = `${a.platform}:${a.platform_username}`;
+      if (!seen.has(key)) {
+        allConnectedAccounts.push({ platform: a.platform, username: a.platform_username });
+        seen.add(key);
+      }
+    }
+
+    // Merge topics and accounts (dedupe)
+    const watchedSet = new Set(allWatchedAccounts);
+    const topicSet = new Set(allSearchTopics);
+    const handleSet = new Set(allXHandles);
+    for (const t of (siblingTopicsRes.data ?? []) as any[]) {
+      for (const a of (t.topics ?? []) as string[]) watchedSet.add(a);
+      for (const s of (t.search_topics ?? []) as string[]) topicSet.add(s);
+      if (t.x_handle) handleSet.add(t.x_handle as string);
+    }
+    allWatchedAccounts = Array.from(watchedSet);
+    allSearchTopics = Array.from(topicSet);
+    allXHandles = Array.from(handleSet);
+  }
+
   return NextResponse.json({
     // Connection status
     inbox_linked: inboxLinked,
@@ -221,7 +284,8 @@ export async function GET(request: NextRequest) {
     gmail_connected: gmailConnected,
     gmail_email: gmailAccount?.platform_username ?? null,
     x_handle: topicsRes.data?.x_handle ?? null,
-    connected_accounts: connectedAccounts.map((a) => ({ platform: a.platform, username: a.platform_username })),
+    all_x_handles: allXHandles,
+    connected_accounts: allConnectedAccounts,
 
     // User
     name: user?.name ?? null,
@@ -268,9 +332,9 @@ export async function GET(request: NextRequest) {
       total: 4,
     },
 
-    // Agent details
-    watched_accounts: topicsRes.data?.topics ?? [],
-    search_topics: topicsRes.data?.search_topics ?? [],
+    // Agent details (aggregated across all linked accounts)
+    watched_accounts: allWatchedAccounts,
+    search_topics: allSearchTopics,
     account_stats: accountStats,
     topic_stats: topicStats,
     last_inbox_activity: lastInboxActivity,
