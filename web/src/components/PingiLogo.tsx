@@ -1,6 +1,6 @@
 /**
- * Pingi logo — smooth abstract AI mark.
- * Flowing curves instead of sharp lines.
+ * Pingi logo — watercolor penguin in Syval brand style.
+ * Blue tones with orange accents, matching the design system.
  * Works at any size; defaults to 40×40.
  */
 export default function PingiLogo({ size = 40 }: { size?: number }) {
@@ -9,102 +9,63 @@ export default function PingiLogo({ size = 40 }: { size?: number }) {
     <svg
       width={size}
       height={size}
-      viewBox="0 0 120 120"
+      viewBox="0 0 250 250"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-label="Pingi logo"
     >
+      <path d="m28.36 118.2c-6.33 1.02-10.28 8.97-15.23 15.52-3.31 4.41-8.31 9.17-5.91 11.74 1.88 2.13 4.63-0.39 5.97-0.37 2.52 0.05-1.08 4.98 1.08 6.34 4.83 3.01 11.34-8.38 15.67-11.67 3.04-2.4 6.77-1.3 6.77-1.3l0.96-6.54-4.35-11.89-4.96-1.83z" fill={`url(#${id}-0)`}/>
+      <path d="m224 99.4c-2.86-14.33-15.45-23.98-28.99-25.88-13.71-1.93-21.87 3.55-28.42 6.3-5.58 2.42-8.76 2.56-15.73-1-14.73-7.08-28.75-13.58-53.56-13.82-24.1-0.23-36.17 5.9-48.23 9.77-11.16 3.76-20.78 0.47-27.24-2.7-4.7-2.57-7.89-2.34-8.12 2.7-0.16 7.94 2.59 15.84 8.02 24.48 3.75 5.8 3.37 10.84 5.51 16.76 2.9 8.46 7.47 16.05 9.07 22.37 2.17 8.79 23.84 22.55 48.37 28.74 5.48 1.49 19.25 3.11 32.56 2.81 29.49-0.67 50.85-7.49 69.74-21.63 6.92-5.04 11.85-10.46 16.27-13.29 7.96-5.04 17.74-12.59 19.78-19.98 1.51-4.94 1.91-10.31 0.97-15.63z" fill={`url(#${id}-1)`}/>
+      <path d="m200.2 87.61c-13.97-0.33-22.26 13.1-22.05 23.28 0.16 7.17 3.82 11.99 1.92 17.53-2.47 7.5-15.16 9.01-20.36 9.89-7.8 1.34-16.63 23.26-32 31.9-9.7 6.55-22.61 12.45-44.41 13.47-6.63 0.23-13.19-1.85-12.71-5.5 0.82-6.08 11.82-10.4 18.21-15.22 11.62-8.94 12.91-15.48 16.41-23.25 3.89-8.6 7.79-12.63 18.95-16.99 3.04-1.28 5.56-1.61 5.82-2.69 0.62-2.7-8.92-10.75-24.13-10.6-15.53 0.18-28.11 4.64-39.79 3.84-13.64-1.02-21.1-6.51-25.95-15.76-3.9-7.54 1.1-9.9 6.9-9.3 4.95 0.55 10.75 0 21.28-5.04 12.96-6.4 17.71-7.96 31.02-7.81 14.79 0.2 28.5 5.09 37.88 9.28 7.61 3.42 15.51 5.5 20.41 4.17 5.96-1.68 6.12-4.6 15.45-3.42 7.96 1.02 10.66 5.74 14.72 7.13 3.44 1.19 5.96-3.45 12.43-3.95 7.95-0.61 16.51 7.09 16.84 14.63 1.66-0.55 5.16-2.49 5.96-3.9-1.73-8.49-12.57-11.41-22.8-11.69z" fill={`url(#${id}-2)`}/>
+      <path d="m209 102.3c0.91-3.56-1.38-5.26-3.32-5.26-3.55-0.33-5.63 1.77-6.25 4.01-0.6 2.42 1.08 5.56 4.28 5.56 3.03 0 4.7-1.66 5.29-4.31z" fill="#FEFFFE" fillOpacity=".25"/>
+      <path d="m208.2 102.2c0.75-3.18-1.29-4.7-3.46-4.91-3.09-0.28-4.67 1.63-5.04 3.53-0.53 2.52 0.9 5.3 4.01 5.3 2.49 0 3.97-1.68 4.49-3.92z" fill={`url(#${id}-3)`}/>
+      <path d="m223.8 100c3.39 0.68 11.33 2.24 15.66 5.29 2.76 2.01 4.79 4.16 3.37 5.32-1.68 1.23-11.35 3.22-15.38 4.54-4.8 1.53-11.3-1.04-12.64-5.09-1.12-3.68 2.38-6.01 2.75-7.37 0.65-2.31 2.06-3.58 6.24-2.69z" fill={`url(#${id}-4)`}/>
+      <path d="m20.18 80.27c-0.85-4.41 0.88-5.11 4.77-2.64 6.12 3.86 11.37 6.53 20.2 4.73 9.33-2.01 17.12-7.65 31.91-11.35 10.18-2.75 28.62-3.35 44.09 0.05 12.07 2.92 21.3 9.01 30.18 13.15 5.25 2.52 9.82 2.9 15.62-0.3 5.15-2.82 9.2-3.67 13.29-4.29 7.38-1.21 14.57-1.79 22.88 0.68 5.69 1.68 11.12 5.65 14.03 10.01 2.27 3.55 2.67 5.93 2.56 7.81-0.23 1.81-2.22 2.82-2.94-0.21-1.39-4.86-7.73-10.45-16.69-10.45s-15.73 5.49-19.06 10.66c-1.88 3.17-3.27 0.81-3.84-1.07-1.44-4.58-4.93-10.04-13.04-9.77-4 0.13-5.07 1.73-12.12-0.07-9.88-2.7-18.99-9.53-33.63-12.9-10.94-2.75-20.33-3.6-32.34-2.29-13.82 1.65-25.83 8.22-34.9 10.89-9.39 2.92-15.51 1.78-21.79-2.46-3.75-2.57-8.02-4.44-9.18-0.18z" fill={`url(#${id}-5)`}/>
+      <path d="m37.11 134.8c0.62-8.41 10.9-9.64 29.45-3.87 13.54 4.56 19.23 7.23 38.12 8.86-2.52 6.8-6.85 17-16.13 24.22-9.67 1.31-35.52-9.98-46.51-21.27-2.99-3.15-5.16-4.85-4.93-7.94z" fill={`url(#${id}-6)`}/>
+      <path d="m156 138.2c6.23-1.02 15.68-2.44 21.15-8.03 1.99 3.05 3.66 6.22 7.31 7.92-5.63 8.04-16.42 17.96-25.86 22.78-7.74 4.11-19.47 7.51-31.15 8.01 8.39-5.04 18.22-24.75 28.55-30.68z" fill={`url(#${id}-7)`}/>
+      <path d="m105.2 139.7c3.7-8.6 8.5-12.5 18.53-16.15 2.91-1.06 4.74-1.19 5-0.43 0.47 1.34-11.59 6.99-16.11 13.54-4.85 6.98-8.4 18.27-19.45 26.29-7.37 5.55-17.4 10.16-18.47 14.73-0.7 3.04 2.29 3.32 3.89 3.32 8.28-0.16 22.91-3.9 29.83-7.29 15.47-7.84 26.41-18.09 40.54-34.01 3.55-4.1 8.25-6.57 10.95-6.49 0.83 0.03-1.69 3.13-2.81 4.54-1.43 1.95-4.23 1.32-9.37 7.77-5.96 7.41-11.54 17.18-24.13 25.51-10.54 7.17-22.97 11.12-40.52 12.26-5.14 0.33-10.93-1.19-12.09-3.39-2.09-4.1 6.37-8.82 10.12-11.4 5-3.34 11.06-6.43 15.16-11.4 4.33-5.04 5.82-10.9 8.93-17.4z" fill={`url(#${id}-8)`}/>
       <defs>
-        <linearGradient id={`${id}-bg`} x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#312E81" />
-          <stop offset="100%" stopColor="#1E1B4B" />
+        <linearGradient id={`${id}-0`} x1="14.71" x2="25.12" y1="122.7" y2="147" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#B0D7F1" offset="0"/>
+          <stop stopColor="#F4A175" offset="1"/>
         </linearGradient>
-
-        <linearGradient id={`${id}-petal1`} x1="30" y1="20" x2="80" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#A78BFA" />
-          <stop offset="100%" stopColor="#6366F1" />
-        </linearGradient>
-
-        <linearGradient id={`${id}-petal2`} x1="20" y1="60" x2="100" y2="60" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#818CF8" />
-          <stop offset="100%" stopColor="#38BDF8" />
-        </linearGradient>
-
-        <linearGradient id={`${id}-petal3`} x1="80" y1="20" x2="40" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#60A5FA" />
-          <stop offset="100%" stopColor="#A78BFA" />
-        </linearGradient>
-
-        <linearGradient id={`${id}-petal4`} x1="60" y1="100" x2="60" y2="20" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#38BDF8" />
-          <stop offset="100%" stopColor="#818CF8" />
-        </linearGradient>
-
-        <radialGradient id={`${id}-core`} cx="42%" cy="38%" r="60%">
-          <stop offset="0%" stopColor="#E0E7FF" />
-          <stop offset="50%" stopColor="#A78BFA" />
-          <stop offset="100%" stopColor="#6366F1" />
+        <radialGradient id={`${id}-1`} cx="0" cy="0" r="1" gradientTransform="translate(113.1 102.8) scale(121.3 121.7)" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#B8D9F6" offset="0"/>
+          <stop stopColor="#96BCE8" offset=".493"/>
+          <stop stopColor="#67B1ED" offset=".993"/>
         </radialGradient>
-
-        <radialGradient id={`${id}-glow`} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#818CF8" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="#818CF8" stopOpacity="0" />
+        <radialGradient id={`${id}-2`} cx="0" cy="0" r="1" gradientTransform="translate(113.7 107.6) scale(101.8 102.2)" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#C0A6B1" offset="0"/>
+          <stop stopColor="#C0A6B1" stopOpacity=".37" offset=".734"/>
+          <stop stopColor="#C0A6B1" stopOpacity=".12" offset="1"/>
+        </radialGradient>
+        <linearGradient id={`${id}-3`} x1="204" x2="204" y1="97.24" y2="106.1" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FCC576" offset="0"/>
+          <stop stopColor="#F39369" offset="1"/>
+        </linearGradient>
+        <linearGradient id={`${id}-4`} x1="224" x2="234.1" y1="100.5" y2="114.1" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#B791A5" offset="0"/>
+          <stop stopColor="#F39E7A" offset="1"/>
+        </linearGradient>
+        <linearGradient id={`${id}-5`} x1="118.7" x2="120.1" y1="68.41" y2="86.76" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#B0E6FF" offset="0"/>
+          <stop stopColor="#B0E6FF" stopOpacity=".12" offset="1"/>
+        </linearGradient>
+        <radialGradient id={`${id}-6`} cx="0" cy="0" r="1" gradientTransform="translate(75.63 138.2) scale(28.67 28.76)" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#C0D9F1" offset="0"/>
+          <stop stopColor="#C6D0E4" stopOpacity=".541" offset=".734"/>
+          <stop stopColor="#C7CED2" stopOpacity=".28" offset="1"/>
+        </radialGradient>
+        <radialGradient id={`${id}-7`} cx="0" cy="0" r="1" gradientTransform="translate(159 145.8) scale(19.92 19.99)" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#F9B08A" offset="0"/>
+          <stop stopColor="#F9B08A" stopOpacity=".25" offset=".993"/>
+        </radialGradient>
+        <radialGradient id={`${id}-8`} cx="0" cy="0" r="1" gradientTransform="translate(106.8 149.7) scale(49.58 49.75)" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#C69586" offset="0"/>
+          <stop stopColor="#75B0E5" offset=".734"/>
+          <stop stopColor="#75B0E5" stopOpacity=".8" offset=".993"/>
         </radialGradient>
       </defs>
-
-      {/* background */}
-      <circle cx="60" cy="60" r="60" fill={`url(#${id}-bg)`} />
-
-      {/* ambient glow */}
-      <circle cx="60" cy="60" r="40" fill={`url(#${id}-glow)`} />
-
-      {/* 4 smooth petals — organic curves radiating from center */}
-      <g opacity="0.9">
-        {/* top petal */}
-        <path
-          d="M60 18 C52 32, 48 44, 60 54 C72 44, 68 32, 60 18Z"
-          fill={`url(#${id}-petal1)`}
-        />
-        {/* right petal */}
-        <path
-          d="M102 60 C88 52, 76 48, 66 60 C76 72, 88 68, 102 60Z"
-          fill={`url(#${id}-petal2)`}
-        />
-        {/* bottom petal */}
-        <path
-          d="M60 102 C68 88, 72 76, 60 66 C48 76, 52 88, 60 102Z"
-          fill={`url(#${id}-petal3)`}
-        />
-        {/* left petal */}
-        <path
-          d="M18 60 C32 68, 44 72, 54 60 C44 48, 32 52, 18 60Z"
-          fill={`url(#${id}-petal4)`}
-        />
-      </g>
-
-      {/* 4 diagonal petals — smaller, rotated 45deg */}
-      <g opacity="0.55">
-        <path
-          d="M86 34 C76 40, 72 48, 64 56 C72 52, 80 44, 86 34Z"
-          fill={`url(#${id}-petal2)`}
-        />
-        <path
-          d="M86 86 C80 76, 72 72, 64 64 C72 68, 76 80, 86 86Z"
-          fill={`url(#${id}-petal1)`}
-        />
-        <path
-          d="M34 86 C44 80, 48 72, 56 64 C48 68, 40 76, 34 86Z"
-          fill={`url(#${id}-petal3)`}
-        />
-        <path
-          d="M34 34 C40 44, 48 48, 56 56 C48 52, 44 40, 34 34Z"
-          fill={`url(#${id}-petal4)`}
-        />
-      </g>
-
-      {/* core */}
-      <circle cx="60" cy="60" r="11" fill={`url(#${id}-core)`} />
-      <circle cx="60" cy="60" r="4" fill="#fff" opacity="0.95" />
     </svg>
   );
 }
