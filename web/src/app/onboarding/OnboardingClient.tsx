@@ -742,7 +742,7 @@ export default function OnboardingClient() {
                 margin: "0 0 16px",
               }}
             >
-              No invite code? Start a free trial instead.
+              No invite code? Subscribe to get started.
             </p>
 
             <div
@@ -768,7 +768,7 @@ export default function OnboardingClient() {
                 "Smart urgency detection and prioritization",
                 "Review and send from Telegram with one tap",
                 "Unlimited agents and connected accounts",
-                "3-day free trial, no charge today",
+                "$29/mo, full access to all features",
               ].map((item) => (
                 <div
                   key={item}
@@ -827,12 +827,11 @@ export default function OnboardingClient() {
                 marginBottom: 12,
               }}
             >
-              {subscribing ? "Redirecting..." : "Start free trial"}
+              {subscribing ? "Redirecting..." : "Subscribe \u2014 $29/mo"}
             </button>
 
             <p style={{ fontSize: 11, color: T.muted, margin: 0 }}>
-              You won&apos;t be charged during the trial. Cancel in one
-              click.
+              Cancel anytime in one click. No long-term commitment.
             </p>
           </div>
         </div>
@@ -883,7 +882,7 @@ export default function OnboardingClient() {
               lineHeight: 1.6,
             }}
           >
-            Your free trial is active. Full access to all features.
+            You're all set. Full access to all features.
           </p>
           <p
             style={{

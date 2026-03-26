@@ -518,7 +518,7 @@ export default function LandingPage() {
                     fontFamily: sans,
                   }}
                 >
-                  Start free trial
+                  Get started
                 </Link>
                 <a
                   href="#demo"
@@ -668,7 +668,7 @@ export default function LandingPage() {
           <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: "clamp(40px, 5vw, 64px)" }}>
             <div style={{ maxWidth: 420 }}>
               <div style={{ display: "inline-block", background: T.accentSoft, color: T.accent, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 4, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 20 }}>
-                3-day free trial
+                14-day trial with invite code
               </div>
               <p style={{ fontSize: 12, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 4px" }}>
                 Pingi Pro
@@ -704,10 +704,10 @@ export default function LandingPage() {
                   fontFamily: sans,
                 }}
               >
-                Start free trial
+                Get started
               </Link>
               <p style={{ fontSize: 13, color: T.muted, marginTop: 14, marginBottom: 0 }}>
-                3 days free. No credit card required. Cancel anytime.
+                Have an invite code? Get 14 days free.
               </p>
             </div>
           </div>

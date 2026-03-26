@@ -260,7 +260,7 @@ export default function PricingClient() {
               textTransform: "uppercase",
             }}
           >
-            3-day free trial
+            14-day trial with invite code
           </div>
 
           <p
@@ -338,7 +338,7 @@ export default function PricingClient() {
               fontFamily: sans,
             }}
           >
-            {loading ? "Redirecting..." : "Start free trial"}
+            {loading ? "Redirecting..." : "Subscribe now"}
           </button>
 
           {error && (
@@ -364,7 +364,7 @@ export default function PricingClient() {
             lineHeight: 1.5,
           }}
         >
-          3 days free. Cancel anytime.
+          Cancel anytime.
           <br />
           Includes both X Engage and Inbox agents.
         </p>

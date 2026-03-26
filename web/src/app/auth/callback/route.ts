@@ -7,7 +7,7 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.tr
  * Supabase Auth callback handler.
  * After Google OAuth (or email magic link), Supabase redirects here with
  * a ?code= param. We exchange it for a session, ensure a users row exists
- * with a 3-day free trial, then redirect to /onboarding.
+ * then redirect to /onboarding (trial only granted with invite code).
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Ensure a users row exists with auto free trial
+    // Ensure a users row exists (trial granted later via invite code)
     const user = sessionData?.session?.user;
     if (user) {
       const serviceClient = createClient(
