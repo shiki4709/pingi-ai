@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     // Watched accounts & topics
     supabase
       .from("user_topics")
-      .select("topics, search_topics, x_handle")
+      .select("topics, search_topics")
       .eq("user_id", userId)
       .single(),
 
@@ -220,7 +220,6 @@ export async function GET(request: NextRequest) {
     x_linked: xLinked,
     gmail_connected: gmailConnected,
     gmail_email: gmailAccount?.platform_username ?? null,
-    x_handle: topicsRes.data?.x_handle ?? null,
     connected_accounts: connectedAccounts.map((a) => ({ platform: a.platform, username: a.platform_username })),
 
     // User

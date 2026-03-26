@@ -56,7 +56,6 @@ interface DashboardData {
   x_linked: boolean;
   gmail_connected: boolean;
   gmail_email: string | null;
-  x_handle: string | null;
   connected_accounts: { platform: string; username: string }[];
   name: string | null;
   plan: string;
@@ -922,24 +921,6 @@ export default function DashboardClient() {
                   color: T.muted,
                 }}
               >
-                {data.x_handle && (
-                  <div style={{ marginBottom: 8 }}>
-                    <span style={{ color: T.dim, fontWeight: 600, display: "block", marginBottom: 4 }}>Your X account</span>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        background: T.surface,
-                        borderRadius: 6,
-                        padding: "2px 8px",
-                        fontSize: 11,
-                        color: T.body,
-                        fontWeight: 500,
-                      }}
-                    >
-                      @{data.x_handle}
-                    </span>
-                  </div>
-                )}
                 {data.watched_accounts.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
                     <span style={{ color: T.dim, fontWeight: 600, display: "block", marginBottom: 4 }}>Tracking accounts</span>
@@ -1082,7 +1063,7 @@ export default function DashboardClient() {
         </section>
 
         {/* Connected Accounts — bundled to your Telegram */}
-        {(data.connected_accounts.length > 0 || data.x_handle || data.inbox_linked || data.x_linked) && (
+        {(data.connected_accounts.length > 0 || data.watched_accounts.length > 0 || data.search_topics.length > 0 || data.inbox_linked || data.x_linked) && (
           <section
             aria-label="Connected accounts"
             style={{
@@ -1155,46 +1136,6 @@ export default function DashboardClient() {
                   </div>
                 ))}
 
-              {/* X account */}
-              {data.x_handle && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "8px 12px",
-                    background: T.surface,
-                    borderRadius: 10,
-                    fontSize: 12,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 7,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 12,
-                      fontWeight: 800,
-                      background: T.surfaceAlt,
-                      color: T.ink,
-                      flexShrink: 0,
-                    }}
-                  >
-                    X
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 500, color: T.body }}>
-                      @{data.x_handle}
-                    </div>
-                  </div>
-                  <span style={{ fontSize: 10, color: T.green, fontWeight: 600 }}>
-                    X / Twitter
-                  </span>
-                </div>
-              )}
 
               {/* Tracked accounts & topics */}
               {(data.watched_accounts.length > 0 || data.search_topics.length > 0) && (
