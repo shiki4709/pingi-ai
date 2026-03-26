@@ -212,7 +212,19 @@ export async function removeWatchedAccount(
   const normalized = handle.replace(/^@/, "").toLowerCase();
   const filtered = current.filter((a) => a !== normalized);
   if (filtered.length === current.length) return false;
-  return setWatchedAccounts(userId, filtered);
+  const success = await setWatchedAccounts(userId, filtered);
+
+  // Clear pending items from this account so they stop being pushed
+  if (success) {
+    await getSupabase()
+      .from("x_engage_items")
+      .update({ status: "skipped" })
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .eq("source_value", normalized);
+  }
+
+  return success;
 }
 
 // ─── Search topics ───
@@ -274,7 +286,19 @@ export async function removeSearchTopic(
   const normalized = topic.trim().toLowerCase();
   const filtered = current.filter((t) => t !== normalized);
   if (filtered.length === current.length) return false;
-  return setSearchTopics(userId, filtered);
+  const success = await setSearchTopics(userId, filtered);
+
+  // Clear pending items from this topic so they stop being pushed
+  if (success) {
+    await getSupabase()
+      .from("x_engage_items")
+      .update({ status: "skipped" })
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .eq("source_value", normalized);
+  }
+
+  return success;
 }
 
 // ─── Engagement items ───
