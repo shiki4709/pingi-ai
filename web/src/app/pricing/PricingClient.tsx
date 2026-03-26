@@ -231,7 +231,7 @@ export default function PricingClient() {
               lineHeight: 1.6,
             }}
           >
-            Try everything free for 3 days. Then $19/mo.
+            Try everything free with an invite code. Then $29/mo.
           </p>
         </div>
 
@@ -283,7 +283,7 @@ export default function PricingClient() {
               margin: "0 0 24px",
             }}
           >
-            $19
+            $29
             <span style={{ fontSize: 16, color: T.muted, fontWeight: 400 }}>
               {" "}/ month
             </span>

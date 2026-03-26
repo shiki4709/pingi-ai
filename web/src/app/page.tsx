@@ -674,7 +674,7 @@ export default function LandingPage() {
                 Pingi Pro
               </p>
               <div style={{ fontSize: 48, fontWeight: 700, color: T.ink, margin: "0 0 28px", fontFamily: serif }}>
-                $19<span style={{ fontSize: 16, color: T.muted, fontWeight: 400 }}> / month</span>
+                $29<span style={{ fontSize: 16, color: T.muted, fontWeight: 400 }}> / month</span>
               </div>
               <ul style={{ listStyle: "none", padding: 0, margin: "0 0 32px", display: "flex", flexDirection: "column", gap: 10 }}>
                 {[
