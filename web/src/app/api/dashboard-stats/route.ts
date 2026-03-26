@@ -234,7 +234,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch connected accounts + topics for ALL sibling users
-  let allConnectedAccounts = connectedAccounts.map((a) => ({ platform: a.platform, username: a.platform_username }));
+  const allConnectedAccounts = connectedAccounts.map((a) => ({ platform: a.platform, username: a.platform_username }));
   let allWatchedAccounts = (topicsRes.data?.topics ?? []) as string[];
   let allSearchTopics = (topicsRes.data?.search_topics ?? []) as string[];
   let allXHandles: string[] = topicsRes.data?.x_handle ? [topicsRes.data.x_handle as string] : [];
