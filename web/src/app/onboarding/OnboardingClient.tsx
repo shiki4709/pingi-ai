@@ -882,7 +882,7 @@ export default function OnboardingClient() {
               lineHeight: 1.6,
             }}
           >
-            You're all set. Full access to all features.
+            You&apos;re all set. Full access to all features.
           </p>
           <p
             style={{
