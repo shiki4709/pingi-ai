@@ -950,7 +950,7 @@ export async function handleCallbackQuery(
         await answerCallbackQuery(cb.id, "Trial expired");
         await sendMessage({
           chat_id: chatId,
-          text: "Your free trial has ended. Upgrade to Pro to post drafts:\nhttps://pingi-ai.vercel.app/pricing",
+          text: "Your free trial has ended. Upgrade to Pro to post drafts:\nhttps://pingi-ai.vercel.app/pricing\n\nHave feedback? Chat with the founder:\nhttps://calendar.app.google/Dtm8ki6i2dDNUaCx7",
         });
         return;
       }

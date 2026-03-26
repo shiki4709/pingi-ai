@@ -35,13 +35,11 @@ export async function GET(request: NextRequest) {
       .eq("id", userId)
       .single(),
 
-    // Gmail connected
+    // All connected accounts (gmail, twitter, etc.)
     supabase
       .from("connected_accounts")
-      .select("id, platform_username")
-      .eq("user_id", userId)
-      .eq("platform", "gmail")
-      .single(),
+      .select("id, platform, platform_username")
+      .eq("user_id", userId),
 
     // Inbox: pending items
     supabase
@@ -76,7 +74,7 @@ export async function GET(request: NextRequest) {
     // Watched accounts & topics
     supabase
       .from("user_topics")
-      .select("topics, search_topics")
+      .select("topics, search_topics, x_handle")
       .eq("user_id", userId)
       .single(),
 
@@ -129,10 +127,12 @@ export async function GET(request: NextRequest) {
   if (userRes.error) {
     console.error("[dashboard-stats] User query failed:", userRes.error.message);
   }
-  console.log(`[dashboard-stats] userId=${userId} telegram_chat_id=${user?.telegram_chat_id ?? "null"} x_bot_chat_id=${user?.x_bot_chat_id ?? "null"} gmail=${!!gmailRes.data}`);
+  const connectedAccounts = (gmailRes.data ?? []) as { id: string; platform: string; platform_username: string }[];
+  const gmailAccount = connectedAccounts.find((a) => a.platform === "gmail");
+  console.log(`[dashboard-stats] userId=${userId} telegram_chat_id=${user?.telegram_chat_id ?? "null"} x_bot_chat_id=${user?.x_bot_chat_id ?? "null"} gmail=${!!gmailAccount}`);
   const inboxLinked = !!user?.telegram_chat_id;
   const xLinked = !!user?.x_bot_chat_id;
-  const gmailConnected = !!gmailRes.data;
+  const gmailConnected = !!gmailAccount;
 
   // Count sent vs total for response rate
   const inboxWeekItems = inboxWeekRes.data ?? [];
@@ -219,7 +219,9 @@ export async function GET(request: NextRequest) {
     inbox_linked: inboxLinked,
     x_linked: xLinked,
     gmail_connected: gmailConnected,
-    gmail_email: gmailRes.data?.platform_username ?? null,
+    gmail_email: gmailAccount?.platform_username ?? null,
+    x_handle: topicsRes.data?.x_handle ?? null,
+    connected_accounts: connectedAccounts.map((a) => ({ platform: a.platform, username: a.platform_username })),
 
     // User
     name: user?.name ?? null,

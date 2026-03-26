@@ -56,6 +56,8 @@ interface DashboardData {
   x_linked: boolean;
   gmail_connected: boolean;
   gmail_email: string | null;
+  x_handle: string | null;
+  connected_accounts: { platform: string; username: string }[];
   name: string | null;
   plan: string;
   trial_ends_at: string | null;
@@ -281,6 +283,76 @@ export default function DashboardClient() {
           </button>
         </div>
       </nav>
+
+      {/* Expired trial banner */}
+      {data.plan === "trial" &&
+        data.trial_ends_at &&
+        new Date(data.trial_ends_at) <= new Date() && (
+          <div
+            style={{
+              maxWidth: 760,
+              margin: "0 auto",
+              padding: "0 32px",
+            }}
+          >
+            <div
+              style={{
+                background: T.redSoft,
+                border: `1px solid rgba(220,38,38,0.15)`,
+                borderRadius: 12,
+                padding: "16px 20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: T.red,
+                    marginBottom: 4,
+                  }}
+                >
+                  Your free trial has ended
+                </div>
+                <div style={{ fontSize: 13, color: T.body, lineHeight: 1.5 }}>
+                  Upgrade to keep using Pingi, or{" "}
+                  <a
+                    href="https://calendar.app.google/Dtm8ki6i2dDNUaCx7"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: T.accent, textDecoration: "underline" }}
+                  >
+                    chat with the founder
+                  </a>{" "}
+                  to share feedback.
+                </div>
+              </div>
+              <Link
+                href="/pricing"
+                style={{
+                  padding: "10px 24px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: T.ink,
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: sans,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                Upgrade to Pro
+              </Link>
+            </div>
+          </div>
+        )}
 
       {/* Content */}
       <main
@@ -840,7 +912,7 @@ export default function DashboardClient() {
               </div>
             </div>
 
-            {/* Watched accounts + topics */}
+            {/* Connected X account + watched accounts + topics */}
             {engageReady && (
               <div
                 style={{
@@ -850,6 +922,24 @@ export default function DashboardClient() {
                   color: T.muted,
                 }}
               >
+                {data.x_handle && (
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ color: T.dim, fontWeight: 600, display: "block", marginBottom: 4 }}>Your X account</span>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        background: T.surface,
+                        borderRadius: 6,
+                        padding: "2px 8px",
+                        fontSize: 11,
+                        color: T.body,
+                        fontWeight: 500,
+                      }}
+                    >
+                      @{data.x_handle}
+                    </span>
+                  </div>
+                )}
                 {data.watched_accounts.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
                     <span style={{ color: T.dim, fontWeight: 600, display: "block", marginBottom: 4 }}>Tracking accounts</span>
@@ -990,6 +1080,184 @@ export default function DashboardClient() {
             )}
           </div>
         </section>
+
+        {/* Connected Accounts — bundled to your Telegram */}
+        {(data.connected_accounts.length > 0 || data.x_handle || data.inbox_linked || data.x_linked) && (
+          <section
+            aria-label="Connected accounts"
+            style={{
+              ...cardStyle,
+              padding: "18px 20px",
+              marginTop: 20,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: T.ink,
+                marginBottom: 4,
+              }}
+            >
+              Your Linked Accounts
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: T.muted,
+                marginBottom: 14,
+              }}
+            >
+              All notifications go to your Telegram
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Gmail accounts */}
+              {data.connected_accounts
+                .filter((a) => a.platform === "gmail")
+                .map((a, i) => (
+                  <div
+                    key={`gmail-${i}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 12px",
+                      background: T.surface,
+                      borderRadius: 10,
+                      fontSize: 12,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 7,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        background: "rgba(234,67,53,0.08)",
+                        color: "#EA4335",
+                        flexShrink: 0,
+                      }}
+                    >
+                      G
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 500, color: T.body, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {a.username}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 10, color: T.green, fontWeight: 600 }}>
+                      Gmail
+                    </span>
+                  </div>
+                ))}
+
+              {/* X account */}
+              {data.x_handle && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "8px 12px",
+                    background: T.surface,
+                    borderRadius: 10,
+                    fontSize: 12,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 7,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 800,
+                      background: T.surfaceAlt,
+                      color: T.ink,
+                      flexShrink: 0,
+                    }}
+                  >
+                    X
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, color: T.body }}>
+                      @{data.x_handle}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 10, color: T.green, fontWeight: 600 }}>
+                    X / Twitter
+                  </span>
+                </div>
+              )}
+
+              {/* Tracked accounts & topics */}
+              {(data.watched_accounts.length > 0 || data.search_topics.length > 0) && (
+                <div
+                  style={{
+                    borderTop: `1px solid ${T.borderLight}`,
+                    marginTop: 12,
+                    paddingTop: 12,
+                  }}
+                >
+                  {data.watched_accounts.length > 0 && (
+                    <div style={{ marginBottom: data.search_topics.length > 0 ? 8 : 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: T.dim, marginBottom: 6 }}>
+                        Tracking accounts
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {data.watched_accounts.map((a) => (
+                          <span
+                            key={a}
+                            style={{
+                              background: T.surface,
+                              borderRadius: 6,
+                              padding: "3px 8px",
+                              fontSize: 11,
+                              color: T.body,
+                              fontWeight: 500,
+                            }}
+                          >
+                            @{a}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {data.search_topics.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: T.dim, marginBottom: 6 }}>
+                        Tracking topics
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {data.search_topics.map((t) => (
+                          <span
+                            key={t}
+                            style={{
+                              background: T.surface,
+                              borderRadius: 6,
+                              padding: "3px 8px",
+                              fontSize: 11,
+                              color: T.body,
+                              fontWeight: 500,
+                            }}
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
       </main>
     </div>
