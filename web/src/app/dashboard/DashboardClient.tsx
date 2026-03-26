@@ -57,7 +57,6 @@ interface DashboardData {
   gmail_connected: boolean;
   gmail_email: string | null;
   x_handle: string | null;
-  all_x_handles: string[];
   connected_accounts: { platform: string; username: string }[];
   name: string | null;
   plan: string;
@@ -1156,10 +1155,9 @@ export default function DashboardClient() {
                   </div>
                 ))}
 
-              {/* X accounts */}
-              {data.all_x_handles.map((handle) => (
+              {/* X account */}
+              {data.x_handle && (
                 <div
-                  key={handle}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -1189,14 +1187,14 @@ export default function DashboardClient() {
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 500, color: T.body }}>
-                      @{handle}
+                      @{data.x_handle}
                     </div>
                   </div>
                   <span style={{ fontSize: 10, color: T.green, fontWeight: 600 }}>
                     X / Twitter
                   </span>
                 </div>
-              ))}
+              )}
 
               {/* Tracked accounts & topics */}
               {(data.watched_accounts.length > 0 || data.search_topics.length > 0) && (
