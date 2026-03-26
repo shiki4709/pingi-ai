@@ -716,8 +716,8 @@ export async function handleMessage(msg: TelegramMessage): Promise<void> {
     return;
   }
 
-  // Detect "remove [name]" / "unwatch [name]" / "unfollow [name]" patterns → remove directly
-  const removeMatch = text.match(/^(?:remove|unwatch|unfollow|stop watching|stop tracking)\s+(.+)/i);
+  // Detect natural language remove patterns
+  const removeMatch = text.match(/^(?:remove|unwatch|unfollow|drop|delete|stop watching|stop tracking|dont track|don't track|no more)\s+(.+)/i);
   if (removeMatch) {
     const name = removeMatch[1].trim().replace(/^@/, "");
     const accounts = await getWatchedAccounts(userId);
